@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: AppliedEnergistics/Applied-Energistics-2/.github/actions/gradle-setup@main
+      - uses: AE2-Unofficial-Extended-Life-Modern/AE2-UELM/.github/actions/gradle-setup@forge/1.20.1
       - name: Generate assets
         run: ./gradlew runData
       - name: Check that datagen ran
@@ -42,13 +42,6 @@ jobs:
         if: github.event_name != 'pull_request'
       #- name: Run Game Tests
       #  run: ./gradlew runGametest
-      - name: Upload new Source Text Strings to Crowdin
-        run: ./gradlew uploadToCrowdin
-        env:
-          GIT_BRANCH: master
-          CROWDIN_TOKEN: ${{ secrets.CROWDIN_TOKEN }}
-        continue-on-error: true
-        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
       - uses: actions/upload-artifact@v4
         with:
           name: dist
