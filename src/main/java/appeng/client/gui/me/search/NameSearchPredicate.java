@@ -2,7 +2,6 @@ package appeng.client.gui.me.search;
 
 import java.util.Objects;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 import appeng.api.stacks.AEKey;
 import appeng.menu.me.common.GridInventoryEntry;
