@@ -6,6 +6,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import appeng.integration.modules.jei.transfer.FilterTransferHandler;
+import appeng.menu.implementations.IOBusMenu;
+import appeng.menu.implementations.InterfaceMenu;
+import appeng.menu.implementations.StorageBusMenu;
 import com.google.common.collect.ImmutableList;
 
 import org.jetbrains.annotations.NotNull;
@@ -114,6 +118,20 @@ public class JEIPlugin implements IModPlugin {
                 new UseCraftingRecipeTransfer<>(WirelessCraftingTermMenu.class, WirelessCraftingTermMenu.TYPE,
                         registration.getTransferHelper()),
                 RecipeTypes.CRAFTING);
+        // Some additional universal handlers for filtered ME parts.
+        registration.addUniversalRecipeTransferHandler(new FilterTransferHandler<>(
+                InterfaceMenu.TYPE,
+                InterfaceMenu.class,
+                registration.getTransferHelper()));
+        registration.addUniversalRecipeTransferHandler(new FilterTransferHandler<>(
+                StorageBusMenu.TYPE,
+                StorageBusMenu.class,
+                registration.getTransferHelper()));
+        registration.addUniversalRecipeTransferHandler(new FilterTransferHandler<>(
+                IOBusMenu.EXPORT_TYPE,
+                IOBusMenu.class,
+                registration.getTransferHelper()));
+
 
         // Universal handler for processing to try and handle all IRecipe
         registration.addUniversalRecipeTransferHandler(new EncodePatternTransferHandler<>(
