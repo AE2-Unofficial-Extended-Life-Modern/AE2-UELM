@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import appeng.menu.implementations.IOBusMenu;
+import appeng.menu.implementations.InterfaceMenu;
+import appeng.menu.implementations.StorageBusMenu;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
@@ -74,7 +77,9 @@ public class AppEngEmiPlugin implements EmiPlugin {
         registry.addRecipeHandler(CraftingTermMenu.TYPE, new EmiUseCraftingRecipeHandler<>(CraftingTermMenu.class));
         registry.addRecipeHandler(WirelessCraftingTermMenu.TYPE,
                 new EmiUseCraftingRecipeHandler<>(WirelessCraftingTermMenu.class));
-
+        registry.addRecipeHandler(InterfaceMenu.TYPE, new FilterTransferHandler<>());
+        registry.addRecipeHandler(StorageBusMenu.TYPE, new FilterTransferHandler<>());
+        registry.addRecipeHandler(IOBusMenu.EXPORT_TYPE, new FilterTransferHandler<>());
         // Inscriber
         registry.addCategory(EmiInscriberRecipe.CATEGORY);
         registry.addWorkstation(EmiInscriberRecipe.CATEGORY, EmiStack.of(AEBlocks.INSCRIBER));
