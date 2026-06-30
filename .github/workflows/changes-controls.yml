@@ -1,0 +1,204 @@
+name: Manage CHANGES.md menu
+
+on:
+  issue_comment:
+    types: [created, edited]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  manage-menu:
+    if: github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Process changelog controls
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const marker = "<!-- changes-menu:v1 -->";
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.issue.number;
+            const actor = context.actor;
+
+            async function isMaintainer(username) {
+              try {
+                const { data } =
+                  await github.rest.repos.getCollaboratorPermissionLevel({
+                    owner,
+                    repo,
+                    username
+                  });
+
+                return ["admin", "maintain", "write"].includes(data.permission);
+              } catch {
+                return false;
+              }
+            }
+
+            function parseEnabled(body) {
+              return /<!-- changes-state:enabled -->/.test(body);
+            }
+
+            function parseCustomTitle(body) {
+              const match = body.match(
+                /<!-- changes-title-b64: ([A-Za-z0-9+/=]*) -->/
+              );
+
+              if (!match?.[1]) {
+                return null;
+              }
+
+              try {
+                const title = Buffer.from(match[1], "base64")
+                  .toString("utf8")
+                  .trim();
+
+                return title && !title.includes("\n") ? title : null;
+              } catch {
+                return null;
+              }
+            }
+
+            function checkboxEnabled(body) {
+              return /^\s*-\s*\[[xX]\]\s+Include this pull request in `CHANGES\.md`\s*$/m.test(
+                body
+              );
+            }
+
+            function renderMenu(enabled, customTitle) {
+              const checkbox = enabled ? "x" : " ";
+              const encodedTitle = customTitle
+                ? Buffer.from(customTitle, "utf8").toString("base64")
+                : "";
+
+              const displayTitle = customTitle
+                ? `\`${customTitle.replace(/`/g, "\\`")}\``
+                : "_PR title_";
+
+              return `${marker}
+            ## Add to CHANGES.md?
+
+            Only repository maintainers may change this menu.
+
+            - [${checkbox}] Include this pull request in \`CHANGES.md\`
+
+            The pull-request title is used by default.
+
+            To use a custom title, a maintainer can post a separate comment:
+
+            \`\`\`text
+            /changes title My custom title
+            \`\`\`
+
+            <!-- changes-title-display:start -->
+            **Custom title:** ${displayTitle}
+            <!-- changes-title-display:end -->
+
+            <!-- changes-state:${enabled ? "enabled" : "disabled"} -->
+            <!-- changes-title-b64: ${encodedTitle} -->
+            `;
+            }
+
+            async function findMenu() {
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  per_page: 100
+                }
+              );
+
+              return comments.find(comment =>
+                comment.user?.login === "github-actions[bot]" &&
+                comment.body?.includes(marker)
+              );
+            }
+
+            const action = context.payload.action;
+            const comment = context.payload.comment;
+
+            // Handles: /changes title My title
+            if (
+              action === "created" &&
+              comment.body.trim().startsWith("/changes title ")
+            ) {
+              if (!(await isMaintainer(actor))) {
+                core.setFailed("Only repository maintainers can set a changelog title.");
+                return;
+              }
+
+              const title = comment.body
+                .trim()
+                .slice("/changes title ".length)
+                .trim();
+
+              if (!title || title.includes("\n") || title.length > 180) {
+                core.setFailed(
+                  "The custom title must be one line and at most 180 characters."
+                );
+                return;
+              }
+
+              const menu = await findMenu();
+
+              if (!menu) {
+                core.setFailed("No CHANGES.md menu was found for this pull request.");
+                return;
+              }
+
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: menu.id,
+                body: renderMenu(parseEnabled(menu.body), title)
+              });
+
+              return;
+            }
+
+            // Handles clicking the checkbox in the bot menu.
+            if (action !== "edited") {
+              return;
+            }
+
+            const previousBody = context.payload.changes?.body?.from ?? "";
+            const isMenuComment =
+              comment.user?.login === "github-actions[bot]" &&
+              (
+                comment.body.includes(marker) ||
+                previousBody.includes(marker)
+              );
+
+            if (!isMenuComment || actor === "github-actions[bot]") {
+              return;
+            }
+
+            if (!(await isMaintainer(actor))) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: comment.id,
+                body: previousBody || renderMenu(false, null)
+              });
+
+              core.setFailed(
+                "Only repository maintainers can change the CHANGES.md menu."
+              );
+              return;
+            }
+
+            const customTitle =
+              parseCustomTitle(previousBody) ??
+              parseCustomTitle(comment.body);
+
+            await github.rest.issues.updateComment({
+              owner,
+              repo,
+              comment_id: comment.id,
+              body: renderMenu(checkboxEnabled(comment.body), customTitle)
+            });

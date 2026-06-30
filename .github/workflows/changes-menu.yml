@@ -1,0 +1,73 @@
+name: Create CHANGES.md menu
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  issues: write
+  pull-requests: read
+
+jobs:
+  create-menu:
+    if: github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post changelog menu
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const marker = "<!-- changes-menu:v1 -->";
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.pull_request.number;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100
+              }
+            );
+
+            const existingMenu = comments.find(comment =>
+              comment.user?.login === "github-actions[bot]" &&
+              comment.body?.includes(marker)
+            );
+
+            if (existingMenu) {
+              core.info("CHANGES.md menu already exists.");
+              return;
+            }
+
+            const body = `${marker}
+            ## Add to CHANGES.md?
+
+            Only repository maintainers may change this menu.
+
+            - [ ] Include this pull request in \`CHANGES.md\`
+
+            The pull-request title is used by default.
+
+            To use a custom title, a maintainer can post a separate comment:
+
+            \`\`\`text
+            /changes title My custom title
+            \`\`\`
+
+            <!-- changes-title-display:start -->
+            **Custom title:** _PR title_
+            <!-- changes-title-display:end -->
+
+            <!-- changes-state:disabled -->
+            <!-- changes-title-b64: -->
+            `;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              body
+            });
