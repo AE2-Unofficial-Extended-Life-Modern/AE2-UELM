@@ -12,7 +12,6 @@
 * [Installation](#installation)
 * [Issues](#issues)
 * [API](#applied-energistics-2-api)
-* [Building](#building)
 * [Contributing](#contributing)
 * [Localization](#applied-energistics-2-localization)
 * [License](#license)
@@ -29,6 +28,8 @@ There are a few reasons behind the creation of this fork, here are a few
   A lot of the currently existing addons either have a some form of feature overlap, forcing you to install a lot of them to probably not even get all the features you desire.
 - ### Version abandonment
   The upstream Forge 1.20.1 version has not seen meaningful changes in a long time as development focus has shifted to more modern versions, even tho forge 1.20.1 is currently still the version with the most modding activity out there.
+
+For a comprehensive list of all changes, check out [CHANGES.md](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/blob/forge/1.20.1/CHANGES.md)
 
 ## Contacts
 
