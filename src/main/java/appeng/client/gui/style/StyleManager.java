@@ -33,6 +33,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
@@ -45,6 +46,7 @@ import appeng.core.AppEng;
 public final class StyleManager {
 
     private static final Map<String, ScreenStyle> styleCache = new HashMap<>();
+    private static final Map<String, List<ResourceLocation>> additionalStyles = new HashMap<>();
     public static final String PROP_INCLUDES = "includes";
 
     private static ResourceManager resourceManager;
@@ -75,16 +77,32 @@ public final class StyleManager {
         return style;
     }
 
-    private static JsonObject loadMergedJsonTree(String path, Set<String> loadedFiles, Set<String> resourcePacks)
+    public static void registerAdditionalStyle(String original, ResourceLocation additional) {
+        Preconditions.checkArgument(original.startsWith("/"), "Original path needs to start with slash");
+
+        var additionalStylePaths = additionalStyles.computeIfAbsent(original, ignored -> new ArrayList<>());
+        if (!additionalStylePaths.contains(additional)) {
+            additionalStylePaths.add(additional);
+            styleCache.remove(original);
+        }
+    }
+
+    private static JsonObject loadMergedJsonTree(String path, Set<ResourceLocation> loadedFiles,
+            Set<String> resourcePacks)
             throws IOException {
         Preconditions.checkArgument(path.startsWith("/"), "Path needs to start with slash");
 
-        // The resource manager doesn't like relative paths like that, so we resolve them here
         if (path.contains("..")) {
             path = URI.create(path).normalize().toString();
         }
 
-        if (!loadedFiles.add(path)) {
+        return loadMergedJsonTree(AppEng.makeId(path.substring(1)), loadedFiles, resourcePacks);
+    }
+
+    private static JsonObject loadMergedJsonTree(ResourceLocation resourceId, Set<ResourceLocation> loadedFiles,
+            Set<String> resourcePacks)
+            throws IOException {
+        if (!loadedFiles.add(resourceId)) {
             throw new IllegalStateException("Recursive style includes: " + loadedFiles);
         }
 
@@ -92,10 +110,7 @@ public final class StyleManager {
             throw new IllegalStateException("ResourceManager was not set. Was initialize called?");
         }
 
-        String basePath = getBasePath(path);
-
         JsonObject document;
-        var resourceId = AppEng.makeId(path.substring(1));
         var resource = resourceManager.getResource(resourceId)
                 .orElseThrow(() -> new FileNotFoundException(resourceId.toString()));
         resourcePacks.add(resource.sourcePackId());
@@ -109,7 +124,8 @@ public final class StyleManager {
 
             List<JsonObject> layers = new ArrayList<>();
             for (String include : includes) {
-                layers.add(loadMergedJsonTree(basePath + include, loadedFiles, resourcePacks));
+                layers.add(
+                        loadMergedJsonTree(resolveRelativeResource(resourceId, include), loadedFiles, resourcePacks));
             }
             layers.add(document);
             document = combineLayers(layers);
@@ -118,8 +134,8 @@ public final class StyleManager {
         return document;
 
     }
-
     // Builds a new JSON document from layered documents
+
     private static JsonObject combineLayers(List<JsonObject> layers) {
         JsonObject result = new JsonObject();
 
@@ -138,6 +154,7 @@ public final class StyleManager {
         mergeObjectKeys("images", layers, result);
         mergeObjectKeys("terminalStyle", layers, result);
         mergeObjectKeys("widgets", layers, result);
+        mergeObjectKeys("tooltips", layers, result);
 
         return result;
     }
@@ -182,6 +199,18 @@ public final class StyleManager {
         try {
             JsonObject document = loadMergedJsonTree(path, new HashSet<>(), resourcePacks);
 
+            var additionalStylePaths = additionalStyles.get(path);
+            if (additionalStylePaths != null && !additionalStylePaths.isEmpty()) {
+                List<JsonObject> layers = new ArrayList<>();
+                layers.add(document);
+
+                for (var additionalStylePath : additionalStylePaths) {
+                    layers.add(loadMergedJsonTree(additionalStylePath, new HashSet<>(), resourcePacks));
+                }
+
+                document = combineLayers(layers);
+            }
+
             style = ScreenStyle.GSON.fromJson(document, ScreenStyle.class);
 
             style.validate();
@@ -193,6 +222,16 @@ public final class StyleManager {
 
         styleCache.put(path, style);
         return style;
+    }
+
+    private static ResourceLocation resolveRelativeResource(ResourceLocation original, String relativePath) {
+        var path = getBasePath(original.getPath()) + relativePath;
+
+        if (path.contains("..")) {
+            path = URI.create(path).normalize().toString();
+        }
+
+        return new ResourceLocation(original.getNamespace(), path);
     }
 
     public static void initialize(ResourceManager resourceManager) {

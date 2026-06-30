@@ -27,6 +27,7 @@ import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MenuAccess;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
@@ -196,6 +197,18 @@ public final class InitScreens {
 
             return factory.create(menu, playerInv, title, style);
         });
+    }
+
+    /**
+     * Registers an additional style document to be merged into the style for an existing screen.
+     * <p>
+     * The {@code original} path must use the same format as the style path passed to {@link #register}, for example
+     * {@code "/screens/terminals/terminal.json"}. The {@code additional} resource can be in any namespace and may
+     * define extra or overriding entries such as {@code widgets}, {@code text}, {@code images}, {@code tooltips}, or
+     * {@code slots}.
+     */
+    public static void registerAdditionalStyle(String original, ResourceLocation additional) {
+        StyleManager.registerAdditionalStyle(original, additional);
     }
 
     /**
