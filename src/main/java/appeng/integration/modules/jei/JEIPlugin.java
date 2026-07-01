@@ -6,10 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import appeng.integration.modules.jei.transfer.FilterTransferHandler;
-import appeng.menu.implementations.IOBusMenu;
-import appeng.menu.implementations.InterfaceMenu;
-import appeng.menu.implementations.StorageBusMenu;
 import com.google.common.collect.ImmutableList;
 
 import org.jetbrains.annotations.NotNull;
@@ -61,8 +57,12 @@ import appeng.integration.abstraction.ItemListMod;
 import appeng.integration.abstraction.ItemListModAdapter;
 import appeng.integration.abstraction.JEIFacade;
 import appeng.integration.modules.jei.transfer.EncodePatternTransferHandler;
+import appeng.integration.modules.jei.transfer.FilterTransferHandler;
 import appeng.integration.modules.jei.transfer.UseCraftingRecipeTransfer;
 import appeng.items.parts.FacadeItem;
+import appeng.menu.implementations.IOBusMenu;
+import appeng.menu.implementations.InterfaceMenu;
+import appeng.menu.implementations.StorageBusMenu;
 import appeng.menu.me.items.CraftingTermMenu;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.me.items.WirelessCraftingTermMenu;
@@ -131,7 +131,6 @@ public class JEIPlugin implements IModPlugin {
                 IOBusMenu.EXPORT_TYPE,
                 IOBusMenu.class,
                 registration.getTransferHelper()));
-
 
         // Universal handler for processing to try and handle all IRecipe
         registration.addUniversalRecipeTransferHandler(new EncodePatternTransferHandler<>(

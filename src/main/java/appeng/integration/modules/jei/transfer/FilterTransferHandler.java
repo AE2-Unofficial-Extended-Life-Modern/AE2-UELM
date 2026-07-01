@@ -1,21 +1,25 @@
 package appeng.integration.modules.jei.transfer;
 
-import appeng.api.upgrades.IUpgradeableObject;
-import appeng.integration.modules.jei.GenericEntryStackHelper;
-import appeng.menu.implementations.UpgradeableMenu;
-import appeng.util.helpers.FilterTransferHelper;
+import java.util.Optional;
+
+import javax.annotation.Nullable;
+
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MenuType;
+
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.transfer.IRecipeTransferError;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
 import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.MenuType;
 
-import javax.annotation.Nullable;
-import java.util.Optional;
+import appeng.api.upgrades.IUpgradeableObject;
+import appeng.integration.modules.jei.GenericEntryStackHelper;
+import appeng.menu.implementations.UpgradeableMenu;
+import appeng.util.helpers.FilterTransferHelper;
 
-public class FilterTransferHandler<T extends UpgradeableMenu<? extends IUpgradeableObject>> extends AbstractTransferHandler implements IRecipeTransferHandler<T, Object> {
+public class FilterTransferHandler<T extends UpgradeableMenu<? extends IUpgradeableObject>>
+        extends AbstractTransferHandler implements IRecipeTransferHandler<T, Object> {
 
     private final Class<T> menuClass;
 
@@ -27,7 +31,8 @@ public class FilterTransferHandler<T extends UpgradeableMenu<? extends IUpgradea
 
     @Nullable
     @Override
-    public IRecipeTransferError transferRecipe(T menu, Object recipeBase, IRecipeSlotsView slotsView, Player player, boolean maxTransfer, boolean doTransfer) {
+    public IRecipeTransferError transferRecipe(T menu, Object recipeBase, IRecipeSlotsView slotsView, Player player,
+            boolean maxTransfer, boolean doTransfer) {
         if (doTransfer) {
             var recipeInputs = GenericEntryStackHelper.ofInputs(slotsView);
             FilterTransferHelper<T> helper = new FilterTransferHelper<>();

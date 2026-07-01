@@ -1,5 +1,7 @@
 package appeng.integration.modules.jeirei;
 
+import static appeng.util.helpers.FilterTransferHelper.addOrMerge;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -27,8 +29,6 @@ import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.slot.FakeSlot;
 import appeng.parts.encoding.EncodingMode;
 import appeng.util.CraftingRecipeUtil;
-
-import static appeng.util.helpers.FilterTransferHelper.addOrMerge;
 
 public final class EncodingHelper {
     private EncodingHelper() {
