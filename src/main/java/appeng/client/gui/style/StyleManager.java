@@ -35,6 +35,7 @@ import com.google.gson.JsonParseException;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 
@@ -110,32 +111,44 @@ public final class StyleManager {
             throw new IllegalStateException("ResourceManager was not set. Was initialize called?");
         }
 
-        JsonObject document;
-        var resource = resourceManager.getResource(resourceId)
-                .orElseThrow(() -> new FileNotFoundException(resourceId.toString()));
-        resourcePacks.add(resource.sourcePackId());
-        try (var reader = resourceManager.openAsReader(resourceId)) {
-            document = ScreenStyle.GSON.fromJson(reader, JsonObject.class);
+        var resources = resourceManager.getResourceStack(resourceId);
+        if (resources.isEmpty()) {
+            throw new FileNotFoundException(resourceId.toString());
         }
 
-        // Resolve the includes present in the document
-        if (document.has(PROP_INCLUDES)) {
-            String[] includes = ScreenStyle.GSON.fromJson(document.get(PROP_INCLUDES), String[].class);
+        List<JsonObject> layers = new ArrayList<>();
 
-            List<JsonObject> layers = new ArrayList<>();
-            for (String include : includes) {
-                layers.add(
-                        loadMergedJsonTree(resolveRelativeResource(resourceId, include), loadedFiles, resourcePacks));
+        for (Resource resource : resources) {
+            resourcePacks.add(resource.sourcePackId());
+
+            JsonObject document;
+            try (var reader = resource.openAsReader()) {
+                document = ScreenStyle.GSON.fromJson(reader, JsonObject.class);
             }
+
+            // Resolve the includes present in the document
+            if (document.has(PROP_INCLUDES)) {
+                String[] includes = ScreenStyle.GSON.fromJson(document.get(PROP_INCLUDES), String[].class);
+
+                List<JsonObject> includeLayers = new ArrayList<>();
+                for (String include : includes) {
+                    includeLayers.add(
+                            loadMergedJsonTree(resolveRelativeResource(resourceId, include), loadedFiles,
+                                    resourcePacks));
+                }
+                includeLayers.add(document);
+                document = combineLayers(includeLayers);
+            }
+
             layers.add(document);
-            document = combineLayers(layers);
         }
 
-        return document;
+        loadedFiles.remove(resourceId);
 
+        return combineLayers(layers);
     }
-    // Builds a new JSON document from layered documents
 
+    // Builds a new JSON document from layered documents
     private static JsonObject combineLayers(List<JsonObject> layers) {
         JsonObject result = new JsonObject();
 
