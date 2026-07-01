@@ -133,7 +133,8 @@ public final class StyleManager {
                 List<JsonObject> includeLayers = new ArrayList<>();
                 for (String include : includes) {
                     includeLayers.add(
-                            loadMergedJsonTree(resolveRelativeResource(resourceId, include), loadedFiles, resourcePacks));
+                            loadMergedJsonTree(resolveRelativeResource(resourceId, include), loadedFiles,
+                                    resourcePacks));
                 }
                 includeLayers.add(document);
                 document = combineLayers(includeLayers);
