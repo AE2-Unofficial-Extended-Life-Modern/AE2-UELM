@@ -147,4 +147,12 @@ I'm assuming this is because this fork compiles against an older version of JEI,
 
 </details>
 
+<!-- CHANGELOG-PR:9 -->
+<details>
+<summary><strong>Support screen json layering</strong> · @ko-lja · merged 2026-07-01 06:33 UTC</summary>
+
+Before this PR, if a player uses a resource pack that has a screen json that does not include a widget that may have been added recently, trying to open said screen will either fail or crash the game. Now, instead of doing that we will just fallback to the default value from ae2, while still keeping all the other parts from the resource pack intact.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
