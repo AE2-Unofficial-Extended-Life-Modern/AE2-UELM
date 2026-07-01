@@ -137,4 +137,14 @@ Increases the max encoding limit to Integer.MAX_VALUE (2^31 - 1)
 
 </details>
 
+<!-- CHANGELOG-PR:8 -->
+<details>
+<summary><strong>Add EMI/JEI support for transferring recipes into storage buses, interfaces, and export buses.</strong> · @fmbellomy · merged 2026-06-30 19:41 UTC</summary>
+
+There's not much different about this compared to [my base AE2 PR](https://github.com/AppliedEnergistics/Applied-Energistics-2/pull/8915), other than that JEI's `IUniversalRecipeTransferHandler` doesn't exist and thus can't be implemented by the JEI `FilterTransferHandler`. 
+
+I'm assuming this is because this fork compiles against an older version of JEI, but implementing the regular `RecipeTransferHandler` interface and returning null from `getRecipeType` works just the same.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->

@@ -57,8 +57,12 @@ import appeng.integration.abstraction.ItemListMod;
 import appeng.integration.abstraction.ItemListModAdapter;
 import appeng.integration.abstraction.JEIFacade;
 import appeng.integration.modules.jei.transfer.EncodePatternTransferHandler;
+import appeng.integration.modules.jei.transfer.FilterTransferHandler;
 import appeng.integration.modules.jei.transfer.UseCraftingRecipeTransfer;
 import appeng.items.parts.FacadeItem;
+import appeng.menu.implementations.IOBusMenu;
+import appeng.menu.implementations.InterfaceMenu;
+import appeng.menu.implementations.StorageBusMenu;
 import appeng.menu.me.items.CraftingTermMenu;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.menu.me.items.WirelessCraftingTermMenu;
@@ -114,6 +118,19 @@ public class JEIPlugin implements IModPlugin {
                 new UseCraftingRecipeTransfer<>(WirelessCraftingTermMenu.class, WirelessCraftingTermMenu.TYPE,
                         registration.getTransferHelper()),
                 RecipeTypes.CRAFTING);
+        // Some additional universal handlers for filtered ME parts.
+        registration.addUniversalRecipeTransferHandler(new FilterTransferHandler<>(
+                InterfaceMenu.TYPE,
+                InterfaceMenu.class,
+                registration.getTransferHelper()));
+        registration.addUniversalRecipeTransferHandler(new FilterTransferHandler<>(
+                StorageBusMenu.TYPE,
+                StorageBusMenu.class,
+                registration.getTransferHelper()));
+        registration.addUniversalRecipeTransferHandler(new FilterTransferHandler<>(
+                IOBusMenu.EXPORT_TYPE,
+                IOBusMenu.class,
+                registration.getTransferHelper()));
 
         // Universal handler for processing to try and handle all IRecipe
         registration.addUniversalRecipeTransferHandler(new EncodePatternTransferHandler<>(
