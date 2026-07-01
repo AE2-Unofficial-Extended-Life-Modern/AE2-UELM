@@ -1,0 +1,50 @@
+name: Spotless Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      push_changes:
+        description: 'If "true", commit & push formatting changes back to the default branch'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: write
+
+jobs:
+  spotless:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew || true
+
+      - name: Run Spotless Apply
+        run: ./gradlew spotlessApply --no-daemon
+
+      - name: Check for changes
+        id: changes
+        run: |
+          CHANGES=$(git status --porcelain)
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Commit and push changes
+        if: ${{ github.event.inputs.push_changes == 'true' && steps.changes.outputs.changes != '' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Apply Spotless formatting" || echo "No changes to commit"
+          git push
