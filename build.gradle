@@ -302,7 +302,8 @@ legacyForge {
 
             jvmArguments.addAll(
                     "--add-opens", "java.base/sun.security.util=ALL-UNNAMED",
-                    "--add-opens", "java.base/java.util.jar=ALL-UNNAMED"
+                    "--add-opens", "java.base/java.util.jar=ALL-UNNAMED",
+                    "-XX:+AllowEnhancedClassRedefinition"
             )
 
             systemProperty "guideme.ae2.guide.sources", file("guidebook").absolutePath
