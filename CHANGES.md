@@ -155,4 +155,12 @@ Before this PR, if a player uses a resource pack that has a screen json that doe
 
 </details>
 
+<!-- CHANGELOG-PR:10 -->
+<details>
+<summary><strong>Show percentage used in craft confirm screen</strong> · @ko-lja · merged 2026-07-02 13:55 UTC</summary>
+
+If more than available is used the percentage will also reflect this + SI formatting for big amounts
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
