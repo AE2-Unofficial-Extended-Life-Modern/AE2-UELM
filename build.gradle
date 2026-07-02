@@ -305,6 +305,10 @@ legacyForge {
                     "--add-opens", "java.base/java.util.jar=ALL-UNNAMED"
             )
 
+            if (System.getProperty("java.vendor", "").contains("JetBrains")) {
+                jvmArguments.add("-XX:+AllowEnhancedClassRedefinition")
+            }
+
             systemProperty "guideme.ae2.guide.sources", file("guidebook").absolutePath
         }
         client {
@@ -535,4 +539,3 @@ check.dependsOn tasks.register('validateResources', JavaExec) {
     args "guidebook"
     javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
 }
-

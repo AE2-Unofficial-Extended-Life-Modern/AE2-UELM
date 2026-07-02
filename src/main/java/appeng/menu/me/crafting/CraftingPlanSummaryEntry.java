@@ -33,18 +33,27 @@ public class CraftingPlanSummaryEntry implements Comparable<CraftingPlanSummaryE
             .comparing(CraftingPlanSummaryEntry::getMissingAmount)
             .thenComparing(CraftingPlanSummaryEntry::getCraftAmount)
             .thenComparing(CraftingPlanSummaryEntry::getStoredAmount)
+            .thenComparing(CraftingPlanSummaryEntry::getAvailableAmount)
             .reversed();
 
     private final AEKey what;
     private final long missingAmount;
     private final long storedAmount;
     private final long craftAmount;
+    private final long availableAmount;
 
-    public CraftingPlanSummaryEntry(AEKey what, long missingAmount, long storedAmount, long craftAmount) {
+    public CraftingPlanSummaryEntry(AEKey what, long missingAmount, long storedAmount, long craftAmount,
+            long availableAmount) {
         this.what = what;
         this.missingAmount = missingAmount;
         this.storedAmount = storedAmount;
         this.craftAmount = craftAmount;
+        this.availableAmount = availableAmount;
+    }
+
+    @Deprecated
+    public CraftingPlanSummaryEntry(AEKey what, long missingAmount, long storedAmount, long craftAmount) {
+        this(what, missingAmount, storedAmount, craftAmount, storedAmount);
     }
 
     public AEKey getWhat() {
@@ -63,6 +72,10 @@ public class CraftingPlanSummaryEntry implements Comparable<CraftingPlanSummaryE
         return craftAmount;
     }
 
+    public long getAvailableAmount() {
+        return availableAmount;
+    }
+
     @Override
     public int compareTo(final CraftingPlanSummaryEntry o) {
         return COMPARATOR.compare(this, o);
@@ -73,6 +86,7 @@ public class CraftingPlanSummaryEntry implements Comparable<CraftingPlanSummaryE
         buffer.writeVarLong(missingAmount);
         buffer.writeVarLong(storedAmount);
         buffer.writeVarLong(craftAmount);
+        buffer.writeVarLong(availableAmount);
     }
 
     public static CraftingPlanSummaryEntry read(FriendlyByteBuf buffer) {
@@ -80,6 +94,7 @@ public class CraftingPlanSummaryEntry implements Comparable<CraftingPlanSummaryE
         long missingAmount = buffer.readVarLong();
         long storedAmount = buffer.readVarLong();
         long craftAmount = buffer.readVarLong();
-        return new CraftingPlanSummaryEntry(what, missingAmount, storedAmount, craftAmount);
+        long availableAmount = buffer.readVarLong();
+        return new CraftingPlanSummaryEntry(what, missingAmount, storedAmount, craftAmount, availableAmount);
     }
 }

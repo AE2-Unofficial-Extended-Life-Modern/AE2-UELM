@@ -504,6 +504,7 @@
   "gui.ae2.Unformatted": "Unformatted",
   "gui.ae2.Unlinked": "Unlinked",
   "gui.ae2.UpgradeToolbelt": "Upgrade Toolbelt",
+  "gui.ae2.UsedAmount": "Used: %s",
   "gui.ae2.VibrationChamber": "Vibration Chamber",
   "gui.ae2.White": "White",
   "gui.ae2.Wireless": "Wireless Access Point",
