@@ -163,4 +163,12 @@ If more than available is used the percentage will also reflect this + SI format
 
 </details>
 
+<!-- CHANGELOG-PR:11 -->
+<details>
+<summary><strong>Up encoding and request limits</strong> · @ko-lja · merged 2026-07-05 10:18 UTC</summary>
+
+Upped both the pattern encoding terminal and the craft request limits to max long, also now clamping the value of the expression parser between 0 and max long.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
