@@ -99,6 +99,6 @@ public class SetProcessingPatternAmountScreen<C extends PatternEncodingTermMenu>
     }
 
     private long getMaxAmount() {
-        return Integer.MAX_VALUE * (long) currentStack.what().getAmountPerUnit();
+        return Long.MAX_VALUE;
     }
 }
