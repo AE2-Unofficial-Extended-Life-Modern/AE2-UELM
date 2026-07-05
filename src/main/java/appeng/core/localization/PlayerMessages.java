@@ -25,6 +25,7 @@ public enum PlayerMessages implements LocalizationEnum {
     ChannelModeCurrent("Current channel mode: %s"),
     ClickToShowDetails("Click to show details"),
     ClickToTeleport("Click to teleport into plot"),
+    CraftJobFinished("Crafting of %s * [%s] finished in %s."),
     CommunicationError("Error Communicating with Network."),
     DeviceNotLinked("Device is not linked."),
     LinkedNetworkNotFound("Linked network cannot be found"),
