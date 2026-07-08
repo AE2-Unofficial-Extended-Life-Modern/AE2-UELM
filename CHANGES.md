@@ -171,4 +171,12 @@ Upped both the pattern encoding terminal and the craft request limits to max lon
 
 </details>
 
+<!-- CHANGELOG-PR:12 -->
+<details>
+<summary><strong>Add new pattern textures</strong> · @ko-lja · merged 2026-07-08 09:12 UTC</summary>
+
+Add coloring to the different pattern types as to easily differentiate them.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
