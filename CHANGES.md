@@ -179,4 +179,12 @@ Add coloring to the different pattern types as to easily differentiate them.
 
 </details>
 
+<!-- CHANGELOG-PR:13 -->
+<details>
+<summary><strong>Better pattern tooltips</strong> · @ko-lja · merged 2026-07-08 13:49 UTC</summary>
+
+Adds new tooltips to all encoded pattern types showing who encoded the pattern and if (fluid) substitutions are enabled, also adds coloring and better formatting to the inputs/outputs list
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
