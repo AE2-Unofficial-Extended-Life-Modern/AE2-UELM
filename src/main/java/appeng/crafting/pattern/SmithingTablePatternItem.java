@@ -10,6 +10,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.level.Level;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.AEItemKey;
 import appeng.core.AELog;
 
@@ -55,9 +56,19 @@ public class SmithingTablePatternItem extends EncodedPatternItem {
 
     public ItemStack encode(SmithingRecipe recipe, AEItemKey template, AEItemKey base, AEItemKey addition,
             AEItemKey out, boolean allowSubstitutes) {
+        return encode(recipe, template, base, addition, out, allowSubstitutes, PatternInfo.EMPTY);
+    }
+
+    public ItemStack encode(SmithingRecipe recipe, AEItemKey template, AEItemKey base, AEItemKey addition,
+            AEItemKey out, boolean allowSubstitutes, String author) {
+        return encode(recipe, template, base, addition, out, allowSubstitutes, PatternInfo.ofAuthor(author));
+    }
+
+    public ItemStack encode(SmithingRecipe recipe, AEItemKey template, AEItemKey base, AEItemKey addition,
+            AEItemKey out, boolean allowSubstitutes, PatternInfo info) {
         var stack = new ItemStack(this);
         SmithingTablePatternEncoding.encode(stack.getOrCreateTag(), recipe, template, base, addition, out,
-                allowSubstitutes);
+                allowSubstitutes, info);
         return stack;
     }
 
@@ -71,6 +82,7 @@ public class SmithingTablePatternItem extends EncodedPatternItem {
         if (template == null || base == null || addition == null || output == null) {
             return false; // Either input or output item was removed
         }
+        var info = PatternInfo.ofAuthor(SmithingTablePatternEncoding.getAuthor(tag));
 
         var recipeId = SmithingTablePatternEncoding.getRecipeId(tag);
 
@@ -95,7 +107,7 @@ public class SmithingTablePatternItem extends EncodedPatternItem {
         // Yay we found a match, reencode the pattern
         AELog.debug("Re-Encoding pattern from %s -> %s", recipeId, recipe.getId());
         SmithingTablePatternEncoding.encode(tag, recipe, template, base, addition, output,
-                SmithingTablePatternEncoding.canSubstitute(tag));
+                SmithingTablePatternEncoding.canSubstitute(tag), info);
         return true;
     }
 }

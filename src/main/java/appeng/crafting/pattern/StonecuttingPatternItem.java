@@ -10,6 +10,7 @@ import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 import net.minecraft.world.level.Level;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.AEItemKey;
 import appeng.core.AELog;
 
@@ -54,8 +55,18 @@ public class StonecuttingPatternItem extends EncodedPatternItem {
     }
 
     public ItemStack encode(StonecutterRecipe recipe, AEItemKey in, AEItemKey out, boolean allowSubstitutes) {
+        return encode(recipe, in, out, allowSubstitutes, PatternInfo.EMPTY);
+    }
+
+    public ItemStack encode(StonecutterRecipe recipe, AEItemKey in, AEItemKey out, boolean allowSubstitutes,
+            String author) {
+        return encode(recipe, in, out, allowSubstitutes, PatternInfo.ofAuthor(author));
+    }
+
+    public ItemStack encode(StonecutterRecipe recipe, AEItemKey in, AEItemKey out, boolean allowSubstitutes,
+            PatternInfo info) {
         var stack = new ItemStack(this);
-        StonecuttingPatternEncoding.encode(stack.getOrCreateTag(), recipe, in, out, allowSubstitutes);
+        StonecuttingPatternEncoding.encode(stack.getOrCreateTag(), recipe, in, out, allowSubstitutes, info);
         return stack;
     }
 
@@ -67,6 +78,7 @@ public class StonecuttingPatternItem extends EncodedPatternItem {
         if (input == null || output == null) {
             return false; // Either input or output item was removed
         }
+        var info = PatternInfo.ofAuthor(StonecuttingPatternEncoding.getAuthor(tag));
 
         var recipeId = StonecuttingPatternEncoding.getRecipeId(tag);
 
@@ -83,7 +95,7 @@ public class StonecuttingPatternItem extends EncodedPatternItem {
                 // Yay we found a match, reencode the pattern
                 AELog.debug("Re-Encoding pattern from %s -> %s", recipeId, potentialRecipe.getId());
                 StonecuttingPatternEncoding.encode(tag, potentialRecipe, input, output,
-                        StonecuttingPatternEncoding.canSubstitute(tag));
+                        StonecuttingPatternEncoding.canSubstitute(tag), info);
             }
         }
 

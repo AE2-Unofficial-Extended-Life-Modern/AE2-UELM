@@ -42,6 +42,7 @@ import it.unimi.dsi.fastutil.ints.IntArraySet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.crafting.PatternInfo;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
@@ -341,7 +342,7 @@ public class PatternEncodingTermMenu extends MEStorageMenu implements IMenuCraft
         }
 
         return PatternDetailsHelper.encodeCraftingPattern(this.currentRecipe, ingredients, result, isSubstitute(),
-                isSubstituteFluids());
+                isSubstituteFluids(), getPatternInfo());
     }
 
     @Nullable
@@ -368,7 +369,7 @@ public class PatternEncodingTermMenu extends MEStorageMenu implements IMenuCraft
             return null;
         }
 
-        return PatternDetailsHelper.encodeProcessingPattern(inputs, outputs);
+        return PatternDetailsHelper.encodeProcessingPattern(inputs, outputs, getPatternInfo());
     }
 
     @Nullable
@@ -395,7 +396,7 @@ public class PatternEncodingTermMenu extends MEStorageMenu implements IMenuCraft
         var output = AEItemKey.of(recipe.assemble(container, level.registryAccess()));
 
         return PatternDetailsHelper.encodeSmithingTablePattern(recipe, template, base, addition, output,
-                encodingLogic.isSubstitution());
+                encodingLogic.isSubstitution(), getPatternInfo());
     }
 
     @Nullable
@@ -423,7 +424,12 @@ public class PatternEncodingTermMenu extends MEStorageMenu implements IMenuCraft
 
         var output = AEItemKey.of(recipe.getResultItem(level.registryAccess()));
 
-        return PatternDetailsHelper.encodeStonecuttingPattern(recipe, input, output, encodingLogic.isSubstitution());
+        return PatternDetailsHelper.encodeStonecuttingPattern(recipe, input, output, encodingLogic.isSubstitution(),
+                getPatternInfo());
+    }
+
+    private PatternInfo getPatternInfo() {
+        return PatternInfo.ofAuthor(getPlayer().getGameProfile().getName());
     }
 
     /**

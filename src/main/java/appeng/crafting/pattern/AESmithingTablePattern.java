@@ -53,6 +53,7 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
 
     private final AEItemKey definition;
     public final boolean canSubstitute;
+    private final String author;
     private final SmithingRecipe recipe;
     private final Container testFrame;
     private final ItemStack output;
@@ -70,6 +71,7 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
         this.base = SmithingTablePatternEncoding.getBase(tag);
         this.addition = SmithingTablePatternEncoding.getAddition(tag);
         this.canSubstitute = SmithingTablePatternEncoding.canSubstitute(tag);
+        this.author = SmithingTablePatternEncoding.getAuthor(tag);
 
         // Find recipe
         var recipeId = SmithingTablePatternEncoding.getRecipeId(tag);
@@ -155,6 +157,11 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
     @Override
     public GenericStack[] getOutputs() {
         return outputs;
+    }
+
+    @Override
+    public String getAuthor() {
+        return author;
     }
 
     public boolean canSubstitute() {

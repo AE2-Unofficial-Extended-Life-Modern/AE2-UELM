@@ -14,6 +14,7 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.Level;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.AEItemKey;
 import appeng.core.AELog;
 import appeng.menu.AutoCraftingMenu;
@@ -58,11 +59,22 @@ public class CraftingPatternItem extends EncodedPatternItem {
         }
     }
 
+    @Deprecated
     public ItemStack encode(CraftingRecipe recipe, ItemStack[] in, ItemStack out, boolean allowSubstitutes,
             boolean allowFluidSubstitutes) {
+        return encode(recipe, in, out, allowSubstitutes, allowFluidSubstitutes, PatternInfo.EMPTY);
+    }
+
+    public ItemStack encode(CraftingRecipe recipe, ItemStack[] in, ItemStack out, boolean allowSubstitutes,
+            boolean allowFluidSubstitutes, String author) {
+        return encode(recipe, in, out, allowSubstitutes, allowFluidSubstitutes, PatternInfo.ofAuthor(author));
+    }
+
+    public ItemStack encode(CraftingRecipe recipe, ItemStack[] in, ItemStack out, boolean allowSubstitutes,
+            boolean allowFluidSubstitutes, PatternInfo info) {
         var stack = new ItemStack(this);
         CraftingPatternEncoding.encodeCraftingPattern(stack.getOrCreateTag(), recipe, in, out, allowSubstitutes,
-                allowFluidSubstitutes);
+                allowFluidSubstitutes, info);
         return stack;
     }
 
@@ -76,6 +88,7 @@ public class CraftingPatternItem extends EncodedPatternItem {
         }
 
         ResourceLocation currentRecipeId = CraftingPatternEncoding.getRecipeId(tag);
+        var info = PatternInfo.ofAuthor(CraftingPatternEncoding.getAuthor(tag));
 
         // Fill a crafting inventory with the ingredients to find a suitable recipe
         CraftingContainer testInventory = new TransientCraftingContainer(new AutoCraftingMenu(), 3, 3);
@@ -98,7 +111,7 @@ public class CraftingPatternItem extends EncodedPatternItem {
                     .map(stack -> stack.what() instanceof AEItemKey itemKey ? itemKey.toStack() : ItemStack.EMPTY)
                     .toArray(ItemStack[]::new);
             CraftingPatternEncoding.encodeCraftingPattern(tag, potentialRecipe, in, product,
-                    CraftingPatternEncoding.canSubstitute(tag), CraftingPatternEncoding.canSubstituteFluids(tag));
+                    CraftingPatternEncoding.canSubstitute(tag), CraftingPatternEncoding.canSubstituteFluids(tag), info);
         }
 
         AELog.debug("Failed to recover encoded crafting pattern for recipe %s", currentRecipeId);
