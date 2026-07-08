@@ -52,6 +52,7 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
 
     private final AEItemKey definition;
     public final boolean canSubstitute;
+    private final String author;
     private final StonecutterRecipe recipe;
     private final Container testFrame;
     private final AEItemKey input;
@@ -70,6 +71,7 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
 
         this.input = StonecuttingPatternEncoding.getInput(tag);
         this.canSubstitute = StonecuttingPatternEncoding.canSubstitute(tag);
+        this.author = StonecuttingPatternEncoding.getAuthor(tag);
 
         // Find recipe
         var recipeId = StonecuttingPatternEncoding.getRecipeId(tag);
@@ -124,6 +126,11 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
     @Override
     public GenericStack[] getOutputs() {
         return outputs;
+    }
+
+    @Override
+    public String getAuthor() {
+        return author;
     }
 
     /**

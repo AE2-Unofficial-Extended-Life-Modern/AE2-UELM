@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 
@@ -38,7 +39,16 @@ public class ProcessingPatternItem extends EncodedPatternItem {
         }
     }
 
+    @Deprecated
     public ItemStack encode(GenericStack[] sparseInputs, GenericStack[] sparseOutputs) {
+        return encode(sparseInputs, sparseOutputs, PatternInfo.EMPTY);
+    }
+
+    public ItemStack encode(GenericStack[] sparseInputs, GenericStack[] sparseOutputs, String author) {
+        return encode(sparseInputs, sparseOutputs, PatternInfo.ofAuthor(author));
+    }
+
+    public ItemStack encode(GenericStack[] sparseInputs, GenericStack[] sparseOutputs, PatternInfo info) {
         if (Arrays.stream(sparseInputs).noneMatch(Objects::nonNull)) {
             throw new IllegalArgumentException("At least one input must be non-null.");
         }
@@ -46,7 +56,7 @@ public class ProcessingPatternItem extends EncodedPatternItem {
                 "The first (primary) output must be non-null.");
 
         var stack = new ItemStack(this);
-        ProcessingPatternEncoding.encodeProcessingPattern(stack.getOrCreateTag(), sparseInputs, sparseOutputs);
+        ProcessingPatternEncoding.encodeProcessingPattern(stack.getOrCreateTag(), sparseInputs, sparseOutputs, info);
         return stack;
     }
 }

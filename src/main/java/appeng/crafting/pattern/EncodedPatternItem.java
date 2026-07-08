@@ -42,6 +42,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AmountFormat;
 import appeng.api.stacks.GenericStack;
 import appeng.core.AppEng;
@@ -54,6 +55,9 @@ import appeng.util.InteractionUtil;
 public abstract class EncodedPatternItem extends AEBaseItem {
     // rather simple client side caching.
     private static final Map<ItemStack, ItemStack> SIMPLE_CACHE = new WeakHashMap<>();
+
+    private static final Component YES = GuiText.Yes.text().withStyle(ChatFormatting.GREEN);
+    private static final Component NO = GuiText.No.text().withStyle(ChatFormatting.RED);
 
     public EncodedPatternItem(Item.Properties properties) {
         super(properties);
@@ -119,29 +123,33 @@ public abstract class EncodedPatternItem extends AEBaseItem {
             var invalid = new InvalidPatternHelper(stack);
 
             var label = (invalid.isCraftable() ? GuiText.Crafts.text() : GuiText.Produces.text())
-                    .copy().append(": ");
-            var and = Component.literal(" ").append(GuiText.And.text().withStyle(ChatFormatting.GRAY))
-                    .append(" ");
-            var with = Component.empty().append(GuiText.With.text().append(": ").withStyle(ChatFormatting.GRAY));
+                    .withStyle(ChatFormatting.DARK_AQUA);
+            var ingredients = GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN);
 
             boolean first = true;
             for (var output : invalid.getOutputs()) {
-                lines.add(Component.empty().append(first ? label : and)
-                        .append(output.getFormattedToolTip()));
+                if (first) {
+                    lines.add(label);
+                }
+                lines.add(Component.literal("  ").append(output.getFormattedToolTip()));
                 first = false;
             }
 
             first = true;
             for (var input : invalid.getInputs()) {
-                lines.add((first ? with : and).copy().append(input.getFormattedToolTip()));
+                if (first) {
+                    lines.add(ingredients);
+                }
+                lines.add(Component.literal("  ").append(input.getFormattedToolTip()));
                 first = false;
             }
 
             if (invalid.isCraftable()) {
-                var substitutionLabel = GuiText.Substitute.text().copy().append(" ");
-                var canSubstitute = invalid.canSubstitute() ? GuiText.Yes.text() : GuiText.No.text();
+                var canSubstitute = invalid.canSubstitute()
+                        ? GuiText.Yes.text().withStyle(ChatFormatting.GREEN)
+                        : GuiText.No.text().withStyle(ChatFormatting.RED);
 
-                lines.add(substitutionLabel.copy().append(canSubstitute));
+                lines.add(GuiText.Substitute.text(canSubstitute));
             }
 
             return;
@@ -153,15 +161,15 @@ public abstract class EncodedPatternItem extends AEBaseItem {
 
         var isCrafting = details instanceof AECraftingPattern;
         var substitute = isCrafting && ((AECraftingPattern) details).canSubstitute;
+        var substituteFluids = isCrafting && ((AECraftingPattern) details).canSubstituteFluids;
+        var author = details.getAuthor();
 
         var in = details.getInputs();
         var out = details.getOutputs();
 
-        var label = (isCrafting ? GuiText.Crafts.text() : GuiText.Produces.text()).copy()
-                .append(": ").withStyle(ChatFormatting.GRAY);
-        var and = Component.literal(" ").copy().append(GuiText.And.text())
-                .append(" ").withStyle(ChatFormatting.GRAY);
-        var with = GuiText.With.text().copy().append(": ").withStyle(ChatFormatting.GRAY);
+        var label = (isCrafting ? GuiText.Crafts.text() : GuiText.Produces.text())
+                .withStyle(ChatFormatting.DARK_AQUA);
+        var ingredients = GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN);
 
         boolean first = true;
         for (var anOut : out) {
@@ -169,7 +177,10 @@ public abstract class EncodedPatternItem extends AEBaseItem {
                 continue;
             }
 
-            lines.add(Component.empty().append(first ? label : and).append(getStackComponent(anOut)));
+            if (first) {
+                lines.add(label);
+            }
+            lines.add(Component.literal("  ").append(getStackComponent(anOut, false)));
             first = false;
         }
 
@@ -182,22 +193,44 @@ public abstract class EncodedPatternItem extends AEBaseItem {
             var primaryInputTemplate = anIn.getPossibleInputs()[0];
             var primaryInput = new GenericStack(primaryInputTemplate.what(),
                     primaryInputTemplate.amount() * anIn.getMultiplier());
-            lines.add(Component.empty().append(first ? with : and).append(getStackComponent(primaryInput)));
+            if (first) {
+                lines.add(ingredients);
+            }
+            lines.add(Component.literal("  ").append(getStackComponent(primaryInput, true)));
             first = false;
         }
 
         if (isCrafting) {
-            var substitutionLabel = GuiText.Substitute.text().copy().append(" ");
-            var canSubstitute = substitute ? GuiText.Yes.text() : GuiText.No.text();
+            var canSubstitute = substitute ? YES : NO;
+            var canSubstituteFluids = substituteFluids ? YES : NO;
 
-            lines.add(substitutionLabel.copy().append(canSubstitute));
+            lines.add(GuiText.Substitute.text(canSubstitute));
+            lines.add(GuiText.FluidSubstitutions.text(canSubstituteFluids));
+        }
+
+        if (!author.isEmpty()) {
+            lines.add(GuiText.EncodedBy.text(author).withStyle(ChatFormatting.LIGHT_PURPLE));
         }
     }
 
+    @Deprecated
     protected static Component getStackComponent(GenericStack stack) {
+        return getStackComponent(stack, false);
+    }
+
+    protected static Component getStackComponent(GenericStack stack, boolean isInput) {
+        var what = stack.what();
+        var displayName = what.getDisplayName().plainCopy();
+        var type = what.getType();
+        if (type == AEKeyType.items()) {
+            displayName.withStyle(isInput ? ChatFormatting.GREEN : ChatFormatting.YELLOW);
+        } else {
+            displayName.withStyle(isInput ? ChatFormatting.AQUA : ChatFormatting.BLUE);
+        }
         var amountInfo = stack.what().formatAmount(stack.amount(), AmountFormat.FULL);
-        var displayName = stack.what().getDisplayName();
-        return Component.literal(amountInfo + " x ").append(displayName);
+        return Component.literal(amountInfo)
+                .append(Component.literal(" x ").withStyle(ChatFormatting.GRAY))
+                .append(displayName);
     }
 
     /**

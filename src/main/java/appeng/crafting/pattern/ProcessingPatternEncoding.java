@@ -26,6 +26,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.GenericStack;
 
 /**
@@ -34,6 +35,7 @@ import appeng.api.stacks.GenericStack;
 class ProcessingPatternEncoding {
     private static final String NBT_INPUTS = "in";
     private static final String NBT_OUTPUTS = "out";
+    private static final String NBT_AUTHOR = "author";
 
     public static GenericStack[] getProcessingInputs(CompoundTag nbt) {
         return getMixedList(nbt, NBT_INPUTS, AEProcessingPattern.MAX_INPUT_SLOTS);
@@ -41,6 +43,12 @@ class ProcessingPatternEncoding {
 
     public static GenericStack[] getProcessingOutputs(CompoundTag nbt) {
         return getMixedList(nbt, NBT_OUTPUTS, AEProcessingPattern.MAX_OUTPUT_SLOTS);
+    }
+
+    public static String getAuthor(CompoundTag nbt) {
+        Objects.requireNonNull(nbt, "Pattern must have a tag.");
+
+        return nbt.getString(NBT_AUTHOR);
     }
 
     public static GenericStack[] getMixedList(CompoundTag nbt, String nbtKey, int maxSize) {
@@ -64,10 +72,19 @@ class ProcessingPatternEncoding {
         return result;
     }
 
+    @Deprecated
     public static void encodeProcessingPattern(CompoundTag tag, GenericStack[] sparseInputs,
             GenericStack[] sparseOutputs) {
+        encodeProcessingPattern(tag, sparseInputs, sparseOutputs, PatternInfo.EMPTY);
+    }
+
+    public static void encodeProcessingPattern(CompoundTag tag, GenericStack[] sparseInputs,
+            GenericStack[] sparseOutputs, PatternInfo info) {
+        info = info == null ? PatternInfo.EMPTY : info;
+
         tag.put(NBT_INPUTS, encodeStackList(sparseInputs));
         tag.put(NBT_OUTPUTS, encodeStackList(sparseOutputs));
+        tag.putString(NBT_AUTHOR, info.author());
     }
 
     private static ListTag encodeStackList(GenericStack[] stacks) {
