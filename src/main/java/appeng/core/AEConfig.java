@@ -541,6 +541,10 @@ public final class AEConfig {
         return CLIENT.terminalMargin.get();
     }
 
+    public int getMaxPinnedRows() {
+        return CLIENT.maxPinnedRows.get();
+    }
+
     // Setters keep visibility as low as possible.
 
     private static class ClientConfig {
@@ -563,6 +567,7 @@ public final class AEConfig {
         public final BooleanOption pinAutoCraftedItems;
         public final BooleanOption clearGridOnClose;
         public final IntegerOption terminalMargin;
+        public final IntegerOption maxPinnedRows;
 
         // Search Settings
         public final BooleanOption searchModNameInTooltips;
@@ -605,6 +610,8 @@ public final class AEConfig {
                     "Automatically clear the crafting/encoding grid when closing the terminal");
             this.terminalMargin = client.addInt("terminalMargin", 25,
                     "The vertical margin to apply when sizing terminals. Used to make room for centered item mod search bars");
+            this.maxPinnedRows = client.addInt("maxPinnedRows", 3,
+                    "The maximum number of pinned rows to display, crafting and manual.");
 
             // Search Settings
             var search = root.subsection("search");

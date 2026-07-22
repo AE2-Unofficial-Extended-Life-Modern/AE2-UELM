@@ -153,8 +153,10 @@ public class AppEngClient extends AppEngBase {
 
         MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn evt) -> {
             PendingCraftingJobs.clearPendingJobs();
-            PinnedKeys.clearPinnedKeys();
+            PinnedKeys.loadPinnedKeys(Minecraft.getInstance());
         });
+
+        MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut evt) -> PinnedKeys.disconnect());
 
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
             if (e.phase == TickEvent.Phase.END) {
