@@ -203,4 +203,12 @@ if gtceu is installed it'll add EU as an option for energy display
 
 </details>
 
+<!-- CHANGELOG-PR:17 -->
+<details>
+<summary><strong>Suspend crafting jobs</strong> · @ko-lja · merged 2026-07-22 19:00 UTC</summary>
+
+Adds a suspend/resum button to crafting cpu's which appears when it has an active crafting job, allowing you to suspend all operations from that job until resumed.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
