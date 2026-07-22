@@ -53,7 +53,7 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
 
     private final CraftingStatusTableRenderer table;
 
-    private final Button cancel;
+    private final Button cancel, suspend;
 
     private final Scrollbar scrollbar;
 
@@ -69,6 +69,7 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
         this.scrollbar = widgets.addScrollBar("scrollbar");
 
         this.cancel = this.widgets.addButton("cancel", GuiText.Cancel.text(), menu::cancelCrafting);
+        this.suspend = this.widgets.addButton("suspend", GuiText.Suspend.text(), menu::toggleSuspend);
 
         this.schedulingModeButton = new ServerSettingToggleButton<>(Settings.CPU_SELECTION_MODE,
                 CpuSelectionMode.ANY);
@@ -118,6 +119,8 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float btn) {
         this.cancel.active = !getVisualEntries().isEmpty();
+        this.suspend.active = this.cancel.active;
+        this.suspend.visible = this.cancel.active;
 
         super.render(guiGraphics, mouseX, mouseY, btn);
     }
@@ -161,17 +164,12 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
                 continue;
             }
 
-            CraftingStatusEntry existingEntry = entries.get(entry.getSerial());
-            if (existingEntry != null) {
-                entries.put(entry.getSerial(), new CraftingStatusEntry(
-                        existingEntry.getSerial(),
-                        existingEntry.getWhat(),
-                        entry.getStoredAmount(),
-                        entry.getActiveAmount(),
-                        entry.getPendingAmount()));
-            } else {
-                entries.put(entry.getSerial(), entry);
-            }
+            entries.merge(entry.getSerial(), entry, (existingEntry, newEntry) -> new CraftingStatusEntry(
+                    existingEntry.getSerial(),
+                    existingEntry.getWhat(),
+                    newEntry.getStoredAmount(),
+                    newEntry.getActiveAmount(),
+                    newEntry.getPendingAmount()));
         }
 
         List<CraftingStatusEntry> sortedEntries = new ArrayList<>(entries.values());
@@ -181,7 +179,9 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
                 status.getElapsedTime(),
                 status.getRemainingItemCount(),
                 status.getStartItemCount(),
-                sortedEntries);
+                sortedEntries,
+                status.isSuspended());
+        this.suspend.setMessage(status.isSuspended() ? GuiText.Resume.text() : GuiText.Suspend.text());
     }
 
 }
