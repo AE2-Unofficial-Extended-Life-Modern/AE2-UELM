@@ -22,9 +22,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
+
+import net.minecraftforge.fml.ModList;
 
 import appeng.api.config.CondenserOutput;
 import appeng.api.config.PowerMultiplier;
@@ -103,6 +106,7 @@ public final class AEConfig {
 
     // Default Energy Conversion Rates
     private static final double DEFAULT_FE_EXCHANGE = 0.5;
+    private static final double DEFAULT_EU_EXCHANGE = 2;
 
     // Config instance
     private static AEConfig instance;
@@ -179,6 +183,7 @@ public final class AEConfig {
 
     private void syncCommonConfig() {
         PowerUnits.FE.conversionRatio = COMMON.powerRatioForgeEnergy.get();
+        PowerUnits.EU.conversionRatio = COMMON.powerRatioEnergyUnit.get();
         PowerUnits.RF.conversionRatio = COMMON.powerRatioForgeEnergy.get();
         PowerMultiplier.CONFIG.multiplier = COMMON.powerUsageMultiplier.get();
 
@@ -321,8 +326,10 @@ public final class AEConfig {
     }
 
     public void nextPowerUnit(boolean backwards) {
+        var availablePowerUnits = EnumSet.copyOf(Settings.POWER_UNITS.getValues());
+        availablePowerUnits.removeIf(pu -> pu.modId != null && !ModList.get().isLoaded(pu.modId));
         PowerUnits selectedPowerUnit = EnumCycler.rotateEnum(getSelectedPowerUnit(), backwards,
-                Settings.POWER_UNITS.getValues());
+                availablePowerUnits);
         CLIENT.selectedPowerUnit.set(selectedPowerUnit);
     }
 
@@ -696,6 +703,7 @@ public final class AEConfig {
 
         // Power Ratios
         public final DoubleOption powerRatioForgeEnergy;
+        public final DoubleOption powerRatioEnergyUnit;
         public final DoubleOption powerUsageMultiplier;
         public final DoubleOption gridEnergyStoragePerNode;
         public final DoubleOption crystalResonanceGeneratorRate;
@@ -789,6 +797,7 @@ public final class AEConfig {
 
             ConfigSection PowerRatios = root.subsection("PowerRatios");
             powerRatioForgeEnergy = PowerRatios.addDouble("ForgeEnergy", DEFAULT_FE_EXCHANGE);
+            powerRatioEnergyUnit = PowerRatios.addDouble("EnergyUnit", DEFAULT_EU_EXCHANGE);
             powerUsageMultiplier = PowerRatios.addDouble("UsageMultiplier", 1.0, 0.01, Double.MAX_VALUE);
             gridEnergyStoragePerNode = PowerRatios.addDouble("GridEnergyStoragePerNode", 25, 1, 1000000,
                     "How much energy can the internal grid buffer storage per node attached to the grid.");

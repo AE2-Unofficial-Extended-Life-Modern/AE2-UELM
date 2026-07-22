@@ -23,11 +23,14 @@
 
 package appeng.api.config;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.network.chat.Component;
 
 public enum PowerUnits {
     AE("gui.ae2.units.appliedenergistics", "AE"), // Native Units - AE Energy
     FE("gui.ae2.units.fe", "FE"), // Forge Energy
+    EU("gui.ae2.units.eu", "EU", "gtceu"), // Energy Unit - GTCEuM
     @Deprecated(forRemoval = true)
     RF("gui.ae2.units.rf", "RF"); // Forge Energy
 
@@ -41,13 +44,25 @@ public enum PowerUnits {
      */
     public final String symbolName;
     /**
+     * optional mod id to check for compatibility
+     */
+    @Nullable
+    public final String modId;
+    /**
      * please do not edit this value, it is set when AE loads its config files.
      */
     public double conversionRatio = 1.0;
 
+    PowerUnits(String un, String symbolName, String modId) {
+        this.unlocalizedName = un;
+        this.symbolName = symbolName;
+        this.modId = modId;
+    }
+
     PowerUnits(String un, String symbolName) {
         this.unlocalizedName = un;
         this.symbolName = symbolName;
+        this.modId = null;
     }
 
     /**

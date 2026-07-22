@@ -29,6 +29,8 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
+import net.minecraftforge.fml.ModList;
+
 public final class Settings {
     private static final Map<String, Setting<?>> SETTINGS = new HashMap<>();
 
@@ -56,7 +58,8 @@ public final class Settings {
             RedstoneMode.LOW_SIGNAL);
     public static final Setting<RedstoneMode> REDSTONE_CONTROLLED = register("redstone_controlled", RedstoneMode.class);
     public static final Setting<CondenserOutput> CONDENSER_OUTPUT = register("condenser_output", CondenserOutput.class);
-    public static final Setting<PowerUnits> POWER_UNITS = register("power_units", PowerUnits.AE, PowerUnits.FE);
+    public static final Setting<PowerUnits> POWER_UNITS = register("power_units", PowerUnits.AE, PowerUnits.FE,
+            ModList.get().isLoaded("gtceu") ? PowerUnits.EU : null);
     public static final Setting<AccessRestriction> ACCESS = register("access", AccessRestriction.READ_WRITE,
             AccessRestriction.READ, AccessRestriction.WRITE);
     public static final Setting<SortDir> SORT_DIRECTION = register("sort_direction", SortDir.class);
