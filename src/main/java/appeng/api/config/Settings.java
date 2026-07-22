@@ -59,7 +59,7 @@ public final class Settings {
     public static final Setting<RedstoneMode> REDSTONE_CONTROLLED = register("redstone_controlled", RedstoneMode.class);
     public static final Setting<CondenserOutput> CONDENSER_OUTPUT = register("condenser_output", CondenserOutput.class);
     public static final Setting<PowerUnits> POWER_UNITS = register("power_units", PowerUnits.AE, PowerUnits.FE,
-            ModList.get().isLoaded("gtceu") ? PowerUnits.EU : null);
+            PowerUnits.EU);
     public static final Setting<AccessRestriction> ACCESS = register("access", AccessRestriction.READ_WRITE,
             AccessRestriction.READ, AccessRestriction.WRITE);
     public static final Setting<SortDir> SORT_DIRECTION = register("sort_direction", SortDir.class);
