@@ -187,4 +187,12 @@ Adds new tooltips to all encoded pattern types showing who encoded the pattern a
 
 </details>
 
+<!-- CHANGELOG-PR:14 -->
+<details>
+<summary><strong>Add manual pinning with per-world persistence</strong> · @ko-lja · merged 2026-07-22 02:32 UTC</summary>
+
+You can now manually pin any entries from your terminal, they can mix and match with the crafting-pinned ones. Pinning a crafting pinned one will make it a manual one and remain pinned after the crafting job finishes. These are per world/server and persisted in your instance under `config/ae2/pinned/<filename>.dat`.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
