@@ -195,4 +195,12 @@ You can now manually pin any entries from your terminal, they can mix and match 
 
 </details>
 
+<!-- CHANGELOG-PR:15 -->
+<details>
+<summary><strong>Add EU energy display</strong> · @ko-lja · merged 2026-07-22 03:07 UTC</summary>
+
+if gtceu is installed it'll add EU as an option for energy display
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
