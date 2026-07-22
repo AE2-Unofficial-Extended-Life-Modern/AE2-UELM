@@ -29,8 +29,6 @@ import java.util.Map;
 
 import com.google.common.base.Preconditions;
 
-import net.minecraftforge.fml.ModList;
-
 public final class Settings {
     private static final Map<String, Setting<?>> SETTINGS = new HashMap<>();
 

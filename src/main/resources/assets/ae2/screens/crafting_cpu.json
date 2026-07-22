@@ -20,6 +20,12 @@
       "width": 50,
       "height": 20
     },
+    "suspend": {
+      "left": 103,
+      "bottom": 25,
+      "width": 50,
+      "height": 20
+    },
     "scrollbar": {
       "left": 218,
       "top": 19,
