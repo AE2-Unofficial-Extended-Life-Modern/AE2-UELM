@@ -185,7 +185,7 @@ public class Repo implements IClientRepo {
             this.pinnedRow.clear();
 
             this.view.ensureCapacity(this.entries.size());
-            this.pinnedRow.ensureCapacity(rowSize);
+            this.pinnedRow.ensureCapacity(PinnedKeys.MAX_PINNED);
 
             addEntriesToView(this.entries.values());
         }
@@ -214,7 +214,7 @@ public class Repo implements IClientRepo {
 
         for (var entry : entries) {
             // Pinned keys ignore all filters & search
-            if (hasPinnedRow && pinnedRow.size() < rowSize && PinnedKeys.isPinned(entry.getWhat())) {
+            if (hasPinnedRow && pinnedRow.size() < PinnedKeys.MAX_PINNED && PinnedKeys.isPinned(entry.getWhat())) {
                 pinnedRow.add(entry);
                 continue;
             }
@@ -331,14 +331,15 @@ public class Repo implements IClientRepo {
     @Nullable
     public final GridInventoryEntry get(int idx) {
         if (!this.pinnedRow.isEmpty()) {
-            // First row of slots is reserved for pinned keys
-            if (idx < this.rowSize) {
+            var reservedSlots = getReservedPinnedSlots();
+            // x rows of slots are reserved for pinned keys
+            if (idx < reservedSlots) {
                 if (idx < this.pinnedRow.size()) {
                     return this.pinnedRow.get(idx);
                 }
                 return null;
             }
-            idx -= this.rowSize;
+            idx -= reservedSlots;
         }
 
         idx += this.src.getCurrentScroll() * this.rowSize;
@@ -350,7 +351,7 @@ public class Repo implements IClientRepo {
     }
 
     public final int size() {
-        return this.view.size() + this.pinnedRow.size();
+        return this.view.size() + getReservedPinnedSlots();
     }
 
     public final void clear() {
@@ -363,6 +364,14 @@ public class Repo implements IClientRepo {
 
     public final boolean hasPinnedRow() {
         return !this.pinnedRow.isEmpty();
+    }
+
+    public int getPinnedRows() {
+        return (this.pinnedRow.size() + this.rowSize - 1) / this.rowSize;
+    }
+
+    private int getReservedPinnedSlots() {
+        return getPinnedRows() * this.rowSize;
     }
 
     public final boolean hasPower() {

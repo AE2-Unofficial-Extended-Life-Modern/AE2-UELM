@@ -42,6 +42,8 @@ public class HotkeyActions {
         registerPortableCell(AEItems.PORTABLE_FLUID_CELL16K, PORTABLE_FLUID_CELL);
         registerPortableCell(AEItems.PORTABLE_FLUID_CELL64K, PORTABLE_FLUID_CELL);
         registerPortableCell(AEItems.PORTABLE_FLUID_CELL256K, PORTABLE_FLUID_CELL);
+
+        register(new PinHotkeyAction(), HotkeyAction.PIN_ENTRY);
     }
 
     /**
