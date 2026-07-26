@@ -99,6 +99,6 @@ jobs:
         uses: AppliedEnergistics/maven-publish-action@main
         with:
           local-repository-path: build/repo
-          remote-repository-url: https://maven.pkg.github.com/AppliedEnergistics/Applied-Energistics-2/
+          remote-repository-url: https://repo.expandium.net/releases/
           remote-repository-username: ${{ secrets.MAVEN_USERNAME }}
           remote-repository-password: ${{ secrets.MAVEN_PASSWORD }}
