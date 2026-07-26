@@ -18,8 +18,10 @@
 
 package appeng.crafting.pattern;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
@@ -31,6 +33,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -180,7 +183,7 @@ public abstract class EncodedPatternItem extends AEBaseItem {
             if (first) {
                 lines.add(label);
             }
-            lines.add(Component.literal("  ").append(getStackComponent(anOut, false)));
+            lines.add(Component.literal("   ").append(getStackComponent(anOut, false)));
             first = false;
         }
 
@@ -196,7 +199,7 @@ public abstract class EncodedPatternItem extends AEBaseItem {
             if (first) {
                 lines.add(ingredients);
             }
-            lines.add(Component.literal("  ").append(getStackComponent(primaryInput, true)));
+            lines.add(Component.literal("   ").append(getStackComponent(primaryInput, true)));
             first = false;
         }
 
@@ -271,4 +274,18 @@ public abstract class EncodedPatternItem extends AEBaseItem {
 
     @Nullable
     public abstract IPatternDetails decode(AEItemKey what, Level level);
+
+    @OnlyIn(Dist.CLIENT)
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack itemStack) {
+        if (!itemStack.hasTag())
+            return Optional.empty();
+        var details = decode(itemStack, AppEng.instance().getClientLevel(), false);
+        if (details == null)
+            return Optional.empty();
+
+        return Optional.of(new PatternTooltipComponent(
+                Arrays.stream(details.getInputs()).map(iInput -> iInput.getPossibleInputs()[0].what()).toList(),
+                Arrays.stream(details.getOutputs()).map(GenericStack::what).toList()));
+    }
 }
