@@ -211,4 +211,13 @@ Adds a suspend/resum button to crafting cpu's which appears when it has an activ
 
 </details>
 
+<!-- CHANGELOG-PR:19 -->
+<details>
+<summary><strong>Render stack icons in pattern tooltips</strong> · @ko-lja · merged 2026-07-26 20:07 UTC</summary>
+
+Since we pass Lists of AEKeys, the displayed stack will match the encoded one, like if you had item durability or a Programmed Circuit(GregTech).
+Display the icons in half-size as otherwise the tooltip would have taken too much space on the screen.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
