@@ -1,6 +1,5 @@
-[![Build master](https://img.shields.io/github/actions/workflow/status/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/build.yml?style=flat-square&branch=master)](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/actions?query=workflow%3A%22Build+master%22)
+[![Build master](https://img.shields.io/github/actions/workflow/status/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/build.yml?style=flat-square)](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/actions?query=workflow%3A%22Build%22)
 [![Latest Release](https://img.shields.io/github/v/release/AE2-Unofficial-Extended-Life-Modern/AE2-UELM?style=flat-square&label=Release)](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/releases)
-[![Latest PreRelease](https://img.shields.io/github/v/release/AE2-Unofficial-Extended-Life-Modern/AE2-UELM?include_prereleases&style=flat-square&label=Pre)](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/releases)
 
 # Applied Energistics 2
 
@@ -87,7 +86,9 @@ Replace `VERSION` with the desired one, preferably try to always use the latest 
 It is highly recommended following its specification and further considering an upper bound for the dependency version.
 A change of the `MAJOR` version will be an API break and can lead to various crashes. Better to inform a player about the addon not supporting the new version until it could be tested or updated.
 
-An example string would be `appeng:appliedenergistics2-forge:15.4.10:api` for the API only or `appeng:appliedenergistics2-forge:15.4.10` for the whole mod.
+An example string would be `appeng:appliedenergistics2-forge:15.5.0-uelm:api` for the API only or `appeng:appliedenergistics2-forge:15.5.0-uelm` for the whole mod. <br>
+**Current version:** <br>
+[![Latest](https://img.shields.io/github/v/release/AE2-Unofficial-Extended-Life-Modern/AE2-UELM?style=flat-square&label=Release)](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/releases)
 
 ## Contributing
 

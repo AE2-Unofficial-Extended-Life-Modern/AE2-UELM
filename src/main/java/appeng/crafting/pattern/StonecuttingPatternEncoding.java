@@ -24,6 +24,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.StonecutterRecipe;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.AEItemKey;
 
 /**
@@ -35,6 +36,7 @@ class StonecuttingPatternEncoding {
     private static final String NBT_OUTPUT = "out";
     private static final String NBT_SUBSITUTE = "substitute";
     private static final String NBT_RECIPE_ID = "recipe";
+    private static final String NBT_AUTHOR = "author";
 
     public static AEItemKey getInput(CompoundTag nbt) {
         Objects.requireNonNull(nbt, "Pattern must have an in tag.");
@@ -58,11 +60,26 @@ class StonecuttingPatternEncoding {
         return new ResourceLocation(nbt.getString(NBT_RECIPE_ID));
     }
 
+    public static String getAuthor(CompoundTag nbt) {
+        Objects.requireNonNull(nbt, "Pattern must have a tag.");
+
+        return nbt.getString(NBT_AUTHOR);
+    }
+
+    @Deprecated
     public static void encode(CompoundTag tag, StonecutterRecipe recipe, AEItemKey input, AEItemKey output,
             boolean allowSubstitution) {
+        encode(tag, recipe, input, output, allowSubstitution, PatternInfo.EMPTY);
+    }
+
+    public static void encode(CompoundTag tag, StonecutterRecipe recipe, AEItemKey input, AEItemKey output,
+            boolean allowSubstitution, PatternInfo info) {
+        info = info == null ? PatternInfo.EMPTY : info;
+
         tag.put(NBT_INPUT, input.toTag());
         tag.put(NBT_OUTPUT, output.toTag());
         tag.putBoolean(NBT_SUBSITUTE, allowSubstitution);
         tag.putString(NBT_RECIPE_ID, recipe.getId().toString());
+        tag.putString(NBT_AUTHOR, info.author());
     }
 }

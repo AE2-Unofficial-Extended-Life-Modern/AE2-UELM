@@ -29,6 +29,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.GenericStack;
 
 /**
@@ -40,6 +41,7 @@ class CraftingPatternEncoding {
     private static final String NBT_SUBSITUTE = "substitute";
     private static final String NBT_SUBSITUTE_FLUIDS = "substituteFluids";
     private static final String NBT_RECIPE_ID = "recipe";
+    private static final String NBT_AUTHOR = "author";
 
     public static GenericStack[] getCraftingInputs(CompoundTag nbt) {
         Objects.requireNonNull(nbt, "Pattern must have a tag.");
@@ -82,13 +84,29 @@ class CraftingPatternEncoding {
         return ItemStack.of(nbt.getCompound(NBT_OUTPUTS));
     }
 
+    public static String getAuthor(CompoundTag nbt) {
+        Objects.requireNonNull(nbt, "Pattern must have a tag.");
+
+        return nbt.getString(NBT_AUTHOR);
+    }
+
+    @Deprecated
     public static void encodeCraftingPattern(CompoundTag tag, CraftingRecipe recipe, ItemStack[] sparseInputs,
             ItemStack output, boolean allowSubstitution, boolean allowFluidSubstitution) {
+        encodeCraftingPattern(tag, recipe, sparseInputs, output, allowSubstitution, allowFluidSubstitution,
+                PatternInfo.EMPTY);
+    }
+
+    public static void encodeCraftingPattern(CompoundTag tag, CraftingRecipe recipe, ItemStack[] sparseInputs,
+            ItemStack output, boolean allowSubstitution, boolean allowFluidSubstitution, PatternInfo info) {
+        info = info == null ? PatternInfo.EMPTY : info;
+
         tag.put(NBT_INPUTS, encodeItemStackList(sparseInputs));
         tag.putBoolean(NBT_SUBSITUTE, allowSubstitution);
         tag.putBoolean(NBT_SUBSITUTE_FLUIDS, allowFluidSubstitution);
         tag.put(NBT_OUTPUTS, output.save(new CompoundTag()));
         tag.putString(NBT_RECIPE_ID, recipe.getId().toString());
+        tag.putString(NBT_AUTHOR, info.author());
     }
 
     private static ListTag encodeItemStackList(ItemStack[] stacks) {

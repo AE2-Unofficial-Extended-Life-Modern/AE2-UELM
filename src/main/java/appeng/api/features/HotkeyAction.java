@@ -20,6 +20,7 @@ public interface HotkeyAction {
     String WIRELESS_TERMINAL = "wireless_terminal";
     String PORTABLE_ITEM_CELL = "portable_item_cell";
     String PORTABLE_FLUID_CELL = "portable_fluid_cell";
+    String PIN_ENTRY = "pin_entry";
 
     /**
      * register a new {@link HotkeyAction} under an id
