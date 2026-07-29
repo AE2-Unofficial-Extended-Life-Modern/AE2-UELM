@@ -109,6 +109,7 @@ public enum GuiText implements LocalizationEnum {
     RestoredGenericSettingPriority("priority"),
     Gray("Gray"),
     Green("Green"),
+    HoverAmount("§a%s"),
     IOBuses("ME Import/Export Bus"),
     IOPort("ME IO Port"),
     ImportBus("ME Import Bus"),
