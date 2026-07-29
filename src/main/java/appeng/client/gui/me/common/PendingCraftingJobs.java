@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -76,13 +77,18 @@ public final class PendingCraftingJobs {
                 var minecraft = Minecraft.getInstance();
                 if (AEConfig.instance().isNotifyForFinishedCraftingJobs()
                         && minecraft.player != null && hasNotificationEnablingItem(minecraft.player)) {
-                    var amount = Component.literal(NumberUtil.formatNumber(remainingAmount))
+                    var amount = Component.literal(NumberUtil.formatNumber(requestedAmount))
                             .withStyle(ChatFormatting.GREEN)
                             .withStyle(style -> style.withHoverEvent(
                                     new HoverEvent(
                                             HoverEvent.Action.SHOW_TEXT,
                                             GuiText.HoverAmount.text(requestedAmount))));
-                    var displayName = what.getDisplayName().copy().withStyle(ChatFormatting.AQUA);
+                    var displayName = what.getDisplayName().copy()
+                            .withStyle(ChatFormatting.AQUA)
+                            .withStyle(style -> style.withHoverEvent(
+                                    new HoverEvent(
+                                            HoverEvent.Action.SHOW_ITEM,
+                                            new HoverEvent.ItemStackInfo(what.wrapForDisplayOrFilter()))));
                     var duration = Component.literal(DurationFormatUtils.formatDuration(
                             TimeUnit.NANOSECONDS.toMillis(elapsedTime),
                             "HH:mm:ss"))
@@ -91,6 +97,7 @@ public final class PendingCraftingJobs {
                             amount,
                             displayName,
                             duration));
+                    minecraft.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
                     if (!(minecraft.screen instanceof MEStorageScreen<?>)) {
                         minecraft.getToasts().addToast(new FinishedJobToast(what, requestedAmount));
                     }
