@@ -220,4 +220,12 @@ Display the icons in half-size as otherwise the tooltip would have taken too muc
 
 </details>
 
+<!-- CHANGELOG-PR:22 -->
+<details>
+<summary><strong>Message player when a craft finishes</strong> · @ko-lja · merged 2026-07-29 06:37 UTC</summary>
+
+Will send a chat message to the player who requested the craft(might get some tweaks later on with a new "follow craft" mechanic), detailing how much has been requested, what, and how long the craft took to complete.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
