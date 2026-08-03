@@ -110,4 +110,9 @@ public final class SlotSemantics {
     public static final SlotSemantic CRAFTING_RESULT = register("CRAFTING_RESULT", false);
 
     public static final SlotSemantic MISSING_INGREDIENT = register("MISSING_INGREDIENT", true);
+    // replenisher
+    public static final SlotSemantic LEFT_STORAGE_CELL = SlotSemantics
+            .register("SUPER_ME_REPLENISHER_LEFT_STORAGE_CELL", false);
+    public static final SlotSemantic RIGHT_STORAGE_CELL = SlotSemantics
+            .register("SUPER_ME_REPLENISHER_RIGHT_STORAGE_CELL", false);
 }

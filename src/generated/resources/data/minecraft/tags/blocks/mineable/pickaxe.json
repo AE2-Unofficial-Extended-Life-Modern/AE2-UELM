@@ -42,6 +42,7 @@
     "ae2:interface",
     "ae2:cell_workbench",
     "ae2:io_port",
+    "ae2:super_me_replenisher",
     "ae2:condenser",
     "ae2:energy_acceptor",
     "ae2:crystal_resonance_generator",

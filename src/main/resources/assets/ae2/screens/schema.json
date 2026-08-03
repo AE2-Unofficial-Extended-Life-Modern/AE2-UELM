@@ -360,6 +360,8 @@
           "CONFIG",
           "UPGRADE",
           "STORAGE_CELL",
+          "SUPER_ME_REPLENISHER_LEFT_STORAGE_CELL",
+          "SUPER_ME_REPLENISHER_RIGHT_STORAGE_CELL",
           "INSCRIBER_PLATE_TOP",
           "INSCRIBER_PLATE_BOTTOM",
           "MACHINE_INPUT",

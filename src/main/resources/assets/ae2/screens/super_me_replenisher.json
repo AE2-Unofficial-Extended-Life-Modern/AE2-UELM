@@ -1,0 +1,112 @@
+{
+  "$schema": "schema.json",
+  "includes": ["common/common.json", "common/player_inventory.json"],
+  "background": {
+    "texture": "guis/super_me_replenisher.png",
+    "srcRect": [0, 0, 220, 246]
+  },
+  "slots": {
+    "SUPER_ME_REPLENISHER_LEFT_STORAGE_CELL": {
+      "left": 8,
+      "top": 8,
+      "grid": "VERTICAL"
+    },
+    "CONFIG": {
+      "left": 30,
+      "top": 8,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "SUPER_ME_REPLENISHER_RIGHT_STORAGE_CELL": {
+      "left": 196,
+      "top": 8,
+      "grid": "VERTICAL"
+    },
+    "PLAYER_INVENTORY": {
+      "left": 30,
+      "bottom": 82,
+      "grid": "BREAK_AFTER_9COLS"
+    },
+    "PLAYER_HOTBAR": {
+      "left": 30,
+      "bottom": 24,
+      "grid": "HORIZONTAL"
+    }
+  },
+  "text": {
+    "target": {
+      "position": {
+        "left": 29,
+        "top": 66
+      }
+    },
+    "stored": {
+      "position": {
+        "left": 29,
+        "top": 76
+      }
+    },
+    "bytes_used_target": {
+      "position": {
+        "left": 29,
+        "top": 86
+      }
+    },
+    "bytes_total": {
+      "position": {
+        "left": 29,
+        "top": 105
+      }
+    },
+    "bytes_used_total": {
+      "position": {
+        "left": 29,
+        "top": 115
+      }
+    },
+    "tick_rate_label": {
+      "text": {
+        "translate": "gui.ae2.SuperMEReplenisherTickRate"
+      },
+      "position": {
+        "left": 29,
+        "top": 127
+      }
+    },
+    "threshold_label": {
+      "text": {
+        "translate": "gui.ae2.SuperMEReplenisherThreshold"
+      },
+      "position": {
+        "left": 100,
+        "top": 127
+      }
+    },
+    "threshold_unit": {
+      "text": "%",
+      "position": {
+        "left": 132,
+        "top": 142
+      }
+    },
+    "player_inventory_title": {
+      "position": {
+        "left": 30,
+        "bottom": 93
+      }
+    }
+  },
+  "widgets": {
+    "tickRate": {
+      "left": 29,
+      "top": 138,
+      "width": 52,
+      "height": 12
+    },
+    "threshold": {
+      "left": 100,
+      "top": 138,
+      "width": 31,
+      "height": 12
+    }
+  }
+}
