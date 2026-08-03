@@ -32,6 +32,15 @@ public class NumberUtil {
                     .withStyle(Style.EMPTY.withColor(0xFF0000));
         }
 
+        return Component.literal(percentageText)
+                .withStyle(style -> style.withColor(color(percentage)));
+    }
+
+    public static Component coloredText(Component text, double percentage) {
+        return text.copy().withStyle(style -> style.withColor(color(percentage)));
+    }
+
+    private static int color(double percentage) {
         int red, green, blue = 0;
         if (percentage <= 0.33) {
             double localPercentage = percentage / 0.33;
@@ -47,8 +56,6 @@ public class NumberUtil {
             green = (int) (90 - (localPercentage * 90));
         }
 
-        int color = (red << 16) | (green << 8) | blue;
-        return Component.literal(percentageText)
-                .withStyle(style -> style.withColor(color));
+        return (red << 16) | (green << 8) | blue;
     }
 }

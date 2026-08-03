@@ -2,8 +2,6 @@ package appeng.menu.implementations;
 
 import java.util.Objects;
 
-import com.google.common.primitives.Ints;
-
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -14,7 +12,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.helpers.InterfaceLogicHost;
+import appeng.helpers.IStockAmountHost;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -32,7 +30,7 @@ import appeng.util.inv.AppEngInternalInventory;
 public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
 
     public static final MenuType<SetStockAmountMenu> TYPE = MenuTypeBuilder
-            .create(SetStockAmountMenu::new, InterfaceLogicHost.class)
+            .create(SetStockAmountMenu::new, IStockAmountHost.class)
             .build("set_stock_amount");
 
     public static final String ACTION_SET_STOCK_AMOUNT = "setStockAmount";
@@ -48,25 +46,25 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
     private AEKey whatToStock;
 
     @GuiSync(1)
-    private int initialAmount = -1;
+    private long initialAmount = -1;
 
     @GuiSync(2)
-    private int maxAmount = -1;
+    private long maxAmount = -1;
 
     private int slot;
 
-    private final InterfaceLogicHost host;
+    private final IStockAmountHost host;
 
-    public SetStockAmountMenu(int id, Inventory ip, InterfaceLogicHost host) {
+    public SetStockAmountMenu(int id, Inventory ip, IStockAmountHost host) {
         super(TYPE, id, ip, host);
-        registerClientAction(ACTION_SET_STOCK_AMOUNT, Integer.class, this::confirm);
+        registerClientAction(ACTION_SET_STOCK_AMOUNT, Long.class, this::confirm);
         this.host = host;
         this.stockedItem = new InaccessibleSlot(new AppEngInternalInventory(1), 0);
         this.addSlot(this.stockedItem, SlotSemantics.MACHINE_OUTPUT);
     }
 
     @Override
-    public InterfaceLogicHost getHost() {
+    public IStockAmountHost getHost() {
         return host;
     }
 
@@ -75,7 +73,7 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
      */
     public static void open(ServerPlayer player, MenuLocator locator,
             int slot,
-            AEKey whatToStock, int initialAmount) {
+            AEKey whatToStock, long initialAmount) {
         MenuOpener.open(SetStockAmountMenu.TYPE, player, locator);
 
         if (player.containerMenu instanceof SetStockAmountMenu cca) {
@@ -88,15 +86,15 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
         return this.getPlayerInventory().player.level();
     }
 
-    private void setWhatToStock(int slot, AEKey whatToStock, int initialAmount) {
+    private void setWhatToStock(int slot, AEKey whatToStock, long initialAmount) {
         this.slot = slot;
         this.whatToStock = Objects.requireNonNull(whatToStock, "whatToStock");
         this.initialAmount = initialAmount;
-        this.maxAmount = Ints.saturatedCast(host.getConfig().getMaxAmount(whatToStock));
+        this.maxAmount = host.getConfig().getMaxAmount(whatToStock);
         this.stockedItem.set(whatToStock.wrapForDisplayOrFilter());
     }
 
-    public int getMaxAmount() {
+    public long getMaxAmount() {
         return maxAmount;
     }
 
@@ -105,7 +103,7 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
      *
      * @param amount The number of items to stock.
      */
-    public void confirm(int amount) {
+    public void confirm(long amount) {
         if (isClientSide()) {
             sendClientAction(ACTION_SET_STOCK_AMOUNT, amount);
             return;
@@ -119,7 +117,7 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
             return;
         }
 
-        amount = (int) Math.min(amount, config.getMaxAmount(whatToStock));
+        amount = Math.min(amount, config.getMaxAmount(whatToStock));
 
         if (amount <= 0) {
             config.setStack(slot, null);
@@ -129,7 +127,7 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
         host.returnToMainMenu(getPlayer(), this);
     }
 
-    public int getInitialAmount() {
+    public long getInitialAmount() {
         return initialAmount;
     }
 

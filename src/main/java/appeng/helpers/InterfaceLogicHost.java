@@ -34,7 +34,8 @@ import appeng.menu.locator.MenuLocator;
 /**
  * Interface that must be implemented by machines hosting {@link InterfaceLogic}.
  */
-public interface InterfaceLogicHost extends IConfigurableObject, IUpgradeableObject, IPriorityHost, IConfigInvHost {
+public interface InterfaceLogicHost
+        extends IConfigurableObject, IUpgradeableObject, IPriorityHost, IStockAmountHost {
     /**
      * @return The block entity that is in-world and hosts the interface.
      */

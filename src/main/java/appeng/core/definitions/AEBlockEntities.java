@@ -50,6 +50,7 @@ import appeng.blockentity.misc.InscriberBlockEntity;
 import appeng.blockentity.misc.InterfaceBlockEntity;
 import appeng.blockentity.misc.LightDetectorBlockEntity;
 import appeng.blockentity.misc.PaintSplotchesBlockEntity;
+import appeng.blockentity.misc.SuperMEReplenisherBlockEntity;
 import appeng.blockentity.misc.VibrationChamberBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
@@ -110,6 +111,9 @@ public final class AEBlockEntities {
             CellWorkbenchBlockEntity.class, CellWorkbenchBlockEntity::new, AEBlocks.CELL_WORKBENCH);
     public static final BlockEntityType<IOPortBlockEntity> IO_PORT = create("io_port", IOPortBlockEntity.class,
             IOPortBlockEntity::new, AEBlocks.IO_PORT);
+    public static final BlockEntityType<SuperMEReplenisherBlockEntity> SUPER_ME_REPLENISHER = create(
+            "super_me_replenisher", SuperMEReplenisherBlockEntity.class, SuperMEReplenisherBlockEntity::new,
+            AEBlocks.SUPER_ME_REPLENISHER);
     public static final BlockEntityType<CondenserBlockEntity> CONDENSER = create("condenser",
             CondenserBlockEntity.class,
             CondenserBlockEntity::new, AEBlocks.CONDENSER);

@@ -71,6 +71,6 @@ public class SetStockAmountScreen extends AEBaseScreen<SetStockAmountMenu> {
     }
 
     private void confirm() {
-        this.amount.getIntValue().ifPresent(menu::confirm);
+        this.amount.getLongValue().ifPresent(menu::confirm);
     }
 }
