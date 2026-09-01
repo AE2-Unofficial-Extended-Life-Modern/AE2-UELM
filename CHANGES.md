@@ -228,4 +228,29 @@ Will send a chat message to the player who requested the craft(might get some tw
 
 </details>
 
+<!-- CHANGELOG-PR:23 -->
+<details>
+<summary><strong>Add super me replenisher</strong> · @ko-lja · merged 2026-08-03 19:39 UTC</summary>
+
+Description from GuideME:
+Closely related to the Interface, but with a few key differences, the Super ME Replenisher is a specialized version of the Interface
+that allows you to filter and store up to 27 slots with items, fluids, etc. With technically no limit on how much you can configure. How much you actually can store is
+determined by the storage cells you put in it, adding the maximum bytes of that cell to the total available bytes. No matter which type of cell, all that matters is how many bytes it can hold.
+
+## How The Replenisher Works Internally
+Unlike an interface, the replenisher will under no circumstances expose its connected network if you place a storage bus on it, only what you configure it to, you will still be able to input into it normally,
+but beware that pending inputs also take up cell space.
+
+The replenisher will periodically check, based on the tick rate you set if any entry has less stocked than the set threshold amount.
+
+Do note that it will not try to request anything on its own; all it does is try to refill itself.
+
+Which makes it an improvement over normal interfaces for stuff like storage subnets, as it does reduce a part of the lag.
+
+## Some notes
+When you break it, the replenisher will always try to return its contents to the network it was connected to.
+If either some contents could not be returned or if it was not connected to a network before being broken, it will try to fill the stored cells before dropping them.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
