@@ -784,6 +784,13 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .requires(ConventionTags.PATTERN_PROVIDER)
                 .unlockedBy("has_pattern_provider", has(ConventionTags.PATTERN_PROVIDER))
                 .save(consumer, AppEng.makeId("network/parts/terminals_pattern_access"));
+        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEParts.FILTER_TERMINAL)
+                .requires(ConventionTags.ILLUMINATED_PANEL)
+                .requires(AEItems.ENGINEERING_PROCESSOR)
+                .requires(ConventionTags.QUARTZ_WRENCH)
+                .unlockedBy("has_engineering_processor", has(AEItems.ENGINEERING_PROCESSOR))
+                .unlockedBy("has_quartz_wrench", has(ConventionTags.QUARTZ_WRENCH))
+                .save(consumer, AppEng.makeId("network/parts/terminals_interface"));
         ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEParts.PATTERN_ENCODING_TERMINAL)
                 .requires(AEItems.ENGINEERING_PROCESSOR)
                 .requires(AEParts.CRAFTING_TERMINAL)

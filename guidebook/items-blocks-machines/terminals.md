@@ -11,6 +11,7 @@ item_ids:
 - ae2:crafting_terminal
 - ae2:pattern_encoding_terminal
 - ae2:pattern_access_terminal
+- ae2:filter_terminal
 ---
 
 # Terminals
@@ -203,3 +204,27 @@ with a <ItemLink id="name_press" />).
 ## Recipe
 
 <RecipeFor id="pattern_access_terminal" />
+
+<a name="filter-terminal-ui"></a>
+
+# ME Filter Terminal
+
+<GameScene zoom="6" background="transparent">
+  <ImportStructure src="../assets/blocks/filter_terminal.snbt" />
+  <IsometricCamera yaw="180" />
+</GameScene>
+
+The ME Filter Terminal provides remote access to the usable configuration slots of active import buses, export buses,
+storage buses, formation planes, storage level emitters, and <ItemLink id="interface" /> hosts on its network. Machines are grouped by their icon and name, then sorted by
+location.
+
+## The UI
+
+The first search field matches target names, and the second matches configured item or fluid names. Blank fields do not
+filter, and when both contain text, a target must match both. Middle-clicking an interface slot opens an 
+amount editor, and its tooltip shows the amount stocked by that interface.
+The highlight button highlights the matching block or cable part in the world for 15 seconds.
+
+## Recipe
+
+<RecipeFor id="filter_terminal" />

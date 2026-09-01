@@ -26,6 +26,7 @@ import net.minecraft.network.FriendlyByteBuf;
 
 import appeng.core.sync.packets.AssemblerAnimationPacket;
 import appeng.core.sync.packets.BlockTransitionEffectPacket;
+import appeng.core.sync.packets.ClearFilterTerminalPacket;
 import appeng.core.sync.packets.ClearPatternAccessTerminalPacket;
 import appeng.core.sync.packets.ColorApplicatorSelectColorPacket;
 import appeng.core.sync.packets.CompassRequestPacket;
@@ -37,6 +38,9 @@ import appeng.core.sync.packets.CraftConfirmPlanPacket;
 import appeng.core.sync.packets.CraftingJobStatusPacket;
 import appeng.core.sync.packets.CraftingStatusPacket;
 import appeng.core.sync.packets.FillCraftingGridFromRecipePacket;
+import appeng.core.sync.packets.FilterTerminalActionPacket;
+import appeng.core.sync.packets.FilterTerminalPacket;
+import appeng.core.sync.packets.FilterTerminalSetFilterPacket;
 import appeng.core.sync.packets.GuiDataSyncPacket;
 import appeng.core.sync.packets.HotkeyPacket;
 import appeng.core.sync.packets.InventoryActionPacket;
@@ -110,7 +114,13 @@ public class BasePacketHandler {
 
         HOTKEY(HotkeyPacket.class, HotkeyPacket::new),
 
-        CRAFTING_JOB_STATUS(CraftingJobStatusPacket.class, CraftingJobStatusPacket::new);
+        CRAFTING_JOB_STATUS(CraftingJobStatusPacket.class, CraftingJobStatusPacket::new),
+
+        FILTER_TERMINAL_CLEAR(ClearFilterTerminalPacket.class, ClearFilterTerminalPacket::new),
+        FILTER_TERMINAL_UPDATE(FilterTerminalPacket.class, FilterTerminalPacket::new),
+        FILTER_TERMINAL_SET_FILTER(FilterTerminalSetFilterPacket.class,
+                FilterTerminalSetFilterPacket::new),
+        FILTER_TERMINAL_ACTION(FilterTerminalActionPacket.class, FilterTerminalActionPacket::new);
 
         private final Function<FriendlyByteBuf, BasePacket> factory;
 
