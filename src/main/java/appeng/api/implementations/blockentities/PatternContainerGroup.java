@@ -9,15 +9,19 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Nameable;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 import appeng.api.inventories.InternalInventory;
 import appeng.api.parts.IPartHost;
 import appeng.api.stacks.AEItemKey;
 import appeng.core.localization.GuiText;
+import appeng.util.Platform;
 
 /**
  * Provides both a key for grouping pattern providers, and displaying the group in the pattern access terminal.
@@ -107,9 +111,11 @@ public record PatternContainerGroup(
             }
         } else {
             // Try to wrestle an item from the adjacent block entity
-            // TODO On Forge we can use pick block here
-            var targetBlock = target.getBlockState().getBlock();
-            var targetItem = new ItemStack(targetBlock);
+            var state = target.getBlockState();
+            var hit = new BlockHitResult(Vec3.atCenterOf(pos), side, pos, false);
+            var targetItem = level instanceof ServerLevel serverLevel
+                    ? state.getCloneItemStack(hit, level, pos, Platform.getFakePlayer(serverLevel, null))
+                    : state.getBlock().getCloneItemStack(level, pos, state);
             icon = AEItemKey.of(targetItem);
 
             if (target instanceof Nameable nameable && nameable.hasCustomName()) {
