@@ -23,6 +23,8 @@ import java.util.function.Function;
 import com.google.common.base.Preconditions;
 
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
@@ -51,6 +53,8 @@ import appeng.menu.locator.MenuLocators;
  * Builder that allows creation of menu types which can be opened from multiple types of hosts.
  */
 public final class MenuTypeBuilder<M extends AEBaseMenu, I> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MenuTypeBuilder.class);
 
     @Nullable
     private ResourceLocation id;
@@ -137,7 +141,7 @@ public final class MenuTypeBuilder<M extends AEBaseMenu, I> {
     private boolean open(Player player, MenuLocator locator, boolean fromSubMenu) {
         if (!(player instanceof ServerPlayer)) {
             // Cannot open menus on the client or for non-players
-            // FIXME logging?
+            LOGGER.warn("Tried to open menu {} on client-side player {}", id, player);
             return false;
         }
 
