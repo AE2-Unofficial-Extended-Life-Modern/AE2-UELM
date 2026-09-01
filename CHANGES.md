@@ -253,4 +253,23 @@ If either some contents could not be returned or if it was not connected to a ne
 
 </details>
 
+<!-- CHANGELOG-PR:25 -->
+<details>
+<summary><strong>Add a filter terminal for remotely configuring machines with an added highlight button</strong> · @ko-lja · merged 2026-09-01 14:06 UTC</summary>
+
+Description from the GuideME entry:
+# ME Filter Terminal
+The ME Filter Terminal provides remote access to the usable configuration slots of active import buses, export buses,
+storage buses, formation planes, storage level emitters, and interface hosts on its network. Machines are grouped by their icon and name, then sorted by
+location.
+
+## UI
+
+The first search field matches target names, and the second matches configured item or fluid names. Blank fields do not
+filter, and when both contain text, a target must match both. Middle-clicking an interface slot opens an
+amount editor, and its tooltip shows the amount stocked by that interface.
+The highlight button highlights the matching block or cable part in the world for 15 seconds.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
