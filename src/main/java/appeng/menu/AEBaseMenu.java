@@ -700,7 +700,7 @@ public abstract class AEBaseMenu extends AbstractContainerMenu {
         ctx.playEmptySound(getPlayer(), what);
     }
 
-    private void handleFakeSlotAction(FakeSlot fakeSlot, InventoryAction action) {
+    protected final void handleFakeSlotAction(FakeSlot fakeSlot, InventoryAction action) {
         var hand = getCarried();
 
         switch (action) {

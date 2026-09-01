@@ -62,6 +62,8 @@ import appeng.client.gui.me.crafting.CraftConfirmScreen;
 import appeng.client.gui.me.crafting.CraftingCPUScreen;
 import appeng.client.gui.me.crafting.CraftingStatusScreen;
 import appeng.client.gui.me.crafting.SetStockAmountScreen;
+import appeng.client.gui.me.filterterminal.FilterTerminalScreen;
+import appeng.client.gui.me.filterterminal.FilterTerminalSetAmountScreen;
 import appeng.client.gui.me.items.CraftingTermScreen;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.me.networktool.NetworkStatusScreen;
@@ -75,6 +77,8 @@ import appeng.menu.implementations.ChestMenu;
 import appeng.menu.implementations.CondenserMenu;
 import appeng.menu.implementations.DriveMenu;
 import appeng.menu.implementations.EnergyLevelEmitterMenu;
+import appeng.menu.implementations.FilterTerminalMenu;
+import appeng.menu.implementations.FilterTerminalSetAmountMenu;
 import appeng.menu.implementations.FormationPlaneMenu;
 import appeng.menu.implementations.IOBusMenu;
 import appeng.menu.implementations.IOPortMenu;
@@ -138,6 +142,8 @@ public final class InitScreens {
         register(IOPortMenu.TYPE, IOPortScreen::new, "/screens/io_port.json");
         register(StorageBusMenu.TYPE, StorageBusScreen::new, "/screens/storage_bus.json");
         register(SetStockAmountMenu.TYPE, SetStockAmountScreen::new, "/screens/set_stock_amount.json");
+        register(FilterTerminalSetAmountMenu.TYPE, FilterTerminalSetAmountScreen::new,
+                "/screens/set_stock_amount.json");
         register(FormationPlaneMenu.TYPE, FormationPlaneScreen::new, "/screens/formation_plane.json");
         register(PriorityMenu.TYPE, PriorityScreen::new, "/screens/priority.json");
         register(StorageLevelEmitterMenu.TYPE, StorageLevelEmitterScreen::new, "/screens/level_emitter.json");
@@ -185,6 +191,8 @@ public final class InitScreens {
         InitScreens.<PatternAccessTermMenu, PatternAccessTermScreen<PatternAccessTermMenu>>register(
                 PatternAccessTermMenu.TYPE, PatternAccessTermScreen::new,
                 "/screens/terminals/pattern_access_terminal.json");
+        register(FilterTerminalMenu.TYPE, FilterTerminalScreen::new,
+                "/screens/terminals/filter_terminal.json");
         // spotless:on
     }
 

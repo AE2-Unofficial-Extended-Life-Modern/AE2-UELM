@@ -73,6 +73,7 @@ import appeng.client.guidebook.ConfigValueTagExtension;
 import appeng.client.guidebook.PageAnchor;
 import appeng.client.guidebook.PartAnnotationStrategy;
 import appeng.client.guidebook.command.GuidebookStructureCommands;
+import appeng.client.render.HighlightManager;
 import appeng.client.render.PatternClientTooltipComponent;
 import appeng.client.render.StorageCellClientTooltipComponent;
 import appeng.client.render.effects.EnergyParticleData;
@@ -257,6 +258,7 @@ public class AppEngClient extends AppEngBase {
 
         MinecraftForge.EVENT_BUS.addListener(this::wheelEvent);
         MinecraftForge.EVENT_BUS.register(OverlayManager.getInstance());
+        MinecraftForge.EVENT_BUS.register(HighlightManager.INSTANCE);
     }
 
     private void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {

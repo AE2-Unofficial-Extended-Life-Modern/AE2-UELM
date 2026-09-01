@@ -30,6 +30,8 @@ import appeng.menu.implementations.ChestMenu;
 import appeng.menu.implementations.CondenserMenu;
 import appeng.menu.implementations.DriveMenu;
 import appeng.menu.implementations.EnergyLevelEmitterMenu;
+import appeng.menu.implementations.FilterTerminalMenu;
+import appeng.menu.implementations.FilterTerminalSetAmountMenu;
 import appeng.menu.implementations.FormationPlaneMenu;
 import appeng.menu.implementations.IOBusMenu;
 import appeng.menu.implementations.IOPortMenu;
@@ -85,6 +87,8 @@ public final class InitMenuTypes {
                 IOPortMenu.TYPE,
                 InscriberMenu.TYPE,
                 InterfaceMenu.TYPE,
+                FilterTerminalMenu.TYPE,
+                FilterTerminalSetAmountMenu.TYPE,
                 MEStorageMenu.TYPE,
                 MEStorageMenu.PORTABLE_FLUID_CELL_TYPE,
                 MEStorageMenu.PORTABLE_ITEM_CELL_TYPE,
