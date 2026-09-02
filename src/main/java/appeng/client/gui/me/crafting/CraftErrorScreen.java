@@ -75,7 +75,7 @@ public class CraftErrorScreen extends AESubScreen<CraftConfirmMenu, CraftConfirm
         });
         widgets.addButton("retry", GuiText.CraftErrorRetry.text(), () -> {
             returnToParent();
-            menu.startJob();
+            menu.startJob(menu.getPlan() != null && menu.getPlan().isSimulation());
         });
         widgets.addButton("cancel", GuiText.Cancel.text(), () -> {
             returnToParent();

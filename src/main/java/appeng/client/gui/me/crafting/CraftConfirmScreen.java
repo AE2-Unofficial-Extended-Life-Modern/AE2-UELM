@@ -24,6 +24,7 @@ import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
@@ -31,6 +32,7 @@ import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.Scrollbar;
+import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.GuiText;
 import appeng.menu.me.crafting.CraftConfirmMenu;
 import appeng.menu.me.crafting.CraftingPlanSummary;
@@ -76,9 +78,13 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
         this.selectCPU.setMessage(getNextCpuButtonLabel());
 
         CraftingPlanSummary plan = menu.getPlan();
-        boolean planIsStartable = plan != null && !plan.isSimulation();
-        this.start.active = !this.menu.hasNoCPU() && planIsStartable;
-        this.selectCPU.active = planIsStartable;
+        boolean hasPlan = plan != null;
+        boolean forceRequired = hasPlan && plan.isSimulation();
+        this.start.active = hasPlan && !this.menu.hasNoCPU() && (!forceRequired || hasShiftDown());
+        if (forceRequired) {
+            this.start.setTooltip(Tooltip.create(ButtonToolTips.ForceStart.text()));
+        }
+        this.selectCPU.active = hasPlan;
 
         // Show additional status about the selected CPU and plan when the planning is done
         Component planDetails = GuiText.CalculatingWait.text();
@@ -156,7 +162,15 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
     }
 
     private void start() {
-        getMenu().startJob();
+        var plan = getMenu().getPlan();
+        if (plan == null || getMenu().hasNoCPU()) {
+            return;
+        }
+
+        boolean allowMissing = plan.isSimulation() && hasShiftDown();
+        if (!plan.isSimulation() || allowMissing) {
+            getMenu().startJob(allowMissing);
+        }
     }
 
 }

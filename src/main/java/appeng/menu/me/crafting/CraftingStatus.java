@@ -143,6 +143,7 @@ public class CraftingStatus {
             long storedCount = logic.getStored(what);
             long activeCount = logic.getWaitingFor(what);
             long pendingCount = logic.getPendingOutputs(what);
+            long pendingExternalCount = logic.getPendingExternalInput(what);
 
             var sentStack = what;
             if (!full && changes.getSerial(what) != null) {
@@ -155,7 +156,8 @@ public class CraftingStatus {
                     sentStack,
                     storedCount,
                     activeCount,
-                    pendingCount);
+                    pendingCount,
+                    pendingExternalCount);
             newEntries.add(entry);
 
             if (entry.isDeleted()) {

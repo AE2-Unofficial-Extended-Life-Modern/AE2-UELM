@@ -48,6 +48,7 @@ import appeng.api.util.IConfigManager;
 import appeng.blockentity.crafting.CraftingBlockEntity;
 import appeng.blockentity.crafting.CraftingMonitorBlockEntity;
 import appeng.crafting.execution.CraftingCpuLogic;
+import appeng.crafting.execution.CraftingSubmitMode;
 import appeng.me.cluster.IAECluster;
 import appeng.me.cluster.MBCalculator;
 import appeng.me.helpers.MachineSource;
@@ -205,7 +206,12 @@ public final class CraftingCPUCluster implements IAECluster, ICraftingCPU {
 
     public ICraftingSubmitResult submitJob(IGrid g, ICraftingPlan plan, IActionSource src,
             ICraftingRequester requestingMachine) {
-        return craftingLogic.trySubmitJob(g, plan, src, requestingMachine);
+        return submitJob(g, plan, src, requestingMachine, CraftingSubmitMode.NORMAL);
+    }
+
+    public ICraftingSubmitResult submitJob(IGrid g, ICraftingPlan plan, IActionSource src,
+            ICraftingRequester requestingMachine, CraftingSubmitMode mode) {
+        return craftingLogic.trySubmitJob(g, plan, src, requestingMachine, mode);
     }
 
     @Override

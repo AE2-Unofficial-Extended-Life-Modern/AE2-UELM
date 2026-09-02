@@ -70,6 +70,7 @@ import appeng.blockentity.crafting.CraftingBlockEntity;
 import appeng.crafting.CraftingCalculation;
 import appeng.crafting.CraftingLink;
 import appeng.crafting.CraftingLinkNexus;
+import appeng.crafting.execution.CraftingSubmitMode;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.hooks.ticking.TickHandler;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
@@ -149,7 +150,17 @@ public class CraftingService implements ICraftingService, IGridServiceProvider {
 
         long latestChange = 0;
         for (var cpu : this.craftingCPUClusters) {
-            cpu.craftingLogic.tickCraftingLogic(energyGrid, this);
+            if (!cpu.craftingLogic.hasPendingExternalInputs()) {
+                cpu.craftingLogic.tickCraftingLogic(energyGrid, this);
+            }
+            latestChange = Math.max(
+                    latestChange,
+                    cpu.craftingLogic.getLastModifiedOnTick());
+        }
+        for (var cpu : this.craftingCPUClusters) {
+            if (cpu.craftingLogic.hasPendingExternalInputs()) {
+                cpu.craftingLogic.tickCraftingLogic(energyGrid, this);
+            }
             latestChange = Math.max(
                     latestChange,
                     cpu.craftingLogic.getLastModifiedOnTick());
@@ -305,6 +316,15 @@ public class CraftingService implements ICraftingService, IGridServiceProvider {
         long inserted = 0;
         for (var cpu : this.craftingCPUClusters) {
             inserted += cpu.craftingLogic.insert(what, amount - inserted, type);
+            if (inserted >= amount) {
+                return inserted;
+            }
+        }
+        for (var cpu : this.craftingCPUClusters) {
+            inserted += cpu.craftingLogic.insertExternalInput(what, amount - inserted, type);
+            if (inserted >= amount) {
+                return inserted;
+            }
         }
 
         return inserted;
@@ -343,7 +363,12 @@ public class CraftingService implements ICraftingService, IGridServiceProvider {
     @Override
     public ICraftingSubmitResult submitJob(ICraftingPlan job, ICraftingRequester requestingMachine, ICraftingCPU target,
             boolean prioritizePower, IActionSource src) {
-        if (job.simulation()) {
+        return submitJob(job, requestingMachine, target, prioritizePower, src, CraftingSubmitMode.NORMAL);
+    }
+
+    public ICraftingSubmitResult submitJob(ICraftingPlan job, ICraftingRequester requestingMachine, ICraftingCPU target,
+            boolean prioritizePower, IActionSource src, CraftingSubmitMode mode) {
+        if (job.simulation() && mode != CraftingSubmitMode.ALLOW_MISSING) {
             return CraftingSubmitResult.INCOMPLETE_PLAN;
         }
 
@@ -365,7 +390,7 @@ public class CraftingService implements ICraftingService, IGridServiceProvider {
             }
         }
 
-        return cpuCluster.submitJob(this.grid, job, src, requestingMachine);
+        return cpuCluster.submitJob(this.grid, job, src, requestingMachine, mode);
     }
 
     @Nullable

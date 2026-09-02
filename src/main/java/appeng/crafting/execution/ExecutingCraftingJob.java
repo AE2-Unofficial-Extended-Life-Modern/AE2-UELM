@@ -35,6 +35,7 @@ import appeng.api.networking.crafting.ICraftingPlan;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
 import appeng.crafting.CraftingLink;
 import appeng.crafting.inv.ListCraftingInventory;
 import appeng.me.service.CraftingService;
@@ -49,9 +50,11 @@ public class ExecutingCraftingJob {
     private static final String NBT_TASKS = "tasks";
     private static final String NBT_SUSPENDED = "suspended";
     private static final String NBT_CRAFTING_PROGRESS = "#craftingProgress";
+    private static final String NBT_PENDING_EXTERNAL_INPUTS = "pendingExternalInputs";
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
+    final ListCraftingInventory pendingExternalInputs;
     final Map<IPatternDetails, TaskProgress> tasks = new HashMap<>();
     final ElapsedTimeTracker timeTracker;
     GenericStack finalOutput;
@@ -67,9 +70,19 @@ public class ExecutingCraftingJob {
 
     ExecutingCraftingJob(ICraftingPlan plan, CraftingDifferenceListener postCraftingDifference, CraftingLink link,
             @Nullable Integer playerId) {
+        this(plan, postCraftingDifference, link, playerId, new KeyCounter());
+    }
+
+    ExecutingCraftingJob(ICraftingPlan plan, CraftingDifferenceListener postCraftingDifference, CraftingLink link,
+            @Nullable Integer playerId, KeyCounter initialMissing) {
         this.finalOutput = plan.finalOutput();
         this.remainingAmount = this.finalOutput.amount();
         this.waitingFor = new ListCraftingInventory(postCraftingDifference::onCraftingDifference);
+        this.pendingExternalInputs = new ListCraftingInventory(postCraftingDifference::onCraftingDifference);
+
+        for (var entry : initialMissing) {
+            pendingExternalInputs.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+        }
 
         // Fill waiting for and tasks
         this.timeTracker = new ElapsedTimeTracker();
@@ -99,7 +112,9 @@ public class ExecutingCraftingJob {
         this.finalOutput = GenericStack.readTag(data.getCompound(NBT_FINAL_OUTPUT));
         this.remainingAmount = data.getLong(NBT_REMAINING_AMOUNT);
         this.waitingFor = new ListCraftingInventory(postCraftingDifference::onCraftingDifference);
+        this.pendingExternalInputs = new ListCraftingInventory(postCraftingDifference::onCraftingDifference);
         this.waitingFor.readFromNBT(data.getList(NBT_WAITING_FOR, Tag.TAG_COMPOUND));
+        this.pendingExternalInputs.readFromNBT(data.getList(NBT_PENDING_EXTERNAL_INPUTS, Tag.TAG_COMPOUND));
         this.timeTracker = new ElapsedTimeTracker(data.getCompound(NBT_TIME_TRACKER));
         if (data.contains(NBT_PLAYER_ID, Tag.TAG_INT)) {
             this.playerId = data.getInt(NBT_PLAYER_ID);
@@ -131,6 +146,7 @@ public class ExecutingCraftingJob {
         data.put(NBT_FINAL_OUTPUT, GenericStack.writeTag(finalOutput));
 
         data.put(NBT_WAITING_FOR, waitingFor.writeToNBT());
+        data.put(NBT_PENDING_EXTERNAL_INPUTS, pendingExternalInputs.writeToNBT());
         data.put(NBT_TIME_TRACKER, timeTracker.writeToNBT());
 
         final ListTag list = new ListTag();
