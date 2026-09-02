@@ -272,4 +272,16 @@ The highlight button highlights the matching block or cable part in the world fo
 
 </details>
 
+<!-- CHANGELOG-PR:27 -->
+<details>
+<summary><strong>Force submit crafts with missing ingredients</strong> · @ko-lja · merged 2026-09-02 16:39 UTC</summary>
+
+## Description
+Pressing Shift and clicking the Start button will now allow players to submit incomplete crafting jobs with materials being supplied while the craft is ongoing, this was made with passive resource generation setups in mind, but also does solve some issues created by recursive recipes, or loops.
+## Screenshots
+<img width="775" height="469" alt="image" src="https://github.com/user-attachments/assets/d48fbfd6-70c7-4cd6-9ac6-e2af4b54f38b" />
+<img width="894" height="430" alt="image" src="https://github.com/user-attachments/assets/fb7fd721-4352-490d-b2ea-c06df5a2185d" />
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
