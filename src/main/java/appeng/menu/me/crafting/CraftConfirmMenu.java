@@ -48,9 +48,11 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.storage.ISubMenuHost;
 import appeng.core.AELog;
 import appeng.core.sync.packets.CraftConfirmPlanPacket;
+import appeng.crafting.execution.CraftingSubmitMode;
 import appeng.crafting.execution.CraftingSubmitResult;
 import appeng.helpers.IMenuCraftingPacket;
 import appeng.me.helpers.PlayerSource;
+import appeng.me.service.CraftingService;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -125,7 +127,7 @@ public class CraftConfirmMenu extends AEBaseMenu implements ISubMenu {
 
         registerClientAction(ACTION_BACK, this::goBack);
         registerClientAction(ACTION_CYCLE_CPU, Boolean.class, this::cycleSelectedCPU);
-        registerClientAction(ACTION_START_JOB, this::startJob);
+        registerClientAction(ACTION_START_JOB, Boolean.class, this::startJob);
         registerClientAction(ACTION_REPLAN, this::replan);
     }
 
@@ -254,33 +256,53 @@ public class CraftConfirmMenu extends AEBaseMenu implements ISubMenu {
     }
 
     public void startJob() {
+        startJob(false);
+    }
+
+    public void startJob(boolean allowMissing) {
         clearError();
 
         if (isClientSide()) {
-            sendClientAction(ACTION_START_JOB);
+            sendClientAction(ACTION_START_JOB, allowMissing);
             return;
         }
 
-        if (this.result != null && !this.result.simulation()) {
-            final ICraftingService cc = this.getGrid().getCraftingService();
-            var submitResult = cc.submitJob(this.result, null, this.selectedCpu, true, this.getActionSrc());
-            this.setAutoStart(false);
-            if (submitResult.successful()) {
-                if (autoCraftingQueue != null && !autoCraftingQueue.isEmpty()) {
-                    // Process next stack!
-                    CraftConfirmMenu.openWithCraftingList(getActionHost(), (ServerPlayer) getPlayer(), getLocator(),
-                            autoCraftingQueue);
-                } else {
-                    this.host.returnToMainMenu(getPlayer(), this);
-                }
+        if (this.result == null) {
+            return;
+        }
+
+        if (this.result.simulation() && !allowMissing) {
+            return;
+        }
+        if (!this.result.simulation()) {
+            allowMissing = false;
+        }
+
+        var grid = this.getGrid();
+        if (grid == null) {
+            return;
+        }
+
+        final ICraftingService cc = grid.getCraftingService();
+        var mode = allowMissing ? CraftingSubmitMode.ALLOW_MISSING : CraftingSubmitMode.NORMAL;
+        var submitResult = ((CraftingService) cc).submitJob(this.result, null, this.selectedCpu, true,
+                this.getActionSrc(), mode);
+        this.setAutoStart(false);
+        if (submitResult.successful()) {
+            if (autoCraftingQueue != null && !autoCraftingQueue.isEmpty()) {
+                // Process next stack!
+                CraftConfirmMenu.openWithCraftingList(getActionHost(), (ServerPlayer) getPlayer(), getLocator(),
+                        autoCraftingQueue);
             } else {
-                AELog.info("Couldn't submit crafting job for %dx%s: %s [Detail: %s]",
-                        result.finalOutput().amount(),
-                        result.finalOutput().what(),
-                        submitResult.errorCode(),
-                        submitResult.errorDetail());
-                this.submitError = new SyncableSubmitResult(submitResult);
+                this.host.returnToMainMenu(getPlayer(), this);
             }
+        } else {
+            AELog.info("Couldn't submit crafting job for %dx%s: %s [Detail: %s]",
+                    result.finalOutput().amount(),
+                    result.finalOutput().what(),
+                    submitResult.errorCode(),
+                    submitResult.errorDetail());
+            this.submitError = new SyncableSubmitResult(submitResult);
         }
     }
 

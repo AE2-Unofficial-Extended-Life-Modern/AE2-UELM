@@ -169,7 +169,8 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
                     existingEntry.getWhat(),
                     newEntry.getStoredAmount(),
                     newEntry.getActiveAmount(),
-                    newEntry.getPendingAmount()));
+                    newEntry.getPendingAmount(),
+                    newEntry.getPendingExternalAmount()));
         }
 
         List<CraftingStatusEntry> sortedEntries = new ArrayList<>(entries.values());
