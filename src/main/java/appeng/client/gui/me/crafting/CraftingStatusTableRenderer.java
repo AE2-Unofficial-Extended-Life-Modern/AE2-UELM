@@ -57,6 +57,10 @@ public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingS
             String amount = entry.getWhat().formatAmount(entry.getPendingAmount(), AmountFormat.SLOT);
             lines.add(GuiText.Scheduled.text(amount));
         }
+        if (entry.getPendingExternalAmount() > 0) {
+            String amount = entry.getWhat().formatAmount(entry.getPendingExternalAmount(), AmountFormat.SLOT);
+            lines.add(GuiText.Missing.text(amount));
+        }
         return lines;
     }
 
@@ -82,6 +86,10 @@ public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingS
             lines.add(GuiText.Scheduled.text(
                     entry.getWhat().formatAmount(entry.getPendingAmount(), AmountFormat.FULL)));
         }
+        if (entry.getPendingExternalAmount() > 0) {
+            lines.add(GuiText.Missing.text(
+                    entry.getWhat().formatAmount(entry.getPendingExternalAmount(), AmountFormat.FULL)));
+        }
 
         return lines;
 
@@ -94,6 +102,8 @@ public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingS
                 return AEColor.GREEN.blackVariant | BACKGROUND_ALPHA;
             } else if (entry.getPendingAmount() > 0) {
                 return AEColor.YELLOW.blackVariant | BACKGROUND_ALPHA;
+            } else if (entry.getPendingExternalAmount() > 0) {
+                return AEColor.RED.blackVariant | BACKGROUND_ALPHA;
             }
         }
         return 0;

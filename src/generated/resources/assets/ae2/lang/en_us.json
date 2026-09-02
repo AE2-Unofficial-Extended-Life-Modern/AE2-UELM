@@ -602,6 +602,7 @@
   "gui.tooltips.ae2.FluidSubstitutions": "Fluid Substitutions",
   "gui.tooltips.ae2.FluidSubstitutionsDescDisabled": "Don't use fluids.",
   "gui.tooltips.ae2.FluidSubstitutionsDescEnabled": "Try to use fluids instead of items.\nSubstitutable ingredients are marked in green.",
+  "gui.tooltips.ae2.ForceStart": "Press Shift to force start with missing ingredients",
   "gui.tooltips.ae2.FuzzyMode": "Fuzzy Comparison",
   "gui.tooltips.ae2.IOMode": "Input/Output Mode",
   "gui.tooltips.ae2.InscriberBufferHigh": "Stack to 64",

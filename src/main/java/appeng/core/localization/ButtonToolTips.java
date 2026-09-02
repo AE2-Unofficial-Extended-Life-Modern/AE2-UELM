@@ -99,6 +99,7 @@ public enum ButtonToolTips implements LocalizationEnum {
     InterfaceSetStockAmount("Set amount to stock"),
     FilterTerminalHighlight("Highlight target"),
     FilterTerminalStocked("Stocked: %s"),
+    ForceStart("Press Shift to force start with missing ingredients"),
     PatternProviderDisplayMode("Display Mode"),
     InventoryTweaks("Inventory Tweaks"),
     ItemName("Item name"),

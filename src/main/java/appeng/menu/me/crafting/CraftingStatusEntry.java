@@ -32,7 +32,8 @@ import appeng.api.stacks.AEKey;
  */
 public class CraftingStatusEntry implements Comparable<CraftingStatusEntry> {
     private static final Comparator<CraftingStatusEntry> COMPARATOR = Comparator
-            .comparing((CraftingStatusEntry e) -> e.getActiveAmount() + e.getPendingAmount())
+            .comparing((CraftingStatusEntry e) -> e.getActiveAmount() + e.getPendingAmount()
+                    + e.getPendingExternalAmount())
             .thenComparing(CraftingStatusEntry::getStoredAmount)
             .reversed();
 
@@ -42,14 +43,21 @@ public class CraftingStatusEntry implements Comparable<CraftingStatusEntry> {
     private final long storedAmount;
     private final long activeAmount;
     private final long pendingAmount;
+    private final long pendingExternalAmount;
 
     public CraftingStatusEntry(long serial, @Nullable AEKey what, long storedAmount, long activeAmount,
             long pendingAmount) {
+        this(serial, what, storedAmount, activeAmount, pendingAmount, 0);
+    }
+
+    public CraftingStatusEntry(long serial, @Nullable AEKey what, long storedAmount, long activeAmount,
+            long pendingAmount, long pendingExternalAmount) {
         this.serial = serial;
         this.what = what;
         this.storedAmount = storedAmount;
         this.activeAmount = activeAmount;
         this.pendingAmount = pendingAmount;
+        this.pendingExternalAmount = pendingExternalAmount;
     }
 
     public long getSerial() {
@@ -68,6 +76,10 @@ public class CraftingStatusEntry implements Comparable<CraftingStatusEntry> {
         return pendingAmount;
     }
 
+    public long getPendingExternalAmount() {
+        return pendingExternalAmount;
+    }
+
     public AEKey getWhat() {
         return what;
     }
@@ -77,6 +89,7 @@ public class CraftingStatusEntry implements Comparable<CraftingStatusEntry> {
         buffer.writeVarLong(activeAmount);
         buffer.writeVarLong(storedAmount);
         buffer.writeVarLong(pendingAmount);
+        buffer.writeVarLong(pendingExternalAmount);
         AEKey.writeOptionalKey(buffer, what);
     }
 
@@ -85,15 +98,16 @@ public class CraftingStatusEntry implements Comparable<CraftingStatusEntry> {
         long missingAmount = buffer.readVarLong();
         long storedAmount = buffer.readVarLong();
         long craftAmount = buffer.readVarLong();
+        long pendingExternalAmount = buffer.readVarLong();
         var what = AEKey.readOptionalKey(buffer);
-        return new CraftingStatusEntry(serial, what, storedAmount, missingAmount, craftAmount);
+        return new CraftingStatusEntry(serial, what, storedAmount, missingAmount, craftAmount, pendingExternalAmount);
     }
 
     /**
      * Indicates whether this entry is actually a deletion record.
      */
     public boolean isDeleted() {
-        return storedAmount == 0 && activeAmount == 0 && pendingAmount == 0;
+        return storedAmount == 0 && activeAmount == 0 && pendingAmount == 0 && pendingExternalAmount == 0;
     }
 
     @Override
