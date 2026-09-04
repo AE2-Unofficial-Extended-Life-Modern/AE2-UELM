@@ -284,4 +284,12 @@ Pressing Shift and clicking the Start button will now allow players to submit in
 
 </details>
 
+<!-- CHANGELOG-PR:29 -->
+<details>
+<summary><strong>Switch craft amount adjustment to 1, 16, 32, 64 while holding shift or ctrl</strong> · @ko-lja · merged 2026-09-03 16:43 UTC</summary>
+
+title, seemed like a welcome alternative since these numbers just feel more natural
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
