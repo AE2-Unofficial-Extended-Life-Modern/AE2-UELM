@@ -3,6 +3,7 @@ package appeng.blockentity.misc;
 import java.util.List;
 import java.util.Objects;
 
+import appeng.util.SettingsFrom;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
@@ -620,6 +621,26 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     public void reviveCaps() {
         super.reviveCaps();
         exposedStorageCapability = LazyOptional.of(() -> exposedStorage);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, CompoundTag input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            this.setTickRate(input.getInt("tickRate"));
+            this.setThreshold(input.getInt("threshold"));
+        }
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, CompoundTag output, @Nullable Player player) {
+        super.exportSettings(mode, output, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            output.putInt("tickRate", this.getTickRate());
+            output.putInt("threshold", this.getThreshold());
+        }
     }
 
     private boolean isOwnAction(IActionSource source) {
