@@ -53,6 +53,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.implementations.SuperMEReplenisherMenu;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
@@ -620,6 +621,26 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     public void reviveCaps() {
         super.reviveCaps();
         exposedStorageCapability = LazyOptional.of(() -> exposedStorage);
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, CompoundTag input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            this.setTickRate(input.getInt("tickRate"));
+            this.setThreshold(input.getInt("threshold"));
+        }
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, CompoundTag output, @Nullable Player player) {
+        super.exportSettings(mode, output, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            output.putInt("tickRate", this.getTickRate());
+            output.putInt("threshold", this.getThreshold());
+        }
     }
 
     private boolean isOwnAction(IActionSource source) {
