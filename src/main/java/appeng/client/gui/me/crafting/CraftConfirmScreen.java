@@ -18,8 +18,8 @@
 
 package appeng.client.gui.me.crafting;
 
-import java.util.ArrayList;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 
 import org.lwjgl.glfw.GLFW;
 
