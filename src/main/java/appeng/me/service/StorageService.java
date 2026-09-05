@@ -35,6 +35,8 @@ import net.minecraft.nbt.CompoundTag;
 
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridServiceProvider;
@@ -72,6 +74,26 @@ public class StorageService implements IStorageService, IGridServiceProvider {
      * {@link #cachedAvailableStacks} is modified by mistake.
      */
     private final Object2LongMap<AEKey> cachedAvailableAmounts = new Object2LongOpenHashMap<>();
+
+    /**
+     * Initial capacity for the temporary set used to find keys that disappeared between refreshes
+     */
+    private static final int missedTypesDefSize = 32;
+    /**
+     * We reuse this while comparing the old and new cache to determine which keys disappeared
+     * <p>
+     * This avoids allocating a new set every tick
+     */
+    private ObjectSet<AEKey> cacheUpdateMissedTypesSet = new ObjectOpenHashSet<>(
+            missedTypesDefSize);
+    /**
+     * Approximate minimum size the current set has been sized for
+     * <p>
+     * Used to recreate it when the inventory size changes a lot, rather than repeatedly growing a tiny set or
+     * permanently retaining a huge backing table
+     */
+    private int missedTypeMinSize = missedTypesDefSize;
+
     private boolean cachedStacksNeedUpdate = true;
     /**
      * Tracks the stack watcher associated with a given grid node. Needed to clean up watchers when the node leaves the
@@ -91,6 +113,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
         } else {
             // we need to rebuild the cache every tick to notify listeners
             updateCachedStacks();
+            notifyWatchers();
         }
     }
 
@@ -99,30 +122,56 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
         cachedAvailableStacks.clear();
         storage.getAvailableStacks(cachedAvailableStacks);
-        // clear() only clears the inner maps,
-        // so ensure that the outer map gets cleaned up too
-        cachedAvailableStacks.removeEmptySubmaps();
+    }
 
-        // Post watcher update for currently available stacks
+    /**
+     * Compares the newly built storage cache against the private amounts from the previous watcher update and sends
+     * notifications only for changed keys
+     */
+    private void notifyWatchers() {
+        var availableAmounts = cachedAvailableAmounts;
+        var keys = cacheUpdateMissedTypesSet;
+        var previousKeys = availableAmounts.keySet();
+        var numKeys = previousKeys.size();
+
+        if ((numKeys > missedTypesDefSize * 4
+                && numKeys >= missedTypeMinSize * 4)
+                || numKeys < missedTypeMinSize >> 3) {
+
+            if (!keys.isEmpty()) {
+                keys.clear();
+            }
+
+            keys = new ObjectOpenHashSet<>(previousKeys);
+            missedTypeMinSize = keys.size();
+            cacheUpdateMissedTypesSet = keys;
+        } else {
+            keys.addAll(previousKeys);
+        }
+
         for (var entry : cachedAvailableStacks) {
             var what = entry.getKey();
             var newAmount = entry.getLongValue();
-            if (newAmount != cachedAvailableAmounts.getLong(what)) {
+
+            var oldAmount = availableAmounts.put(what, newAmount);
+
+            if (newAmount != oldAmount) {
                 postWatcherUpdate(what, newAmount);
             }
-        }
-        // Post watcher update for removed stacks
-        for (var what : cachedAvailableAmounts.keySet()) {
-            var newAmount = cachedAvailableStacks.get(what);
-            if (newAmount == 0) {
-                postWatcherUpdate(what, newAmount);
+
+            if (!keys.isEmpty()) {
+                keys.remove(what);
             }
         }
 
-        // Update private amounts
-        cachedAvailableAmounts.clear();
-        for (var entry : cachedAvailableStacks) {
-            cachedAvailableAmounts.put(entry.getKey(), entry.getLongValue());
+        if (!keys.isEmpty()) {
+            for (var what : keys) {
+                postWatcherUpdate(what, 0);
+                availableAmounts.removeLong(what);
+            }
+
+            keys.clear();
+            cachedAvailableStacks.removeEmptySubmaps();
         }
     }
 
