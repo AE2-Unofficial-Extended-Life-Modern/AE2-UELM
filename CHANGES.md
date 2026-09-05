@@ -292,4 +292,12 @@ title, seemed like a welcome alternative since these numbers just feel more natu
 
 </details>
 
+<!-- CHANGELOG-PR:31 -->
+<details>
+<summary><strong>Extendable craft confirm and status screens</strong> · @ko-lja · merged 2026-09-05 05:57 UTC</summary>
+
+The craft confirm and status screens will now adapt to the terminal size chosen.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
