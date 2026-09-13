@@ -300,4 +300,21 @@ The craft confirm and status screens will now adapt to the terminal size chosen.
 
 </details>
 
+<!-- CHANGELOG-PR:33 -->
+<details>
+<summary><strong>Add colorable controllers</strong> · @ko-lja · merged 2026-09-13 16:19 UTC</summary>
+
+Can be placed next to other controllers of a different color without connecting or causing a conflict.
+
+## Videos
+Default look
+
+https://github.com/user-attachments/assets/654dad3e-60fb-42d6-b9ed-35fcb253f883
+
+Dark mode compatibility
+
+https://github.com/user-attachments/assets/8d8575da-8e12-4592-be1e-69453223e81d
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
