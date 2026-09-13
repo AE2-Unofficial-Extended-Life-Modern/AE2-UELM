@@ -70,6 +70,7 @@ import appeng.block.misc.SuperMEReplenisherBlock;
 import appeng.block.misc.TinyTNTBlock;
 import appeng.block.misc.VibrationChamberBlock;
 import appeng.block.networking.CableBusBlock;
+import appeng.block.networking.ColorableControllerBlock;
 import appeng.block.networking.ControllerBlock;
 import appeng.block.networking.CreativeEnergyCellBlock;
 import appeng.block.networking.CrystalResonanceGeneratorBlock;
@@ -89,6 +90,7 @@ import appeng.block.storage.DriveBlock;
 import appeng.block.storage.IOPortBlock;
 import appeng.block.storage.SkyChestBlock;
 import appeng.block.storage.SkyStoneTankBlock;
+import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.core.AppEng;
 import appeng.core.MainCreativeTab;
 import appeng.debug.ChunkLoaderBlock;
@@ -169,7 +171,10 @@ public final class AEBlocks {
     public static final BlockDefinition<QuantumLinkChamberBlock> QUANTUM_LINK = block("ME Quantum Link Chamber", AEBlockIds.QUANTUM_LINK, QuantumLinkChamberBlock::new);
     public static final BlockDefinition<SpatialPylonBlock> SPATIAL_PYLON = block("Spatial Pylon", AEBlockIds.SPATIAL_PYLON, SpatialPylonBlock::new);
     public static final BlockDefinition<SpatialIOPortBlock> SPATIAL_IO_PORT = block("Spatial IO Port", AEBlockIds.SPATIAL_IO_PORT, SpatialIOPortBlock::new);
-    public static final BlockDefinition<ControllerBlock> CONTROLLER = block("ME Controller", AEBlockIds.CONTROLLER, ControllerBlock::new);
+    public static final BlockDefinition<ControllerBlock<ControllerBlockEntity>> CONTROLLER = block(
+            "ME Controller", AEBlockIds.CONTROLLER, ControllerBlock::new);
+    public static final BlockDefinition<ColorableControllerBlock> COLORABLE_CONTROLLER = block(
+            "Colorable ME Controller", AEBlockIds.COLORABLE_CONTROLLER, ColorableControllerBlock::new);
     public static final BlockDefinition<DriveBlock> DRIVE = block("ME Drive", AEBlockIds.DRIVE, DriveBlock::new);
     public static final BlockDefinition<ChestBlock> CHEST = block("ME Chest", AEBlockIds.CHEST, ChestBlock::new);
     public static final BlockDefinition<InterfaceBlock> INTERFACE = block("ME Interface", AEBlockIds.INTERFACE, InterfaceBlock::new);

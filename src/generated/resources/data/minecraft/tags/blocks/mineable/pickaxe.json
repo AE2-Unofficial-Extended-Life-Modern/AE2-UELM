@@ -37,6 +37,7 @@
     "ae2:spatial_pylon",
     "ae2:spatial_io_port",
     "ae2:controller",
+    "ae2:colorable_controller",
     "ae2:drive",
     "ae2:chest",
     "ae2:interface",

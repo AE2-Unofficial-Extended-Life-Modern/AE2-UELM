@@ -64,6 +64,7 @@ public final class AEBlockIds {
     public static final ResourceLocation QUANTUM_RING = id("quantum_ring");
     public static final ResourceLocation QUANTUM_LINK = id("quantum_link");
     public static final ResourceLocation CONTROLLER = id("controller");
+    public static final ResourceLocation COLORABLE_CONTROLLER = id("colorable_controller");
     public static final ResourceLocation DRIVE = id("drive");
     public static final ResourceLocation CHEST = id("chest");
     public static final ResourceLocation INTERFACE = id("interface");

@@ -28,6 +28,8 @@ import net.minecraft.core.Direction;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridVisitor;
 import appeng.api.networking.pathing.ControllerState;
+import appeng.api.util.AEColor;
+import appeng.blockentity.networking.ColorableControllerBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 
 /**
@@ -48,11 +50,11 @@ public class ControllerValidator implements IGridVisitor {
     private int maxX;
     private int maxY;
     private int maxZ;
+    private final StructureKey structureKey;
+    private final Set<IGridNode> physicalNodes = new HashSet<>();
 
-    /**
-     * @param pos The position of the controller this visitor is first applied to.
-     */
-    private ControllerValidator(BlockPos pos) {
+    private ControllerValidator(BlockPos pos, ControllerBlockEntity startingController) {
+        this.structureKey = StructureKey.of(startingController);
         this.minX = pos.getX();
         this.maxX = pos.getX();
         this.minY = pos.getY();
@@ -77,23 +79,18 @@ public class ControllerValidator implements IGridVisitor {
             return ControllerState.CONTROLLER_CONFLICT;
         }
 
-        // Explore the controller structure surrounding the first controller in our grid
-        var cv = new ControllerValidator(startingController.getBlockPos());
-        startingNode.beginVisit(cv);
-
-        if (!cv.isValid()) {
-            // The controller structure exceeds the maximum size
-            return ControllerState.CONTROLLER_CONFLICT;
+        var validator = new ControllerValidator(startingController.getBlockPos(), startingController);
+        if (startingController instanceof ColorableControllerBlockEntity) {
+            validator.visitPhysicalStructure(startingNode);
+        } else {
+            startingNode.beginVisit(validator);
         }
 
-        if (cv.getFound() != controllers.size()) {
-            // Not all controllers connected to this grid are directly connected to the first
-            // controller, so the visitor could not reach them.
+        if (!validator.isValid() || validator.getFound() != controllers.size()) {
             return ControllerState.CONTROLLER_CONFLICT;
         }
 
         if (hasControllerCross(controllers)) {
-            // Some controllers are positioned in a "cross"-like shape, which is not allowed either.
             return ControllerState.CONTROLLER_CONFLICT;
         }
 
@@ -102,29 +99,75 @@ public class ControllerValidator implements IGridVisitor {
 
     @Override
     public boolean visitNode(IGridNode node) {
-        if (this.isValid() && node.getOwner() instanceof ControllerBlockEntity c) {
-
-            var pos = c.getBlockPos();
-
-            this.minX = Math.min(pos.getX(), this.minX);
-            this.maxX = Math.max(pos.getX(), this.maxX);
-            this.minY = Math.min(pos.getY(), this.minY);
-            this.maxY = Math.max(pos.getY(), this.maxY);
-            this.minZ = Math.min(pos.getZ(), this.minZ);
-            this.maxZ = Math.max(pos.getZ(), this.maxZ);
-
-            if (this.maxX - this.minX < MAX_SIZE
-                    && this.maxY - this.minY < MAX_SIZE
-                    && this.maxZ - this.minZ < MAX_SIZE) {
-                this.found++;
-                return true;
-            }
-
-            this.valid = false;
+        if (!this.isValid()) {
+            return false;
         }
 
-        // Only visit neighbors if this is a controller. This ensures that we only visit adjacent controllers.
+        if (!(node.getOwner() instanceof ControllerBlockEntity controller)) {
+            return false;
+        }
+
+        if (!this.structureKey.matches(controller)) {
+            this.valid = false;
+            return false;
+        }
+
+        return this.accept(controller);
+    }
+
+    private boolean accept(ControllerBlockEntity controller) {
+        var pos = controller.getBlockPos();
+
+        this.minX = Math.min(pos.getX(), this.minX);
+        this.maxX = Math.max(pos.getX(), this.maxX);
+        this.minY = Math.min(pos.getY(), this.minY);
+        this.maxY = Math.max(pos.getY(), this.maxY);
+        this.minZ = Math.min(pos.getZ(), this.minZ);
+        this.maxZ = Math.max(pos.getZ(), this.maxZ);
+
+        if (this.maxX - this.minX < MAX_SIZE
+                && this.maxY - this.minY < MAX_SIZE
+                && this.maxZ - this.minZ < MAX_SIZE) {
+            this.found++;
+            return true;
+        }
+
+        this.valid = false;
         return false;
+    }
+
+    private void visitPhysicalStructure(IGridNode node) {
+        if (!this.valid || !this.physicalNodes.add(node)) {
+            return;
+        }
+
+        if (!this.visitNode(node)) {
+            return;
+        }
+
+        var controller = (ControllerBlockEntity) node.getOwner();
+        for (var connection : node.getInWorldConnections().values()) {
+            var otherNode = connection.getOtherSide(node);
+            if (!(otherNode.getOwner() instanceof ControllerBlockEntity otherController)) {
+                continue;
+            }
+
+            if (!connection.isInWorld() || !arePhysicallyAdjacent(controller, otherController)) {
+                this.valid = false;
+                return;
+            }
+
+            visitPhysicalStructure(otherNode);
+        }
+    }
+
+    private static boolean arePhysicallyAdjacent(ControllerBlockEntity first, ControllerBlockEntity second) {
+        var firstPos = first.getBlockPos();
+        var secondPos = second.getBlockPos();
+        var distance = Math.abs(firstPos.getX() - secondPos.getX())
+                + Math.abs(firstPos.getY() - secondPos.getY())
+                + Math.abs(firstPos.getZ() - secondPos.getZ());
+        return distance == 1;
     }
 
     /**
@@ -158,5 +201,22 @@ public class ControllerValidator implements IGridVisitor {
 
     public int getFound() {
         return this.found;
+    }
+
+    private record StructureKey(boolean colorable, AEColor color) {
+        private static StructureKey of(ControllerBlockEntity controller) {
+            if (controller instanceof ColorableControllerBlockEntity colorableController) {
+                return new StructureKey(true, colorableController.getColor());
+            }
+            return new StructureKey(false, null);
+        }
+
+        private boolean matches(ControllerBlockEntity controller) {
+            if (this.colorable) {
+                return controller instanceof ColorableControllerBlockEntity colorableController
+                        && colorableController.getColor() == this.color;
+            }
+            return !(controller instanceof ColorableControllerBlockEntity);
+        }
     }
 }

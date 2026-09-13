@@ -38,6 +38,7 @@ public final class InitRenderTypes {
     private static final BlockDefinition<?>[] CUTOUT_BLOCKS = {
             AEBlocks.CRAFTING_MONITOR,
             AEBlocks.CONTROLLER,
+            AEBlocks.COLORABLE_CONTROLLER,
             AEBlocks.MOLECULAR_ASSEMBLER,
             AEBlocks.QUARTZ_GLASS,
             AEBlocks.QUARTZ_VIBRANT_GLASS,
