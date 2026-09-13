@@ -43,7 +43,7 @@ import appeng.menu.MenuOpener;
 import appeng.menu.locator.MenuLocators;
 import appeng.menu.me.networktool.NetworkStatusMenu;
 
-public class ControllerBlock extends AEBaseEntityBlock<ControllerBlockEntity> {
+public class ControllerBlock<T extends ControllerBlockEntity> extends AEBaseEntityBlock<T> {
 
     public enum ControllerBlockState implements StringRepresentable {
         offline, online, conflicted;
@@ -107,7 +107,7 @@ public class ControllerBlock extends AEBaseEntityBlock<ControllerBlockEntity> {
         return getControllerType(state, level, pos);
     }
 
-    private BlockState getControllerType(BlockState baseState, LevelAccessor level, BlockPos pos) {
+    protected BlockState getControllerType(BlockState baseState, LevelAccessor level, BlockPos pos) {
         // Only used for columns, really
         ControllerRenderType type = ControllerRenderType.block;
 
@@ -116,9 +116,12 @@ public class ControllerBlock extends AEBaseEntityBlock<ControllerBlockEntity> {
         int z = pos.getZ();
 
         // Detect whether controllers are on both sides of the x, y, and z axes
-        final boolean xx = isController(level, x - 1, y, z) && isController(level, x + 1, y, z);
-        final boolean yy = isController(level, x, y - 1, z) && isController(level, x, y + 1, z);
-        final boolean zz = isController(level, x, y, z - 1) && isController(level, x, y, z + 1);
+        final boolean xx = isController(baseState, level, pos, new BlockPos(x - 1, y, z))
+                && isController(baseState, level, pos, new BlockPos(x + 1, y, z));
+        final boolean yy = isController(baseState, level, pos, new BlockPos(x, y - 1, z))
+                && isController(baseState, level, pos, new BlockPos(x, y + 1, z));
+        final boolean zz = isController(baseState, level, pos, new BlockPos(x, y, z - 1))
+                && isController(baseState, level, pos, new BlockPos(x, y, z + 1));
 
         if (xx && !yy && !zz) {
             type = ControllerRenderType.column_x;
@@ -141,16 +144,30 @@ public class ControllerBlock extends AEBaseEntityBlock<ControllerBlockEntity> {
         return baseState.setValue(CONTROLLER_TYPE, type);
     }
 
-    private static boolean isController(LevelAccessor level, int x, int y, int z) {
-        // Do NOT query block entity:
-        // - in Spatial IO movement, block entity might have been removed but block might still be there
-        // - if we call getBlockEntity a new block entity will be loaded even though it has already been removed (bad!)
-        return level.getBlockState(new BlockPos(x, y, z)).is(AEBlocks.CONTROLLER.block());
+    public void updateRenderType(Level level, BlockPos pos) {
+        var currentState = level.getBlockState(pos);
+        var updatedState = getControllerType(currentState, level, pos);
+        if (currentState != updatedState) {
+            level.setBlock(pos, updatedState, Block.UPDATE_CLIENTS);
+        }
+    }
+
+    /**
+     * Tests whether the neighboring block contributes to this controller's physical shape.
+     *
+     * <p>
+     * This deliberately only reads block states. Spatial IO can temporarily leave a block without its block entity, and
+     * querying it here could recreate an entity that is in the process of being moved.
+     * </p>
+     */
+    protected boolean isController(BlockState centerState, LevelAccessor level, BlockPos centerPos,
+            BlockPos neighborPos) {
+        return level.getBlockState(neighborPos).is(AEBlocks.CONTROLLER.block());
     }
 
     @Override
     public InteractionResult onActivated(Level level, BlockPos pos, Player player, InteractionHand hand,
-            @org.jetbrains.annotations.Nullable ItemStack heldItem, BlockHitResult hit) {
+            @Nullable ItemStack heldItem, BlockHitResult hit) {
         var controller = getBlockEntity(level, pos);
         if (controller != null) {
             if (!level.isClientSide) {

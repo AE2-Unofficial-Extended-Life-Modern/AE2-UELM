@@ -34,6 +34,7 @@ import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridMultiblock;
 import appeng.api.networking.IGridNode;
+import appeng.blockentity.networking.ColorableControllerBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.me.GridConnection;
 import appeng.me.GridNode;
@@ -94,7 +95,7 @@ public class PathingCalculation {
         this.grid = grid;
 
         // Add every outgoing connection of the controllers (that doesn't point to another controller) to the list.
-        for (var node : grid.getMachineNodes(ControllerBlockEntity.class)) {
+        for (var node : controllerNodes(grid)) {
             visited.add((IPathItem) node);
             for (var gcc : node.getConnections()) {
                 var gc = (GridConnection) gcc;
@@ -216,10 +217,10 @@ public class PathingCalculation {
      */
     private void propagateAssignments() {
         List<Object> stack = new ArrayList<>();
-        Set<IPathItem> controllerNodes = new HashSet<>();
+        Set<IPathItem> controllerNodeItems = new HashSet<>();
 
-        for (var node : grid.getMachineNodes(ControllerBlockEntity.class)) {
-            controllerNodes.add((IPathItem) node);
+        for (var node : controllerNodes(grid)) {
+            controllerNodeItems.add((IPathItem) node);
             for (var gcc : node.getConnections()) {
                 var gc = (GridConnection) gcc;
                 if (!(gc.getOtherSide(node).getOwner() instanceof ControllerBlockEntity)) {
@@ -249,7 +250,7 @@ public class PathingCalculation {
                     // The neighbor could either be: a child, the parent, or in a different tree if it is closer to
                     // another controller. It is a child if we are its parent.
                     // We need to exclude controller nodes because their getControllerRoute() is nonsense.
-                    if (!controllerNodes.contains(pi) && pi.getControllerRoute() == current) {
+                    if (!controllerNodeItems.contains(pi) && pi.getControllerRoute() == current) {
                         stack.add(pi);
                     }
                 }
@@ -268,5 +269,16 @@ public class PathingCalculation {
 
     public int getChannelsByBlocks() {
         return channelsByBlocks;
+    }
+
+    private static List<IGridNode> controllerNodes(IGrid grid) {
+        var result = new ArrayList<IGridNode>();
+        for (var node : grid.getMachineNodes(ControllerBlockEntity.class)) {
+            result.add(node);
+        }
+        for (var node : grid.getMachineNodes(ColorableControllerBlockEntity.class)) {
+            result.add(node);
+        }
+        return result;
     }
 }

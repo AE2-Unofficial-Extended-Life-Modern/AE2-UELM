@@ -30,6 +30,7 @@ import java.util.function.DoubleSupplier;
 import net.minecraftforge.fml.ModList;
 
 import appeng.api.config.CondenserOutput;
+import appeng.api.config.ControllerAnimation;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnits;
 import appeng.api.config.Settings;
@@ -296,6 +297,14 @@ public final class AEConfig {
 
     public void setTerminalStyle(TerminalStyle setting) {
         CLIENT.terminalStyle.set(setting);
+    }
+
+    public ControllerAnimation getControllerAnimation() {
+        return CLIENT.controllerAnimation.get();
+    }
+
+    public void setControllerAnimation(ControllerAnimation animation) {
+        CLIENT.controllerAnimation.set(animation);
     }
 
     public boolean isGuideHotkeyEnabled() {
@@ -565,6 +574,7 @@ public final class AEConfig {
         public final BooleanOption enableFacadeRecipesInJEI;
         public final BooleanOption exposeInventoryToEmi;
         public final EnumOption<PowerUnits> selectedPowerUnit;
+        public final EnumOption<ControllerAnimation> controllerAnimation;
         public final BooleanOption debugGuiOverlays;
         public final BooleanOption showPlacementPreview;
         public final BooleanOption notifyForFinishedCraftingJobs;
@@ -603,6 +613,8 @@ public final class AEConfig {
             this.useLargeFonts = client.addBoolean("useTerminalUseLargeFont", false);
             this.useColoredCraftingStatus = client.addBoolean("useColoredCraftingStatus", true);
             this.selectedPowerUnit = client.addEnum("PowerUnit", PowerUnits.AE, "Power unit shown in AE UIs");
+            this.controllerAnimation = client.addEnum("controllerAnimation", ControllerAnimation.RAINBOW,
+                    "Controls the animation displayed by ME Controllers.");
             this.debugGuiOverlays = client.addBoolean("showDebugGuiOverlays", false, "Show debugging GUI overlays");
             this.showPlacementPreview = client.addBoolean("showPlacementPreview", true,
                     "Show a preview of part and facade placement");

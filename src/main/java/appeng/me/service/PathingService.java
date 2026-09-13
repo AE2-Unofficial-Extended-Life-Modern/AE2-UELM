@@ -37,6 +37,7 @@ import appeng.api.networking.IGridServiceProvider;
 import appeng.api.networking.events.GridBootingStatusChange;
 import appeng.api.networking.events.GridChannelRequirementChanged;
 import appeng.api.networking.events.GridControllerChange;
+import appeng.api.networking.events.GridControllerStructureChanged;
 import appeng.api.networking.pathing.ChannelMode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingService;
@@ -59,6 +60,11 @@ public class PathingService implements IPathingService, IGridServiceProvider {
                 IPathingService.class,
                 (service, event) -> {
                     ((PathingService) service).updateNodReq(event);
+                });
+        GridHelper.addGridServiceEventHandler(GridControllerStructureChanged.class,
+                IPathingService.class,
+                (service, event) -> {
+                    ((PathingService) service).onControllerStructureChanged();
                 });
     }
 
@@ -215,6 +221,11 @@ public class PathingService implements IPathingService, IGridServiceProvider {
         if (old != this.controllerState) {
             this.grid.postEvent(new GridControllerChange());
         }
+    }
+
+    private void onControllerStructureChanged() {
+        this.recalculateControllerNextTick = true;
+        this.repath();
     }
 
     @Nullable

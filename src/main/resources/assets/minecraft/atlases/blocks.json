@@ -4,6 +4,176 @@
       "type": "directory",
       "source": "part",
       "prefix": "part/"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/white"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/orange"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/magenta"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/light_blue"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/yellow"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/lime"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/pink"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/gray"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/light_gray"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/cyan"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/purple"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/blue"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/brown"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/green"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/red"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/black"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_lights/transparent"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/white"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/orange"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/magenta"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/light_blue"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/yellow"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/lime"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/pink"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/gray"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/light_gray"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/cyan"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/purple"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/blue"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/brown"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/green"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/red"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/black"
+    },
+    {
+      "type": "single",
+      "resource": "ae2:block/colorable_controller/controller_column_lights",
+      "sprite": "ae2:block/colorable_controller/generated/controller_column_lights/transparent"
     }
   ]
 }

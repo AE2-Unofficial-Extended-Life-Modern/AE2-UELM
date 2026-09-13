@@ -23,6 +23,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 import appeng.api.util.AEColor;
+import appeng.blockentity.networking.ColorableControllerBlockEntity;
 import appeng.client.render.StaticItemColor;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
@@ -42,6 +43,7 @@ public final class InitItemColors {
     public static void init(ItemColors itemColors) {
         // I checked, the ME chest doesn't keep its color in item form
         itemColors.register(new StaticItemColor(AEColor.TRANSPARENT), AEBlocks.CHEST.asItem());
+        itemColors.register(InitItemColors::getColorableControllerColor, AEBlocks.COLORABLE_CONTROLLER.asItem());
 
         itemColors.register(MemoryCardItem::getTintColor, AEItems.MEMORY_CARD);
 
@@ -114,6 +116,15 @@ public final class InitItemColors {
             case 3 -> col.whiteVariant;
             default -> -1;
         };
+    }
+
+    private static int getColorableControllerColor(ItemStack itemStack, int tintIndex) {
+        if (tintIndex == 0) {
+            return -1;
+        }
+
+        var color = ColorableControllerBlockEntity.readColor(itemStack.getTag());
+        return color == AEColor.TRANSPARENT ? -1 : color.getVariantByTintIndex(tintIndex);
     }
 
 }

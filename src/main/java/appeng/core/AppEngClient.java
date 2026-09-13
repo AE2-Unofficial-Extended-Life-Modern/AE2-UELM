@@ -48,6 +48,7 @@ import net.minecraftforge.client.event.RegisterColorHandlersEvent;
 import net.minecraftforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
+import net.minecraftforge.client.event.RegisterTextureAtlasSpriteLoadersEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
@@ -63,6 +64,7 @@ import guideme.compiler.TagCompiler;
 import guideme.scene.ImplicitAnnotationStrategy;
 
 import appeng.api.parts.CableRenderMode;
+import appeng.client.ControllerAnimationClient;
 import appeng.client.EffectType;
 import appeng.client.Hotkeys;
 import appeng.client.commands.ClientCommands;
@@ -78,6 +80,7 @@ import appeng.client.render.PatternClientTooltipComponent;
 import appeng.client.render.StorageCellClientTooltipComponent;
 import appeng.client.render.effects.EnergyParticleData;
 import appeng.client.render.effects.ParticleTypes;
+import appeng.client.render.model.ControllerLightTextureLoader;
 import appeng.client.render.overlay.OverlayManager;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.sync.network.NetworkHandler;
@@ -125,6 +128,7 @@ public class AppEngClient extends AppEngBase {
 
     public AppEngClient() {
         InitBuiltInModels.init();
+        Hotkeys.registerClientHotkey(ControllerAnimationClient.HOTKEY_ID, ControllerAnimationClient::cycle);
 
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         this.registerClientCommands();
@@ -139,6 +143,7 @@ public class AppEngClient extends AppEngBase {
         modEventBus.addListener(this::registerEntityLayerDefinitions);
         modEventBus.addListener(this::registerHotkeys);
         modEventBus.addListener(this::registerDimensionSpecialEffects);
+        modEventBus.addListener(this::registerTextureAtlasSpriteLoaders);
 
         BlockAttackHook.install();
         RenderBlockOutlineHook.install();
@@ -173,6 +178,10 @@ public class AppEngClient extends AppEngBase {
         event.register(
                 SpatialStorageDimensionIds.DIMENSION_TYPE_ID.location(),
                 SpatialStorageSkyProperties.INSTANCE);
+    }
+
+    private void registerTextureAtlasSpriteLoaders(RegisterTextureAtlasSpriteLoadersEvent event) {
+        event.register("controller_light", ControllerLightTextureLoader.INSTANCE);
     }
 
     private void registerClientCommands() {
