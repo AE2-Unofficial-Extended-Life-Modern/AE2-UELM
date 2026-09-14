@@ -2,6 +2,8 @@ package appeng.api.config;
 
 import java.util.Locale;
 
+import net.minecraft.network.chat.Component;
+
 /**
  * Clientside animation styles available for colorable controllers.
  */
@@ -38,5 +40,9 @@ public enum ControllerAnimation {
 
     public String getTranslationKey() {
         return "controller_animation.ae2." + name().toLowerCase(Locale.ROOT);
+    }
+
+    public Component translated() {
+        return Component.translatable(getTranslationKey());
     }
 }

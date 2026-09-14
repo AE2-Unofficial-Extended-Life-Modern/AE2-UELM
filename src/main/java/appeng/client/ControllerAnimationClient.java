@@ -28,7 +28,7 @@ public final class ControllerAnimationClient {
 
         if (player != null) {
             player.displayClientMessage(
-                    PlayerMessages.ControllerAnimation.text(next.getTranslationKey()),
+                    PlayerMessages.ControllerAnimation.text(next.translated()),
                     true);
         }
     }
