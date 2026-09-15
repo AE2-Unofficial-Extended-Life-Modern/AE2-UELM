@@ -69,6 +69,16 @@ public class SetStockAmountMenu extends AEBaseMenu implements ISubMenu {
     }
 
     /**
+     * Backwards compatibility.
+     */
+    @Deprecated
+    public static void open(ServerPlayer player, MenuLocator locator,
+            int slot,
+            AEKey whatToStock, int initialAmount) {
+        open(player, locator, slot, whatToStock, (long) initialAmount);
+    }
+
+    /**
      * Opens the screen to enter the stocked amount for the given player.
      */
     public static void open(ServerPlayer player, MenuLocator locator,
