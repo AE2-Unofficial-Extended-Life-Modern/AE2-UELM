@@ -31,7 +31,7 @@ public record PatternClientTooltipComponent(PatternTooltipComponent component) i
     public void renderText(Font font, int x, int y, Matrix4f matrix, MultiBufferSource.BufferSource bufferSource) {
         var currentY = y;
         for (var line : component.lines()) {
-            font.drawInBatch(line, x, currentY, 0xFFFFFFFF, false, matrix, bufferSource, Font.DisplayMode.NORMAL, 0,
+            font.drawInBatch(line, x, currentY, 0xFFFFFFFF, true, matrix, bufferSource, Font.DisplayMode.NORMAL, 0,
                     0xF000F0);
             currentY += font.lineHeight + 1;
         }
