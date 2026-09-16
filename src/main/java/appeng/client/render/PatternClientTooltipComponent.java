@@ -1,24 +1,40 @@
 package appeng.client.render;
 
+import org.joml.Matrix4f;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
+import net.minecraft.client.renderer.MultiBufferSource;
 
 import appeng.api.client.AEKeyRendering;
 import appeng.crafting.pattern.PatternTooltipComponent;
 
 public record PatternClientTooltipComponent(PatternTooltipComponent component) implements ClientTooltipComponent {
-    private static final int ICON_SIZE = 8;
 
     @Override
     public int getHeight() {
-        return 0; // we render over the existing tooltip so no need for an extra area
+        return (Minecraft.getInstance().font.lineHeight + 1) * component.lines().size();
     }
 
     @Override
     public int getWidth(Font font) {
-        return ICON_SIZE;
+        int maxWidth = 0;
+        for (var line : component.lines()) {
+            maxWidth = Math.max(maxWidth, font.width(line));
+        }
+        return maxWidth;
+    }
+
+    @Override
+    public void renderText(Font font, int x, int y, Matrix4f matrix, MultiBufferSource.BufferSource bufferSource) {
+        var currentY = y;
+        for (var line : component.lines()) {
+            font.drawInBatch(line, x, currentY, 0xFFFFFFFF, true, matrix, bufferSource, Font.DisplayMode.NORMAL, 0,
+                    0xF000F0);
+            currentY += font.lineHeight + 1;
+        }
     }
 
     @Override
@@ -26,7 +42,7 @@ public record PatternClientTooltipComponent(PatternTooltipComponent component) i
         x += 1; // center it between the border and text
         var mc = Minecraft.getInstance();
         int lineHeight = mc.font.lineHeight + 1;
-        int currentY = y + lineHeight * 2;
+        int currentY = y + lineHeight;
         var poseStack = guiGraphics.pose();
         poseStack.pushPose();
         poseStack.scale(.5f, .5f, 1); // halve the icon size

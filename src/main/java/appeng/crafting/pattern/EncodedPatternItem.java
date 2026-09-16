@@ -18,7 +18,7 @@
 
 package appeng.crafting.pattern;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -48,6 +48,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AmountFormat;
 import appeng.api.stacks.GenericStack;
+import appeng.core.AEConfig;
 import appeng.core.AppEng;
 import appeng.core.definitions.AEItems;
 import appeng.core.localization.GuiText;
@@ -162,57 +163,8 @@ public abstract class EncodedPatternItem extends AEBaseItem {
             stack.resetHoverName();
         }
 
-        var isCrafting = details instanceof AECraftingPattern;
-        var substitute = isCrafting && ((AECraftingPattern) details).canSubstitute;
-        var substituteFluids = isCrafting && ((AECraftingPattern) details).canSubstituteFluids;
-        var author = details.getAuthor();
-
-        var in = details.getInputs();
-        var out = details.getOutputs();
-
-        var label = (isCrafting ? GuiText.Crafts.text() : GuiText.Produces.text())
-                .withStyle(ChatFormatting.DARK_AQUA);
-        var ingredients = GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN);
-
-        boolean first = true;
-        for (var anOut : out) {
-            if (anOut == null) {
-                continue;
-            }
-
-            if (first) {
-                lines.add(label);
-            }
-            lines.add(Component.literal("   ").append(getStackComponent(anOut, false)));
-            first = false;
-        }
-
-        first = true;
-        for (var anIn : in) {
-            if (anIn == null) {
-                continue;
-            }
-
-            var primaryInputTemplate = anIn.getPossibleInputs()[0];
-            var primaryInput = new GenericStack(primaryInputTemplate.what(),
-                    primaryInputTemplate.amount() * anIn.getMultiplier());
-            if (first) {
-                lines.add(ingredients);
-            }
-            lines.add(Component.literal("   ").append(getStackComponent(primaryInput, true)));
-            first = false;
-        }
-
-        if (isCrafting) {
-            var canSubstitute = substitute ? YES : NO;
-            var canSubstituteFluids = substituteFluids ? YES : NO;
-
-            lines.add(GuiText.Substitute.text(canSubstitute));
-            lines.add(GuiText.FluidSubstitutions.text(canSubstituteFluids));
-        }
-
-        if (!author.isEmpty()) {
-            lines.add(GuiText.EncodedBy.text(author).withStyle(ChatFormatting.LIGHT_PURPLE));
+        if (!AEConfig.instance().isFancyTooltipsEnabled()) {
+            lines.addAll(patternTooltip(details));
         }
     }
 
@@ -269,6 +221,65 @@ public abstract class EncodedPatternItem extends AEBaseItem {
         return out;
     }
 
+    public static List<Component> patternTooltip(IPatternDetails details) {
+        var lines = new ArrayList<Component>();
+
+        var isCrafting = details instanceof AECraftingPattern;
+        var substitute = isCrafting && ((AECraftingPattern) details).canSubstitute;
+        var substituteFluids = isCrafting && ((AECraftingPattern) details).canSubstituteFluids;
+        var author = details.getAuthor();
+
+        var in = details.getInputs();
+        var out = details.getOutputs();
+
+        var label = (isCrafting ? GuiText.Crafts.text() : GuiText.Produces.text())
+                .withStyle(ChatFormatting.DARK_AQUA);
+        var ingredients = GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN);
+
+        boolean first = true;
+        for (var anOut : out) {
+            if (anOut == null) {
+                continue;
+            }
+
+            if (first) {
+                lines.add(label);
+            }
+            lines.add(Component.literal("   ").append(getStackComponent(anOut, false)));
+            first = false;
+        }
+
+        first = true;
+        for (var anIn : in) {
+            if (anIn == null) {
+                continue;
+            }
+
+            var primaryInputTemplate = anIn.getPossibleInputs()[0];
+            var primaryInput = new GenericStack(primaryInputTemplate.what(),
+                    primaryInputTemplate.amount() * anIn.getMultiplier());
+            if (first) {
+                lines.add(ingredients);
+            }
+            lines.add(Component.literal("   ").append(getStackComponent(primaryInput, true)));
+            first = false;
+        }
+
+        if (isCrafting) {
+            var canSubstitute = substitute ? YES : NO;
+            var canSubstituteFluids = substituteFluids ? YES : NO;
+
+            lines.add(GuiText.Substitute.text(canSubstitute));
+            lines.add(GuiText.FluidSubstitutions.text(canSubstituteFluids));
+        }
+
+        if (!author.isEmpty()) {
+            lines.add(GuiText.EncodedBy.text(author).withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+
+        return lines;
+    }
+
     @Nullable
     public abstract IPatternDetails decode(ItemStack stack, Level level, boolean tryRecovery);
 
@@ -278,14 +289,12 @@ public abstract class EncodedPatternItem extends AEBaseItem {
     @OnlyIn(Dist.CLIENT)
     @Override
     public Optional<TooltipComponent> getTooltipImage(ItemStack itemStack) {
-        if (!itemStack.hasTag())
+        if (!itemStack.hasTag() || !AEConfig.instance().isFancyTooltipsEnabled())
             return Optional.empty();
         var details = decode(itemStack, AppEng.instance().getClientLevel(), false);
         if (details == null)
             return Optional.empty();
 
-        return Optional.of(new PatternTooltipComponent(
-                Arrays.stream(details.getInputs()).map(iInput -> iInput.getPossibleInputs()[0].what()).toList(),
-                Arrays.stream(details.getOutputs()).map(GenericStack::what).toList()));
+        return Optional.of(new PatternTooltipComponent(details, patternTooltip(details)));
     }
 }
