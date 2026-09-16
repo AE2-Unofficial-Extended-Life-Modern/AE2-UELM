@@ -311,6 +311,10 @@ public final class AEConfig {
         return CLIENT.enableGuideHotkey.get();
     }
 
+    public boolean isFancyTooltipsEnabled() {
+        return CLIENT.enableFancyTooltips.get();
+    }
+
     public double getGridEnergyStoragePerNode() {
         return COMMON.gridEnergyStoragePerNode.get();
     }
@@ -599,6 +603,7 @@ public final class AEConfig {
         public final BooleanOption tooltipShowCellContent;
         public final IntegerOption tooltipMaxCellContentShown;
         public final BooleanOption enableGuideHotkey;
+        public final BooleanOption enableFancyTooltips;
 
         public ClientConfig(ConfigSection root) {
             var client = root.subsection("client");
@@ -656,6 +661,8 @@ public final class AEConfig {
                     "The maximum number of content entries to show in the tooltip of storage cells, color applicators and matter cannons");
             this.enableGuideHotkey = tooltips.addBoolean("enableGuideHotkey", true,
                     "Enables the 'hold key to show guide' functionality in tooltips");
+            this.enableFancyTooltips = tooltips.addBoolean("enableFancyTooltips", true,
+                    "Enables fancy tooltips for encoded patterns");
         }
 
     }
