@@ -38,6 +38,11 @@ public class ConfirmAutoCraftPacket extends BasePacket {
         this.amount = stream.readLong();
     }
 
+    @Deprecated
+    public ConfirmAutoCraftPacket(int craftAmt, boolean craftMissingAmount, boolean autoStart) {
+        this((long) craftAmt, craftMissingAmount, autoStart);
+    }
+
     public ConfirmAutoCraftPacket(long craftAmt, boolean craftMissingAmount, boolean autoStart) {
         this.amount = craftAmt;
         this.craftMissingAmount = craftMissingAmount;

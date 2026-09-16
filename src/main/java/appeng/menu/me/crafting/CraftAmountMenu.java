@@ -77,6 +77,11 @@ public class CraftAmountMenu extends AEBaseMenu implements ISubMenu {
         return host;
     }
 
+    @Deprecated
+    public static void open(ServerPlayer player, MenuLocator locator, AEKey whatToCraft, int initialAmount) {
+        open(player, locator, whatToCraft, (long) initialAmount);
+    }
+
     /**
      * Opens the craft amount screen for the given player.
      */
@@ -96,6 +101,11 @@ public class CraftAmountMenu extends AEBaseMenu implements ISubMenu {
     private void setWhatToCraft(AEKey whatToCraft, long initialAmount) {
         this.whatToCraft = Objects.requireNonNull(whatToCraft, "whatToCraft");
         this.craftingItem.set(GenericStack.wrapInItemStack(whatToCraft, initialAmount));
+    }
+
+    @Deprecated
+    public void confirm(int amount, boolean craftMissingAmount, boolean autoStart) {
+        confirm((long) amount, craftMissingAmount, autoStart);
     }
 
     /**
