@@ -44,6 +44,7 @@ public class PriorityScreen extends AEBaseScreen<PriorityMenu> {
         this.priority = widgets.addNumberEntryWidget("priority", NumberEntryType.UNITLESS);
         this.priority.setTextFieldStyle(style.getWidget("priorityInput"));
         this.priority.setMinValue(Integer.MIN_VALUE);
+        this.priority.setMaxValue(Integer.MAX_VALUE);
         this.priority.setLongValue(this.menu.getPriorityValue());
         this.priority.setOnChange(this::savePriority);
         this.priority.setOnConfirm(() -> {
