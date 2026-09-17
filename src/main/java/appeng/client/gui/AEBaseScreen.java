@@ -535,7 +535,7 @@ public abstract class AEBaseScreen<T extends AEBaseMenu> extends AbstractContain
 
         var pickBlockKey = InputConstants.Type.MOUSE.getOrCreate(btn);
         if (getMinecraft().options.keyPickItem.isActiveAndMatches(pickBlockKey)
-                && handlePickBlock(this.hoveredSlot)) {
+                && handlePickBlock(findSlot(xCoord, yCoord))) {
             return true;
         }
 
