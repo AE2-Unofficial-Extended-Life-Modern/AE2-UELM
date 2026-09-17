@@ -9,7 +9,6 @@ import java.util.Locale;
 import com.google.common.collect.HashMultimap;
 
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -236,13 +235,8 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     @Override
     protected void slotClicked(@Nullable Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
         if (slot instanceof FilterTerminalSlot interfaceSlot) {
-            var expectedKey = interfaceSlot.getMachine().getInventory().getKey(interfaceSlot.slot);
-            if (mouseButton == GLFW.GLFW_MOUSE_BUTTON_MIDDLE && expectedKey != null
-                    && interfaceSlot.getMachine().supportsAmountEditing()) {
-                NetworkHandler.instance().sendToServer(FilterTerminalActionPacket.openAmount(
-                        interfaceSlot.getMachine().getServerId(), interfaceSlot.slot, expectedKey));
-                return;
-            }
+            var machine = interfaceSlot.getMachine();
+            var expectedKey = machine.getInventory().getKey(interfaceSlot.slot);
 
             InventoryAction action = null;
             if (mouseButton == 1 && getEmptyingAction(slot, menu.getCarried()) != null) {
@@ -254,13 +248,28 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
             if (action != null) {
                 NetworkHandler.instance().sendToServer(new FilterTerminalActionPacket(action,
-                        interfaceSlot.getMachine().getServerId(), interfaceSlot.slot,
+                        machine.getServerId(), interfaceSlot.slot,
                         expectedKey));
             }
             return;
         }
 
         super.slotClicked(slot, slotIdx, mouseButton, clickType);
+    }
+
+    @Override
+    protected boolean handlePickBlock(@Nullable Slot slot) {
+        if (slot instanceof FilterTerminalSlot filterTermSlot) {
+            var machine = filterTermSlot.getMachine();
+            var expectedKey = machine.getInventory().getKey(filterTermSlot.slot);
+            if (expectedKey != null && machine.supportsAmountEditing()) {
+                NetworkHandler.instance().sendToServer(FilterTerminalActionPacket.openAmount(
+                        machine.getServerId(), filterTermSlot.slot, expectedKey));
+                return true;
+            }
+        }
+
+        return super.handlePickBlock(slot);
     }
 
     @Override
@@ -290,7 +299,8 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
                 var tooltip = new ArrayList<>(getTooltipFromContainerItem(slot.getItem()));
                 tooltip.add(Tooltips.getAmountTooltip(ButtonToolTips.FilterTerminalStocked,
                         configured.what(), slot.getMachine().getStockedAmount(slot.slot)));
-                tooltip.add(Tooltips.getSetAmountTooltip());
+                var pickKey = getMinecraft().options.keyPickItem.getTranslatedKeyMessage();
+                tooltip.add(Tooltips.getSetAmountTooltip(pickKey));
                 drawTooltip(guiGraphics, x, y, tooltip);
                 return;
             }

@@ -23,6 +23,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -92,31 +94,32 @@ public class PatternEncodingTermScreen<C extends PatternEncodingTermMenu> extend
         }
     }
 
+    /**
+     * Using the pick-block binding on a processing pattern slot opens the amount entry dialog.
+     */
     @Override
-    public boolean mouseClicked(double xCoord, double yCoord, int btn) {
-        // handler for middle mouse button crafting in survival mode
-        if (this.minecraft.options.keyPickItem.matchesMouse(btn)) {
-            var slot = this.findSlot(xCoord, yCoord);
-            if (menu.canModifyAmountForSlot(slot)) {
-                var currentStack = GenericStack.fromItemStack(slot.getItem());
-                if (currentStack != null) {
-                    var screen = new SetProcessingPatternAmountScreen<>(
-                            this,
-                            currentStack,
-                            newStack -> NetworkHandler.instance().sendToServer(new InventoryActionPacket(
-                                    InventoryAction.SET_FILTER, slot.index,
-                                    GenericStack.wrapInItemStack(newStack))));
-                    switchToScreen(screen);
-                    return true;
-                }
+    protected boolean handlePickBlock(@Nullable Slot slot) {
+        if (menu.canModifyAmountForSlot(slot)) {
+            var currentStack = GenericStack.fromItemStack(slot.getItem());
+            if (currentStack != null) {
+                var screen = new SetProcessingPatternAmountScreen<>(
+                        this,
+                        currentStack,
+                        newStack -> NetworkHandler.instance().sendToServer(new InventoryActionPacket(
+                                InventoryAction.SET_FILTER, slot.index,
+                                GenericStack.wrapInItemStack(newStack))));
+                screen.suppressOpeningKeyUntilRelease(getMinecraft().options.keyPickItem.getKey());
+                switchToScreen(screen);
+                return true;
             }
         }
 
-        return super.mouseClicked(xCoord, yCoord, btn);
+        return super.handlePickBlock(slot);
     }
 
     /**
-     * When in processing mode, show a hint in the tooltip that middle-click will open the amount entry dialog.
+     * When in processing mode, show a hint in the tooltip that the pick-block binding will open the amount entry
+     * dialog.
      */
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int x, int y) {
@@ -126,7 +129,8 @@ public class PatternEncodingTermScreen<C extends PatternEncodingTermMenu> extend
             if (unwrapped != null) {
                 itemTooltip.add(Tooltips.getAmountTooltip(ButtonToolTips.Amount, unwrapped));
             }
-            itemTooltip.add(Tooltips.getSetAmountTooltip());
+            var pickKey = getMinecraft().options.keyPickItem.getTranslatedKeyMessage();
+            itemTooltip.add(Tooltips.getSetAmountTooltip(pickKey));
             drawTooltip(guiGraphics, x, y, itemTooltip);
         } else {
             super.renderTooltip(guiGraphics, x, y);
