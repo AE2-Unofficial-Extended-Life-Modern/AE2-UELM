@@ -21,6 +21,9 @@ package appeng.client.gui.me.items;
 import java.util.function.Consumer;
 
 import com.google.common.primitives.Longs;
+import com.mojang.blaze3d.platform.InputConstants;
+
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.ItemRenderer;
@@ -48,6 +51,9 @@ public class SetProcessingPatternAmountScreen<C extends PatternEncodingTermMenu>
     private final GenericStack currentStack;
 
     private final Consumer<GenericStack> setter;
+
+    @Nullable
+    private InputConstants.Key openingKey;
 
     public SetProcessingPatternAmountScreen(PatternEncodingTermScreen<C> parentScreen,
             GenericStack currentStack,
@@ -100,5 +106,32 @@ public class SetProcessingPatternAmountScreen<C extends PatternEncodingTermMenu>
 
     private long getMaxAmount() {
         return Long.MAX_VALUE;
+    }
+
+    // Make sure the eventual non-mouse pick-block key is not input into the field on open
+    public void suppressOpeningKeyUntilRelease(InputConstants.Key key) {
+        openingKey = key.getType() == InputConstants.Type.MOUSE ? null : key;
+    }
+
+    @Override
+    public boolean charTyped(char character, int modifiers) {
+        return openingKey != null || super.charTyped(character, modifiers);
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (openingKey != null && openingKey.equals(InputConstants.getKey(keyCode, scanCode))) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        if (openingKey != null && openingKey.equals(InputConstants.getKey(keyCode, scanCode))) {
+            openingKey = null;
+            return true;
+        }
+        return super.keyReleased(keyCode, scanCode, modifiers);
     }
 }

@@ -41,6 +41,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ComponentRenderUtils;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
@@ -532,6 +533,12 @@ public abstract class AEBaseScreen<T extends AEBaseMenu> extends AbstractContain
     public boolean mouseClicked(double xCoord, double yCoord, int btn) {
         this.drag_click.clear();
 
+        var pickBlockKey = InputConstants.Type.MOUSE.getOrCreate(btn);
+        if (getMinecraft().options.keyPickItem.isActiveAndMatches(pickBlockKey)
+                && handlePickBlock(findSlot(xCoord, yCoord))) {
+            return true;
+        }
+
         // Forward right-clicks as-if they were left-clicks
         if (btn == 1) {
             handlingRightClick = true;
@@ -561,6 +568,20 @@ public abstract class AEBaseScreen<T extends AEBaseMenu> extends AbstractContain
             }
         }
         return result;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!(getFocused() instanceof EditBox)
+                && getMinecraft().options.keyPickItem.isActiveAndMatches(InputConstants.getKey(keyCode, scanCode))
+                && handlePickBlock(this.hoveredSlot)) {
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    protected boolean handlePickBlock(@Nullable Slot slot) {
+        return false;
     }
 
     @Override
@@ -610,6 +631,16 @@ public abstract class AEBaseScreen<T extends AEBaseMenu> extends AbstractContain
         // Do not allow clicks on disabled player inventory slots
         if (slot instanceof DisabledSlot) {
             return;
+        }
+
+        if (clickType == ClickType.CLONE) {
+            if (slot instanceof FakeSlot) {
+                return;
+            }
+
+            if (slot != null && GenericStack.isWrapped(slot.getItem())) {
+                return;
+            }
         }
 
         if (this.drag_click.size() <= 1
