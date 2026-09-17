@@ -317,4 +317,12 @@ https://github.com/user-attachments/assets/8d8575da-8e12-4592-be1e-69453223e81d
 
 </details>
 
+<!-- CHANGELOG-PR:35 -->
+<details>
+<summary><strong>Add compatibility for pick-block keys other than middle-click</strong> · @ko-lja · merged 2026-09-17 03:34 UTC</summary>
+
+Previously if you bound your pick block key to anything other than middle-click, said keybind would not work for requesting crafts or setting amounts.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
