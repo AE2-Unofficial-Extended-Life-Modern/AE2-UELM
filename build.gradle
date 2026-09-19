@@ -232,7 +232,7 @@ allprojects {
 
 ext.pr = System.getenv('PR_NUMBER') ?: ""
 if (ext.pr) {
-    version = version + "+pr." + ext.pr
+    version = "0.0.0-pr.${ext.pr}-SNAPSHOT"
 }
 
 ext.branch = System.getenv('BRANCH') ?: ""
