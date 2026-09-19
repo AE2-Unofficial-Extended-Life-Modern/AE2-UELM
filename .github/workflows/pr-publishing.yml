@@ -1,0 +1,81 @@
+name: 'Publish PR Maven Snapshot'
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-maven-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish PR Snapshot
+
+    # Only publish PRs labeled for Maven publishing.
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'publish-maven')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: AE2-Unofficial-Extended-Life-Modern/AE2-UELM/.github/actions/gradle-setup@forge/1.20.1
+
+      - name: Build Maven repository
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: ./gradlew build publish -x check --max-workers 1
+
+      - name: Publish to Expandium Maven
+        uses: AppliedEnergistics/maven-publish-action@main
+        with:
+          local-repository-path: build/repo
+          remote-repository-url: https://repo.expandium.net/snapshots/
+          remote-repository-username: ${{ secrets.MAVEN_USERNAME }}
+          remote-repository-password: ${{ secrets.MAVEN_PASSWORD }}
+
+      - name: Comment Maven coordinates
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request.number;
+            const version = `0.0.0-pr.${pr}-SNAPSHOT`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+              body: [
+                '### Maven snapshot published',
+                '',
+                'This PR is available from the Expandium snapshot repository:',
+                '',
+                '```gradle',
+                'maven {',
+                '    url = "https://repo.expandium.net/snapshots/"',
+                '}',
+                '',
+                `modImplementation("appeng:appliedenergistics2-forge:${version}") {`,
+                '    changing = true',
+                '}',
+                '```',
+                '',
+                `Version: \`${version}\``,
+                '',
+                'This snapshot will be updated automatically while the `publish-maven` label remains on this PR.'
+              ].join('\n')
+            });
