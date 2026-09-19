@@ -31,8 +31,8 @@ public interface IFilterTerminalConfigView {
     GenericStack getStock(int slot);
 
     /**
-     * Checks whether the configured stack can be changed.
-     * Must be rechecked on the server before applying a client request.
+     * Checks whether the configured stack can be changed. Must be rechecked on the server before applying a client
+     * request.
      *
      * @param stack the proposed stack, or null to clear the slot
      */
@@ -46,8 +46,8 @@ public interface IFilterTerminalConfigView {
     void setConfig(int slot, @Nullable GenericStack stack);
 
     /**
-     * Checks whether the configured amount can be changed without changing the key.
-     * Must be rechecked on the server before applying a client request.
+     * Checks whether the configured amount can be changed without changing the key. Must be rechecked on the server
+     * before applying a client request.
      */
     default boolean canEditAmount(int slot) {
         return false;

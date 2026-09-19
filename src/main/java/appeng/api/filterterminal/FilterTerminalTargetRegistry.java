@@ -25,7 +25,7 @@ public final class FilterTerminalTargetRegistry {
      * Registers a provider for an exact host type.
      *
      * @throws IllegalArgumentException if the provider reports a different type or the type already has a provider
-     * @throws IllegalStateException if addon registration has already ended
+     * @throws IllegalStateException    if addon registration has already ended
      */
     public static synchronized <T> void register(Class<T> targetType,
             IFilterTerminalTargetProvider<T> provider) {

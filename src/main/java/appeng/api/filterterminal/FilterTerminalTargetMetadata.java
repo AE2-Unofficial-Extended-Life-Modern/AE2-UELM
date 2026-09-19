@@ -14,10 +14,10 @@ import appeng.api.implementations.blockentities.PatternContainerGroup;
 /**
  * Display, grouping, and location information for a filter terminal target.
  *
- * @param group the group and display information shown by the terminal
+ * @param group     the group and display information shown by the terminal
  * @param dimension the dimension containing the target
- * @param pos the target's block position
- * @param side the cable bus side containing the target, or null for a fullblock target
+ * @param pos       the target's block position
+ * @param side      the cable bus side containing the target, or null for a fullblock target
  */
 public record FilterTerminalTargetMetadata(
         PatternContainerGroup group,
