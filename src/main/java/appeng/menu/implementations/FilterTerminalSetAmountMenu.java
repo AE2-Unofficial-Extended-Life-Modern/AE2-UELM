@@ -9,10 +9,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 
-import appeng.api.networking.security.IActionHost;
+import appeng.api.filterterminal.IFilterTerminalTarget;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
-import appeng.helpers.InterfaceLogicHost;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -40,7 +39,7 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
     private final Slot configuredStack;
 
     @Nullable
-    private InterfaceLogicHost target;
+    private IFilterTerminalTarget target;
     @Nullable
     private AEKey expectedKey;
     private int targetSlot = -1;
@@ -58,7 +57,7 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
         registerClientAction(ACTION_SET_AMOUNT, Long.class, this::confirm);
     }
 
-    public static void open(ServerPlayer player, MenuLocator terminalLocator, InterfaceLogicHost target, int slot,
+    public static void open(ServerPlayer player, MenuLocator terminalLocator, IFilterTerminalTarget target, int slot,
             GenericStack configured) {
         MenuOpener.open(TYPE, player, terminalLocator);
         if (player.containerMenu instanceof FilterTerminalSetAmountMenu menu) {
@@ -67,12 +66,12 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
         }
     }
 
-    private void configureTarget(InterfaceLogicHost target, int slot, GenericStack configured) {
+    private void configureTarget(IFilterTerminalTarget target, int slot, GenericStack configured) {
         this.target = Objects.requireNonNull(target);
         this.targetSlot = slot;
         this.expectedKey = configured.what();
         this.initialAmount = configured.amount();
-        this.maxAmount = target.getConfig().getMaxAmount(configured.what());
+        this.maxAmount = target.getConfigView().getMaxAmount(slot, configured.what());
         this.configuredStack.set(configured.what().wrapForDisplayOrFilter());
     }
 
@@ -87,34 +86,30 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
             return;
         }
 
-        var config = target.getConfig();
-        if (!Objects.equals(config.getKey(targetSlot), expectedKey)) {
+        var view = target.getConfigView();
+        if (!FilterTerminalEditValidation.canEditAmount(view, targetSlot, expectedKey)) {
             host.returnToMainMenu(getPlayer(), this);
             return;
         }
 
-        amount = FilterTerminalEditValidation.clampAmount(config, expectedKey, amount);
-        if (amount <= 0) {
-            config.setStack(targetSlot, null);
-        } else {
-            config.setStack(targetSlot, new GenericStack(expectedKey, amount));
+        amount = FilterTerminalEditValidation.clampAmount(view, targetSlot, expectedKey, amount);
+        var resultingStack = amount <= 0 ? null : new GenericStack(expectedKey, amount);
+        if (!FilterTerminalEditValidation.setConfig(view, targetSlot, expectedKey, resultingStack)) {
+            host.returnToMainMenu(getPlayer(), this);
+            return;
         }
         host.returnToMainMenu(getPlayer(), this);
     }
 
     private boolean isTargetValid() {
-        if (target == null || expectedKey == null || targetSlot < 0 || targetSlot >= target.getConfig().size()) {
-            return false;
-        }
-        if (!(target instanceof IActionHost actionHost)) {
+        if (target == null || expectedKey == null || targetSlot < 0
+                || targetSlot >= target.getConfigView().size()) {
             return false;
         }
 
         var terminalNode = host.getActionableNode();
-        var targetNode = actionHost.getActionableNode();
-        return terminalNode != null && targetNode != null
-                && terminalNode.isActive() && targetNode.isActive()
-                && terminalNode.getGrid() == targetNode.getGrid();
+        return terminalNode != null && terminalNode.isActive()
+                && FilterTerminalEditValidation.isValidTarget(terminalNode.getGrid(), target);
     }
 
     @Override

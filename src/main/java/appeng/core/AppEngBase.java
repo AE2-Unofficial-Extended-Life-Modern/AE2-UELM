@@ -46,6 +46,7 @@ import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.IForgeRegistry;
@@ -54,6 +55,7 @@ import net.minecraftforge.registries.RegisterEvent;
 import net.minecraftforge.registries.RegistryBuilder;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
+import appeng.api.filterterminal.FilterTerminalTargetRegistry;
 import appeng.api.parts.CableRenderMode;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AEKeyTypes;
@@ -78,6 +80,7 @@ import appeng.init.InitRecipeTypes;
 import appeng.init.InitTiers;
 import appeng.init.InitVillager;
 import appeng.init.client.InitParticleTypes;
+import appeng.init.internal.InitFilterTerminalTargets;
 import appeng.init.internal.InitGridLinkables;
 import appeng.init.internal.InitP2PAttunements;
 import appeng.init.internal.InitStorageCells;
@@ -119,6 +122,7 @@ public abstract class AppEngBase implements AppEng {
         INSTANCE = this;
 
         // Now that item instances are available, we can initialize registries that need item instances
+        InitFilterTerminalTargets.init();
         InitGridLinkables.init();
         InitStorageCells.init();
 
@@ -157,6 +161,7 @@ public abstract class AppEngBase implements AppEng {
         modEventBus.addListener(InitCapabilities::init);
         modEventBus.addListener(Integrations::enqueueIMC);
         modEventBus.addListener(this::commonSetup);
+        modEventBus.addListener(this::loadComplete);
 
         modEventBus.addListener(this::registerTests);
 
@@ -187,6 +192,11 @@ public abstract class AppEngBase implements AppEng {
                 AELog.warn(err);
             }
         });
+    }
+
+    private void loadComplete(FMLLoadCompleteEvent event) {
+        // Queue this after load-complete listeners so addons have their full registration window.
+        event.enqueueWork(FilterTerminalTargetRegistry::freeze);
     }
 
     /**
