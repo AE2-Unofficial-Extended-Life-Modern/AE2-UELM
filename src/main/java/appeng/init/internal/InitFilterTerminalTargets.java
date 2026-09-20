@@ -1,8 +1,11 @@
 package appeng.init.internal;
 
-import appeng.api.filterterminal.FilterTerminalTargetRegistry;
+import static appeng.api.filterterminal.FilterTerminalTargetRegistry.register;
+
+import appeng.blockentity.misc.SuperMEReplenisherBlockEntity;
 import appeng.helpers.IConfigInvHost;
 import appeng.helpers.filterterminal.AEFilterTerminalTargetProvider;
+import appeng.helpers.filterterminal.SuperMEReplenisherFilterTerminalTargetProvider;
 
 public final class InitFilterTerminalTargets {
 
@@ -10,6 +13,7 @@ public final class InitFilterTerminalTargets {
     }
 
     public static void init() {
-        FilterTerminalTargetRegistry.register(IConfigInvHost.class, AEFilterTerminalTargetProvider.INSTANCE);
+        register(IConfigInvHost.class, AEFilterTerminalTargetProvider.INSTANCE);
+        register(SuperMEReplenisherBlockEntity.class, SuperMEReplenisherFilterTerminalTargetProvider.INSTANCE);
     }
 }
