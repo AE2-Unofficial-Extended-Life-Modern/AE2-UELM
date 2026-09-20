@@ -69,4 +69,11 @@ public interface IFilterTerminalConfigView {
     default long getMaxAmount(int slot, AEKey key) {
         return Long.MAX_VALUE;
     }
+
+    /**
+     * Preferred number of configuration slots per row in the filter terminal. Clamped to [1, 9].
+     */
+    default byte getSlotsPerRow() {
+        return 9;
+    }
 }

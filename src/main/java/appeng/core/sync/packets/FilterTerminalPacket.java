@@ -45,16 +45,16 @@ public class FilterTerminalPacket extends BasePacket {
 
     public static FilterTerminalPacket fullUpdate(long inventoryId, int inventorySize,
             PatternContainerGroup group, ResourceKey<Level> dimension,
-            BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+            BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
         return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, true, inventorySize,
-                group, dimension, pos, side, slotPermissions, slots, stockedAmounts));
+                group, dimension, pos, side, slotPermissions, slots, stockedAmounts, slotsPerRow));
     }
 
     public static FilterTerminalPacket incrementalUpdate(long inventoryId,
             byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
         return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, false, 0,
-                null, null, null, null, slotPermissions, slots, stockedAmounts));
+                null, null, null, null, slotPermissions, slots, stockedAmounts, (byte) 0));
     }
 
     @Override
@@ -66,7 +66,7 @@ public class FilterTerminalPacket extends BasePacket {
 
         if (data.fullUpdate()) {
             screen.postFullUpdate(data.inventoryId(), data.inventorySize(), data.group(), data.dimension(), data.pos(),
-                    data.side(), data.slotPermissions(), data.slots(), data.stockedAmounts());
+                    data.side(), data.slotPermissions(), data.slots(), data.stockedAmounts(), data.slotsPerRow());
         } else {
             screen.postIncrementalUpdate(data.inventoryId(), data.slotPermissions(), data.slots(),
                     data.stockedAmounts());
@@ -77,7 +77,7 @@ public class FilterTerminalPacket extends BasePacket {
             @Nullable PatternContainerGroup group, @Nullable ResourceKey<Level> dimension,
             @Nullable BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
             Int2ObjectMap<GenericStack> slots,
-            Int2LongMap stockedAmounts) {
+            Int2LongMap stockedAmounts, byte slotsPerRow) {
 
         static FilterTerminalPacketData read(FriendlyByteBuf stream) {
             var inventoryId = stream.readVarLong();
@@ -87,12 +87,14 @@ public class FilterTerminalPacket extends BasePacket {
             ResourceKey<Level> dimension = null;
             BlockPos pos = null;
             Direction side = null;
+            byte slotsPerRow = 0;
             if (fullUpdate) {
                 inventorySize = stream.readVarInt();
                 group = PatternContainerGroup.readFromPacket(stream);
                 dimension = ResourceKey.create(Registries.DIMENSION, stream.readResourceLocation());
                 pos = stream.readBlockPos();
                 side = stream.readBoolean() ? stream.readEnum(Direction.class) : null;
+                slotsPerRow = stream.readByte();
             }
             var slotPermissions = stream.readByteArray();
 
@@ -109,7 +111,7 @@ public class FilterTerminalPacket extends BasePacket {
             }
 
             return new FilterTerminalPacketData(inventoryId, fullUpdate, inventorySize, group, dimension, pos, side,
-                    slotPermissions, slots, stockedAmounts);
+                    slotPermissions, slots, stockedAmounts, slotsPerRow);
         }
 
         void write(FriendlyByteBuf stream) {
@@ -124,6 +126,7 @@ public class FilterTerminalPacket extends BasePacket {
                 if (side != null) {
                     stream.writeEnum(side);
                 }
+                stream.writeByte(slotsPerRow);
             }
             stream.writeByteArray(slotPermissions);
 

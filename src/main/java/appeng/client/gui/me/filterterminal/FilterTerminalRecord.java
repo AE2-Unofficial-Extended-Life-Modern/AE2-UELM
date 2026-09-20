@@ -34,9 +34,11 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
     private final ConfigMenuInventory menuInventory;
     private final long[] stockedAmounts;
     private final byte[] slotPermissions;
+    private final byte slotsPerRow;
 
     public FilterTerminalRecord(long serverId, int slots, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions) {
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            byte slotsPerRow) {
         this.serverId = serverId;
         this.group = group;
         this.searchName = group.name().getString().toLowerCase(Locale.ROOT);
@@ -47,6 +49,7 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         this.menuInventory = inventory.createMenuWrapper();
         this.stockedAmounts = new long[slots];
         this.slotPermissions = slotPermissions;
+        this.slotsPerRow = slotsPerRow;
     }
 
     public long getServerId() {
@@ -88,6 +91,10 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
 
     void setStockedAmount(int slot, long amount) {
         stockedAmounts[slot] = amount;
+    }
+
+    public byte getSlotsPerRow() {
+        return slotsPerRow;
     }
 
     void setSlotPermissions(byte[] permissions) {

@@ -208,6 +208,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
         private final GenericStack[] lastSent;
         private final long[] lastSentStockedAmounts;
         private final byte[] lastSentSlotPermissions;
+        private final byte slotsPerRow;
 
         private TargetTracker(IFilterTerminalTarget target, long serverId) {
             this.serverId = serverId;
@@ -218,13 +219,15 @@ public class FilterTerminalMenu extends AEBaseMenu {
             this.lastSent = new GenericStack[view.size()];
             this.lastSentStockedAmounts = new long[view.size()];
             this.lastSentSlotPermissions = new byte[view.size()];
+            this.slotsPerRow = getSlotsPerRow(target.getConfigView());
         }
 
         private boolean matches(IFilterTerminalTarget currentTarget) {
             var currentView = currentTarget.getConfigView();
             return target.getIdentity() == currentTarget.getIdentity()
                     && lastSent.length == currentView.size()
-                    && metadata.equals(currentTarget.getMetadata());
+                    && metadata.equals(currentTarget.getMetadata())
+                    && slotsPerRow == getSlotsPerRow(currentView);
         }
 
         private void updateTarget(IFilterTerminalTarget currentTarget) {
@@ -252,7 +255,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
 
             return FilterTerminalPacket.fullUpdate(serverId, lastSent.length, metadata.group(),
                     metadata.dimension(), metadata.pos(), metadata.side(), lastSentSlotPermissions, slots,
-                    stockedAmounts);
+                    stockedAmounts, slotsPerRow);
         }
 
         @Nullable
@@ -316,6 +319,10 @@ public class FilterTerminalMenu extends AEBaseMenu {
                 }
             }
             return changed;
+        }
+
+        private static byte getSlotsPerRow(IFilterTerminalConfigView view) {
+            return (byte) Math.max(1, Math.min(9, view.getSlotsPerRow()));
         }
     }
 }

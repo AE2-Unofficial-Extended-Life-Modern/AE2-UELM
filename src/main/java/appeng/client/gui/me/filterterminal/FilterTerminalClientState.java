@@ -26,10 +26,10 @@ final class FilterTerminalClientState {
     }
 
     FilterTerminalRecord putFull(long inventoryId, int inventorySize, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
         var record = new FilterTerminalRecord(inventoryId, inventorySize, group, dimension, pos, side,
-                slotPermissions);
+                slotPermissions, slotsPerRow);
         records.put(inventoryId, record);
         apply(record, slots, stockedAmounts);
         return record;

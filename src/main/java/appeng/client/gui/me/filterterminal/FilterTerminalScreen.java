@@ -71,7 +71,6 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
     private static final int GUI_HEADER_HEIGHT = 29;
     private static final int GUI_FOOTER_HEIGHT = 97;
-    private static final int COLUMNS = 9;
 
     private static final int NAME_MARGIN_X = 2;
     private static final int ROW_HEIGHT = 18;
@@ -334,10 +333,10 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     }
 
     public void postFullUpdate(long inventoryId, int inventorySize, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
         state.putFull(inventoryId, inventorySize, group, dimension, pos, side, slotPermissions, slots,
-                stockedAmounts);
+                stockedAmounts, slotsPerRow);
         refreshList();
     }
 
@@ -371,8 +370,10 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
             Collections.sort(containers);
             for (var container : containers) {
                 rows.add(new GroupHeaderRow(group, container));
-                for (var offset = 0; offset < container.getInventory().size(); offset += COLUMNS) {
-                    var slots = Math.min(container.getInventory().size() - offset, COLUMNS);
+
+                var columns = container.getSlotsPerRow();
+                for (var offset = 0; offset < container.getInventory().size(); offset += columns) {
+                    var slots = Math.min(container.getInventory().size() - offset, columns);
                     rows.add(new SlotsRow(container, offset, slots));
                 }
             }
