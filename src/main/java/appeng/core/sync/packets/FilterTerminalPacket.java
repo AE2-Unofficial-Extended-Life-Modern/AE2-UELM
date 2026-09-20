@@ -45,16 +45,17 @@ public class FilterTerminalPacket extends BasePacket {
 
     public static FilterTerminalPacket fullUpdate(long inventoryId, int inventorySize,
             PatternContainerGroup group, ResourceKey<Level> dimension,
-            BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            BlockPos pos, @Nullable Direction side,
+            byte[] slotPermissions, byte[][] acceptedKeyTypes,
             Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
         return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, true, inventorySize,
-                group, dimension, pos, side, slotPermissions, slots, stockedAmounts, slotsPerRow));
+                group, dimension, pos, side, slotPermissions, acceptedKeyTypes, slots, stockedAmounts, slotsPerRow));
     }
 
     public static FilterTerminalPacket incrementalUpdate(long inventoryId,
-            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+            byte[] slotPermissions, byte[][] acceptedKeyTypes, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
         return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, false, 0,
-                null, null, null, null, slotPermissions, slots, stockedAmounts, (byte) 0));
+                null, null, null, null, slotPermissions, acceptedKeyTypes, slots, stockedAmounts, (byte) 0));
     }
 
     @Override
@@ -66,16 +67,18 @@ public class FilterTerminalPacket extends BasePacket {
 
         if (data.fullUpdate()) {
             screen.postFullUpdate(data.inventoryId(), data.inventorySize(), data.group(), data.dimension(), data.pos(),
-                    data.side(), data.slotPermissions(), data.slots(), data.stockedAmounts(), data.slotsPerRow());
+                    data.side(), data.slotPermissions(), data.acceptedKeyTypes, data.slots(), data.stockedAmounts(),
+                    data.slotsPerRow());
         } else {
-            screen.postIncrementalUpdate(data.inventoryId(), data.slotPermissions(), data.slots(),
-                    data.stockedAmounts());
+            screen.postIncrementalUpdate(data.inventoryId(), data.slotPermissions(),
+                    data.acceptedKeyTypes(), data.slots(), data.stockedAmounts());
         }
     }
 
     private record FilterTerminalPacketData(long inventoryId, boolean fullUpdate, int inventorySize,
             @Nullable PatternContainerGroup group, @Nullable ResourceKey<Level> dimension,
-            @Nullable BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            @Nullable BlockPos pos, @Nullable Direction side,
+            byte[] slotPermissions, byte[][] acceptedKeyTypes,
             Int2ObjectMap<GenericStack> slots,
             Int2LongMap stockedAmounts, byte slotsPerRow) {
 
@@ -98,6 +101,12 @@ public class FilterTerminalPacket extends BasePacket {
             }
             var slotPermissions = stream.readByteArray();
 
+            var acceptedKeyTypeSlots = stream.readVarInt();
+            var acceptedKeyTypes = new byte[acceptedKeyTypeSlots][];
+            for (var i = 0; i < acceptedKeyTypeSlots; i++) {
+                acceptedKeyTypes[i] = stream.readByteArray();
+            }
+
             var slotCount = stream.readVarInt();
             Int2ObjectMap<GenericStack> slots = new Int2ObjectArrayMap<>(slotCount);
             for (var i = 0; i < slotCount; i++) {
@@ -111,7 +120,7 @@ public class FilterTerminalPacket extends BasePacket {
             }
 
             return new FilterTerminalPacketData(inventoryId, fullUpdate, inventorySize, group, dimension, pos, side,
-                    slotPermissions, slots, stockedAmounts, slotsPerRow);
+                    slotPermissions, acceptedKeyTypes, slots, stockedAmounts, slotsPerRow);
         }
 
         void write(FriendlyByteBuf stream) {
@@ -129,6 +138,10 @@ public class FilterTerminalPacket extends BasePacket {
                 stream.writeByte(slotsPerRow);
             }
             stream.writeByteArray(slotPermissions);
+            stream.writeVarInt(acceptedKeyTypes.length);
+            for (var acceptedKeyTypesArray : acceptedKeyTypes) {
+                stream.writeByteArray(acceptedKeyTypesArray);
+            }
 
             stream.writeVarInt(slots.size());
             for (var entry : slots.int2ObjectEntrySet()) {

@@ -2,6 +2,7 @@ package appeng.client.gui.me.filterterminal;
 
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.core.sync.network.NetworkHandler;
 import appeng.core.sync.packets.FilterTerminalSetFilterPacket;
@@ -24,7 +25,18 @@ public class FilterTerminalSlot extends FakeSlot {
 
     @Override
     public boolean canSetFilterTo(ItemStack stack) {
-        return machine.canEditConfig(slot) && super.canSetFilterTo(stack);
+        if (!machine.canEditConfig(slot)) {
+            return false;
+        }
+
+        var genericStack = GenericStack.unwrapItemStack(stack);
+        var key = genericStack != null
+                ? genericStack.what()
+                : AEItemKey.of(stack);
+
+        return key != null
+                && machine.acceptsKeyType(slot, key.getType())
+                && super.canSetFilterTo(stack);
     }
 
     @Override

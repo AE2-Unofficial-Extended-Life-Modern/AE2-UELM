@@ -3,6 +3,7 @@ package appeng.api.filterterminal;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 
 /**
@@ -29,6 +30,13 @@ public interface IFilterTerminalConfigView {
      */
     @Nullable
     GenericStack getStock(int slot);
+
+    /**
+     * Checks whether this slot accepts keys of the given type.
+     */
+    default boolean acceptsKeyType(int slot, AEKeyType keyType) {
+        return true;
+    }
 
     /**
      * Returns whether this slot is generally user-configurable.

@@ -333,16 +333,17 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     }
 
     public void postFullUpdate(long inventoryId, int inventorySize, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
+            byte[] slotPermissions, byte[][] acceptedKeyTypes,
             Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
-        state.putFull(inventoryId, inventorySize, group, dimension, pos, side, slotPermissions, slots,
-                stockedAmounts, slotsPerRow);
+        state.putFull(inventoryId, inventorySize, group, dimension, pos, side, slotPermissions, acceptedKeyTypes,
+                slots, stockedAmounts, slotsPerRow);
         refreshList();
     }
 
-    public void postIncrementalUpdate(long inventoryId, byte[] slotPermissions, Int2ObjectMap<GenericStack> slots,
-            Int2LongMap stockedAmounts) {
-        if (!state.applyIncremental(inventoryId, slotPermissions, slots, stockedAmounts)) {
+    public void postIncrementalUpdate(long inventoryId, byte[] slotPermissions, byte[][] acceptedKeyTypes,
+            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+        if (!state.applyIncremental(inventoryId, slotPermissions, acceptedKeyTypes, slots, stockedAmounts)) {
             LOGGER.warn("Ignoring incremental update for unknown inventory id {}", inventoryId);
             return;
         }

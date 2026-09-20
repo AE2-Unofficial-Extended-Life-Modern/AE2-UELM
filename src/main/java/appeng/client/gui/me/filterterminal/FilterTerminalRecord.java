@@ -11,6 +11,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.util.ConfigMenuInventory;
 
@@ -34,11 +35,12 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
     private final ConfigMenuInventory menuInventory;
     private final long[] stockedAmounts;
     private final byte[] slotPermissions;
+    private final byte[][] acceptedKeyTypes;
     private final byte slotsPerRow;
 
     public FilterTerminalRecord(long serverId, int slots, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
-            byte slotsPerRow) {
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
+            byte[] slotPermissions, byte[][] acceptedKeyTypes, byte slotsPerRow) {
         this.serverId = serverId;
         this.group = group;
         this.searchName = group.name().getString().toLowerCase(Locale.ROOT);
@@ -49,6 +51,7 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         this.menuInventory = inventory.createMenuWrapper();
         this.stockedAmounts = new long[slots];
         this.slotPermissions = slotPermissions;
+        this.acceptedKeyTypes = acceptedKeyTypes;
         this.slotsPerRow = slotsPerRow;
     }
 
@@ -105,6 +108,19 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         System.arraycopy(permissions, 0, slotPermissions, 0, permissions.length);
     }
 
+    void setAcceptedKeyTypes(byte[][] acceptedKeyTypes) {
+        if (acceptedKeyTypes.length != this.acceptedKeyTypes.length) {
+            throw new IllegalArgumentException(
+                    "Expected " + this.acceptedKeyTypes.length
+                            + " accepted-key-type entries, got "
+                            + acceptedKeyTypes.length);
+        }
+
+        for (var slot = 0; slot < acceptedKeyTypes.length; slot++) {
+            this.acceptedKeyTypes[slot] = acceptedKeyTypes[slot].clone();
+        }
+    }
+
     public boolean canEditConfig(int slot) {
         return slot >= 0
                 && slot < slotPermissions.length
@@ -115,6 +131,22 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         return slot >= 0
                 && slot < slotPermissions.length
                 && (slotPermissions[slot] & CAN_EDIT_AMOUNT) != 0;
+    }
+
+    public boolean acceptsKeyType(int slot, AEKeyType keyType) {
+        if (slot < 0 || slot >= acceptedKeyTypes.length) {
+            return false;
+        }
+
+        var rawId = keyType.getRawId();
+
+        for (var accepted : acceptedKeyTypes[slot]) {
+            if (accepted == rawId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     @Override

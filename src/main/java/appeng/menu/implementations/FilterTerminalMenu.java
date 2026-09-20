@@ -1,5 +1,6 @@
 package appeng.menu.implementations;
 
+import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
+import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.ints.Int2LongArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2LongMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
@@ -23,6 +25,7 @@ import appeng.api.filterterminal.IFilterTerminalConfigView;
 import appeng.api.filterterminal.IFilterTerminalTarget;
 import appeng.api.networking.IGrid;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.me.filterterminal.FilterTerminalRecord;
 import appeng.core.AELog;
@@ -44,6 +47,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
 
     private static long inventorySerial = Long.MIN_VALUE;
     private static final byte[] NO_PERMISSION_CHANGES = new byte[0];
+    private static final byte[][] NO_ACCEPTED_KEY_TYPE_CHANGES = new byte[0][];
 
     private final FilterTerminalPart host;
     private final Map<Object, TargetTracker> trackers = new IdentityHashMap<>();
@@ -208,6 +212,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
         private final GenericStack[] lastSent;
         private final long[] lastSentStockedAmounts;
         private final byte[] lastSentSlotPermissions;
+        private final byte[][] lastSentAcceptedKeyTypes;
         private final byte slotsPerRow;
 
         private TargetTracker(IFilterTerminalTarget target, long serverId) {
@@ -219,6 +224,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             this.lastSent = new GenericStack[view.size()];
             this.lastSentStockedAmounts = new long[view.size()];
             this.lastSentSlotPermissions = new byte[view.size()];
+            this.lastSentAcceptedKeyTypes = new byte[view.size()][];
             this.slotsPerRow = getSlotsPerRow(target.getConfigView());
         }
 
@@ -239,6 +245,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             Int2LongMap stockedAmounts = new Int2LongArrayMap();
             var view = target.getConfigView();
             updateSlotPermissions(player, view);
+            updateAcceptedKeyTypes(view);
             for (var i = 0; i < lastSent.length; i++) {
                 var stack = view.getConfig(i);
                 lastSent[i] = stack;
@@ -254,8 +261,8 @@ public class FilterTerminalMenu extends AEBaseMenu {
             }
 
             return FilterTerminalPacket.fullUpdate(serverId, lastSent.length, metadata.group(),
-                    metadata.dimension(), metadata.pos(), metadata.side(), lastSentSlotPermissions, slots,
-                    stockedAmounts, slotsPerRow);
+                    metadata.dimension(), metadata.pos(), metadata.side(), lastSentSlotPermissions,
+                    lastSentAcceptedKeyTypes, slots, stockedAmounts, slotsPerRow);
         }
 
         @Nullable
@@ -264,6 +271,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             Int2LongMap stockedAmounts = null;
             var view = target.getConfigView();
             var permissionsChanged = updateSlotPermissions(player, view);
+            var keyTypesChanged = updateAcceptedKeyTypes(view);
             for (var i = 0; i < lastSent.length; i++) {
                 var current = view.getConfig(i);
                 if (!Objects.equals(current, lastSent[i])) {
@@ -284,12 +292,14 @@ public class FilterTerminalMenu extends AEBaseMenu {
                 }
             }
 
-            if (!permissionsChanged && slots == null && stockedAmounts == null) {
+            if (!permissionsChanged && !keyTypesChanged
+                    && slots == null && stockedAmounts == null) {
                 return null;
             }
 
             return FilterTerminalPacket.incrementalUpdate(serverId,
                     permissionsChanged ? lastSentSlotPermissions : NO_PERMISSION_CHANGES,
+                    keyTypesChanged ? lastSentAcceptedKeyTypes : NO_ACCEPTED_KEY_TYPE_CHANGES,
                     slots == null ? new Int2ObjectArrayMap<>() : slots,
                     stockedAmounts == null ? new Int2LongArrayMap() : stockedAmounts);
         }
@@ -318,6 +328,29 @@ public class FilterTerminalMenu extends AEBaseMenu {
                     changed = true;
                 }
             }
+            return changed;
+        }
+
+        private boolean updateAcceptedKeyTypes(IFilterTerminalConfigView view) {
+            var changed = false;
+
+            for (var slot = 0; slot < lastSentAcceptedKeyTypes.length; slot++) {
+                var accepted = new ByteArrayList();
+
+                for (var keyType : AEKeyTypes.getAll()) {
+                    if (view.acceptsKeyType(slot, keyType)) {
+                        accepted.add(keyType.getRawId());
+                    }
+                }
+
+                var acceptedArray = accepted.toByteArray();
+
+                if (!Arrays.equals(lastSentAcceptedKeyTypes[slot], acceptedArray)) {
+                    lastSentAcceptedKeyTypes[slot] = acceptedArray;
+                    changed = true;
+                }
+            }
+
             return changed;
         }
 

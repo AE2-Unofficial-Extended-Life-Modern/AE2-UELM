@@ -26,23 +26,27 @@ final class FilterTerminalClientState {
     }
 
     FilterTerminalRecord putFull(long inventoryId, int inventorySize, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
+            byte[] slotPermissions, byte[][] acceptedKeyTypes,
             Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
         var record = new FilterTerminalRecord(inventoryId, inventorySize, group, dimension, pos, side,
-                slotPermissions, slotsPerRow);
+                slotPermissions, acceptedKeyTypes, slotsPerRow);
         records.put(inventoryId, record);
         apply(record, slots, stockedAmounts);
         return record;
     }
 
-    boolean applyIncremental(long inventoryId, byte[] slotPermissions, Int2ObjectMap<GenericStack> slots,
-            Int2LongMap stockedAmounts) {
+    boolean applyIncremental(long inventoryId, byte[] slotPermissions, byte[][] acceptedKeyTypes,
+            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
         var record = records.get(inventoryId);
         if (record == null) {
             return false;
         }
         if (slotPermissions.length > 0) {
             record.setSlotPermissions(slotPermissions);
+        }
+        if (acceptedKeyTypes.length > 0) {
+            record.setAcceptedKeyTypes(acceptedKeyTypes);
         }
         apply(record, slots, stockedAmounts);
         return true;
