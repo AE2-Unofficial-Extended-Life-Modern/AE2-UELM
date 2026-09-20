@@ -1,31 +1,17 @@
 package appeng.core.sync.packets;
 
-import java.util.Objects;
-
-import org.jetbrains.annotations.Nullable;
-
 import io.netty.buffer.Unpooled;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
-import it.unimi.dsi.fastutil.ints.Int2LongArrayMap;
-import it.unimi.dsi.fastutil.ints.Int2LongMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-
-import appeng.api.implementations.blockentities.PatternContainerGroup;
-import appeng.api.stacks.GenericStack;
 import appeng.client.gui.me.filterterminal.FilterTerminalScreen;
 import appeng.core.sync.BasePacket;
+import appeng.helpers.filterterminal.FilterTerminalTargetState;
+import appeng.helpers.filterterminal.FilterTerminalTargetUpdate;
 
 public class FilterTerminalPacket extends BasePacket {
 
@@ -39,23 +25,16 @@ public class FilterTerminalPacket extends BasePacket {
         this.data = data;
         var buffer = new FriendlyByteBuf(Unpooled.buffer(2048));
         buffer.writeInt(getPacketID());
-        this.data.write(buffer);
+        data.write(buffer);
         configureWrite(buffer);
     }
 
-    public static FilterTerminalPacket fullUpdate(long inventoryId, int inventorySize,
-            PatternContainerGroup group, ResourceKey<Level> dimension,
-            BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, byte[][] acceptedKeyTypes,
-            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
-        return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, true, inventorySize,
-                group, dimension, pos, side, slotPermissions, acceptedKeyTypes, slots, stockedAmounts, slotsPerRow));
+    public static FilterTerminalPacket fullUpdate(FilterTerminalTargetState state) {
+        return new FilterTerminalPacket(new FilterTerminalPacketData.FullUpdate(state));
     }
 
-    public static FilterTerminalPacket incrementalUpdate(long inventoryId,
-            byte[] slotPermissions, byte[][] acceptedKeyTypes, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
-        return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, false, 0,
-                null, null, null, null, slotPermissions, acceptedKeyTypes, slots, stockedAmounts, (byte) 0));
+    public static FilterTerminalPacket incrementalUpdate(FilterTerminalTargetUpdate update) {
+        return new FilterTerminalPacket(new FilterTerminalPacketData.IncrementalUpdate(update));
     }
 
     @Override
@@ -65,95 +44,41 @@ public class FilterTerminalPacket extends BasePacket {
             return;
         }
 
-        if (data.fullUpdate()) {
-            screen.postFullUpdate(data.inventoryId(), data.inventorySize(), data.group(), data.dimension(), data.pos(),
-                    data.side(), data.slotPermissions(), data.acceptedKeyTypes, data.slots(), data.stockedAmounts(),
-                    data.slotsPerRow());
-        } else {
-            screen.postIncrementalUpdate(data.inventoryId(), data.slotPermissions(),
-                    data.acceptedKeyTypes(), data.slots(), data.stockedAmounts());
+        if (data instanceof FilterTerminalPacketData.FullUpdate fullUpdate) {
+            screen.postFullUpdate(fullUpdate.state());
+        } else if (data instanceof FilterTerminalPacketData.IncrementalUpdate incrementalUpdate) {
+            screen.postIncrementalUpdate(incrementalUpdate.update());
         }
     }
 
-    private record FilterTerminalPacketData(long inventoryId, boolean fullUpdate, int inventorySize,
-            @Nullable PatternContainerGroup group, @Nullable ResourceKey<Level> dimension,
-            @Nullable BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, byte[][] acceptedKeyTypes,
-            Int2ObjectMap<GenericStack> slots,
-            Int2LongMap stockedAmounts, byte slotsPerRow) {
+    private sealed interface FilterTerminalPacketData
+            permits FilterTerminalPacketData.FullUpdate, FilterTerminalPacketData.IncrementalUpdate {
 
-        static FilterTerminalPacketData read(FriendlyByteBuf stream) {
-            var inventoryId = stream.readVarLong();
-            var fullUpdate = stream.readBoolean();
-            var inventorySize = 0;
-            PatternContainerGroup group = null;
-            ResourceKey<Level> dimension = null;
-            BlockPos pos = null;
-            Direction side = null;
-            byte slotsPerRow = 0;
-            if (fullUpdate) {
-                inventorySize = stream.readVarInt();
-                group = PatternContainerGroup.readFromPacket(stream);
-                dimension = ResourceKey.create(Registries.DIMENSION, stream.readResourceLocation());
-                pos = stream.readBlockPos();
-                side = stream.readBoolean() ? stream.readEnum(Direction.class) : null;
-                slotsPerRow = stream.readByte();
-            }
-            var slotPermissions = stream.readByteArray();
-
-            var acceptedKeyTypeSlots = stream.readVarInt();
-            var acceptedKeyTypes = new byte[acceptedKeyTypeSlots][];
-            for (var i = 0; i < acceptedKeyTypeSlots; i++) {
-                acceptedKeyTypes[i] = stream.readByteArray();
-            }
-
-            var slotCount = stream.readVarInt();
-            Int2ObjectMap<GenericStack> slots = new Int2ObjectArrayMap<>(slotCount);
-            for (var i = 0; i < slotCount; i++) {
-                slots.put(stream.readVarInt(), GenericStack.readBuffer(stream));
-            }
-
-            var stockedAmountCount = stream.readVarInt();
-            Int2LongMap stockedAmounts = new Int2LongArrayMap(stockedAmountCount);
-            for (var i = 0; i < stockedAmountCount; i++) {
-                stockedAmounts.put(stream.readVarInt(), stream.readVarLong());
-            }
-
-            return new FilterTerminalPacketData(inventoryId, fullUpdate, inventorySize, group, dimension, pos, side,
-                    slotPermissions, acceptedKeyTypes, slots, stockedAmounts, slotsPerRow);
+        static FilterTerminalPacketData read(FriendlyByteBuf buffer) {
+            return buffer.readBoolean()
+                    ? new FullUpdate(FilterTerminalTargetState.read(buffer))
+                    : new IncrementalUpdate(FilterTerminalTargetUpdate.read(buffer));
         }
 
-        void write(FriendlyByteBuf stream) {
-            stream.writeVarLong(inventoryId);
-            stream.writeBoolean(fullUpdate);
-            if (fullUpdate) {
-                stream.writeVarInt(inventorySize);
-                Objects.requireNonNull(group).writeToPacket(stream);
-                stream.writeResourceLocation(Objects.requireNonNull(dimension).location());
-                stream.writeBlockPos(Objects.requireNonNull(pos));
-                stream.writeBoolean(side != null);
-                if (side != null) {
-                    stream.writeEnum(side);
-                }
-                stream.writeByte(slotsPerRow);
-            }
-            stream.writeByteArray(slotPermissions);
-            stream.writeVarInt(acceptedKeyTypes.length);
-            for (var acceptedKeyTypesArray : acceptedKeyTypes) {
-                stream.writeByteArray(acceptedKeyTypesArray);
-            }
+        void write(FriendlyByteBuf buffer);
 
-            stream.writeVarInt(slots.size());
-            for (var entry : slots.int2ObjectEntrySet()) {
-                stream.writeVarInt(entry.getIntKey());
-                GenericStack.writeBuffer(entry.getValue(), stream);
-            }
+        record IncrementalUpdate(FilterTerminalTargetUpdate update) implements FilterTerminalPacketData {
 
-            stream.writeVarInt(stockedAmounts.size());
-            for (var entry : stockedAmounts.int2LongEntrySet()) {
-                stream.writeVarInt(entry.getIntKey());
-                stream.writeVarLong(entry.getLongValue());
+            @Override
+            public void write(FriendlyByteBuf buffer) {
+                buffer.writeBoolean(false);
+                update.write(buffer);
+            }
+        }
+
+        record FullUpdate(FilterTerminalTargetState state) implements FilterTerminalPacketData {
+
+            @Override
+            public void write(FriendlyByteBuf buffer) {
+                buffer.writeBoolean(true);
+                state.write(buffer);
             }
         }
     }
+
 }

@@ -1,5 +1,6 @@
 package appeng.client.gui.me.filterterminal;
 
+import java.util.List;
 import java.util.Locale;
 
 import org.jetbrains.annotations.Nullable;
@@ -13,6 +14,8 @@ import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.helpers.externalstorage.GenericStackInv;
+import appeng.helpers.filterterminal.FilterTerminalSlotInfo;
+import appeng.helpers.filterterminal.FilterTerminalTargetState;
 import appeng.util.ConfigMenuInventory;
 
 /**
@@ -20,9 +23,6 @@ import appeng.util.ConfigMenuInventory;
  * pattern providers, so we do not need to reinvent the wheel.
  */
 public final class FilterTerminalRecord implements Comparable<FilterTerminalRecord> {
-
-    public static final byte CAN_EDIT_CONFIG = 0x1;
-    public static final byte CAN_EDIT_AMOUNT = 0x2;
 
     private final long serverId;
     private final PatternContainerGroup group;
@@ -34,25 +34,29 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
     private final GenericStackInv inventory;
     private final ConfigMenuInventory menuInventory;
     private final long[] stockedAmounts;
-    private final byte[] slotPermissions;
-    private final byte[][] acceptedKeyTypes;
+    private List<FilterTerminalSlotInfo> slotInfo;
     private final byte slotsPerRow;
 
-    public FilterTerminalRecord(long serverId, int slots, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, byte[][] acceptedKeyTypes, byte slotsPerRow) {
-        this.serverId = serverId;
-        this.group = group;
+    public FilterTerminalRecord(FilterTerminalTargetState state) {
+        var metadata = state.metadata();
+        this.serverId = state.serverId();
+        this.group = metadata.group();
         this.searchName = group.name().getString().toLowerCase(Locale.ROOT);
-        this.dimension = dimension;
-        this.pos = pos;
-        this.side = side;
-        this.inventory = new ClientInventory(slots);
+        this.dimension = metadata.dimension();
+        this.pos = metadata.pos();
+        this.side = metadata.side();
+        this.inventory = new ClientInventory(state.inventorySize());
         this.menuInventory = inventory.createMenuWrapper();
-        this.stockedAmounts = new long[slots];
-        this.slotPermissions = slotPermissions;
-        this.acceptedKeyTypes = acceptedKeyTypes;
-        this.slotsPerRow = slotsPerRow;
+        this.stockedAmounts = new long[state.inventorySize()];
+        this.slotInfo = state.slotInfo();
+        this.slotsPerRow = state.slotsPerRow();
+
+        for (var entry : state.slots().int2ObjectEntrySet()) {
+            inventory.setStack(entry.getIntKey(), entry.getValue());
+        }
+        for (var entry : state.stockedAmounts().int2LongEntrySet()) {
+            stockedAmounts[entry.getIntKey()] = entry.getLongValue();
+        }
     }
 
     public long getServerId() {
@@ -100,53 +104,30 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         return slotsPerRow;
     }
 
-    void setSlotPermissions(byte[] permissions) {
-        if (permissions.length != slotPermissions.length) {
-            throw new IllegalArgumentException("Expected " + slotPermissions.length + " slot permissions, got "
-                    + permissions.length);
+    void setSlotInfo(List<FilterTerminalSlotInfo> slotInfo) {
+        if (slotInfo.size() != this.slotInfo.size()) {
+            throw new IllegalArgumentException("Expected " + this.slotInfo.size() + " slot-info entries, got "
+                    + slotInfo.size());
         }
-        System.arraycopy(permissions, 0, slotPermissions, 0, permissions.length);
-    }
-
-    void setAcceptedKeyTypes(byte[][] acceptedKeyTypes) {
-        if (acceptedKeyTypes.length != this.acceptedKeyTypes.length) {
-            throw new IllegalArgumentException(
-                    "Expected " + this.acceptedKeyTypes.length
-                            + " accepted-key-type entries, got "
-                            + acceptedKeyTypes.length);
-        }
-
-        for (var slot = 0; slot < acceptedKeyTypes.length; slot++) {
-            this.acceptedKeyTypes[slot] = acceptedKeyTypes[slot].clone();
-        }
+        this.slotInfo = List.copyOf(slotInfo);
     }
 
     public boolean canEditConfig(int slot) {
         return slot >= 0
-                && slot < slotPermissions.length
-                && (slotPermissions[slot] & CAN_EDIT_CONFIG) != 0;
+                && slot < slotInfo.size()
+                && slotInfo.get(slot).canEditConfig();
     }
 
     public boolean canEditAmount(int slot) {
         return slot >= 0
-                && slot < slotPermissions.length
-                && (slotPermissions[slot] & CAN_EDIT_AMOUNT) != 0;
+                && slot < slotInfo.size()
+                && slotInfo.get(slot).canEditAmount();
     }
 
     public boolean acceptsKeyType(int slot, AEKeyType keyType) {
-        if (slot < 0 || slot >= acceptedKeyTypes.length) {
-            return false;
-        }
-
-        var rawId = keyType.getRawId();
-
-        for (var accepted : acceptedKeyTypes[slot]) {
-            if (accepted == rawId) {
-                return true;
-            }
-        }
-
-        return false;
+        return slot >= 0
+                && slot < slotInfo.size()
+                && slotInfo.get(slot).acceptsKeyType(keyType);
     }
 
     @Override

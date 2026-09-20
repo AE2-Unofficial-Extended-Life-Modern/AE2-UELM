@@ -15,19 +15,12 @@ import org.slf4j.LoggerFactory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.level.Level;
-
-import it.unimi.dsi.fastutil.ints.Int2LongMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
 import appeng.api.config.Settings;
 import appeng.api.config.TerminalStyle;
@@ -53,6 +46,8 @@ import appeng.core.localization.Tooltips;
 import appeng.core.sync.network.NetworkHandler;
 import appeng.core.sync.packets.FilterTerminalActionPacket;
 import appeng.helpers.InventoryAction;
+import appeng.helpers.filterterminal.FilterTerminalTargetState;
+import appeng.helpers.filterterminal.FilterTerminalTargetUpdate;
 import appeng.menu.implementations.FilterTerminalMenu;
 
 /**
@@ -332,19 +327,14 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
         refreshList();
     }
 
-    public void postFullUpdate(long inventoryId, int inventorySize, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
-            byte[] slotPermissions, byte[][] acceptedKeyTypes,
-            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts, byte slotsPerRow) {
-        state.putFull(inventoryId, inventorySize, group, dimension, pos, side, slotPermissions, acceptedKeyTypes,
-                slots, stockedAmounts, slotsPerRow);
+    public void postFullUpdate(FilterTerminalTargetState targetState) {
+        state.putFull(targetState);
         refreshList();
     }
 
-    public void postIncrementalUpdate(long inventoryId, byte[] slotPermissions, byte[][] acceptedKeyTypes,
-            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
-        if (!state.applyIncremental(inventoryId, slotPermissions, acceptedKeyTypes, slots, stockedAmounts)) {
-            LOGGER.warn("Ignoring incremental update for unknown inventory id {}", inventoryId);
+    public void postIncrementalUpdate(FilterTerminalTargetUpdate update) {
+        if (!state.applyIncremental(update)) {
+            LOGGER.warn("Ignoring incremental update for unknown inventory id {}", update.serverId());
             return;
         }
         refreshList();

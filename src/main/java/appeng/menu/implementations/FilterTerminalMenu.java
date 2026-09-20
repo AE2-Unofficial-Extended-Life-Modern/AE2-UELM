@@ -1,6 +1,5 @@
 package appeng.menu.implementations;
 
-import java.util.Arrays;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,11 +26,13 @@ import appeng.api.networking.IGrid;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
-import appeng.client.gui.me.filterterminal.FilterTerminalRecord;
 import appeng.core.AELog;
 import appeng.core.sync.packets.ClearFilterTerminalPacket;
 import appeng.core.sync.packets.FilterTerminalPacket;
 import appeng.helpers.InventoryAction;
+import appeng.helpers.filterterminal.FilterTerminalSlotInfo;
+import appeng.helpers.filterterminal.FilterTerminalTargetState;
+import appeng.helpers.filterterminal.FilterTerminalTargetUpdate;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.slot.FakeSlot;
 import appeng.parts.reporting.FilterTerminalPart;
@@ -46,8 +47,6 @@ public class FilterTerminalMenu extends AEBaseMenu {
             .build("filter_terminal");
 
     private static long inventorySerial = Long.MIN_VALUE;
-    private static final byte[] NO_PERMISSION_CHANGES = new byte[0];
-    private static final byte[][] NO_ACCEPTED_KEY_TYPE_CHANGES = new byte[0][];
 
     private final FilterTerminalPart host;
     private final Map<Object, TargetTracker> trackers = new IdentityHashMap<>();
@@ -211,8 +210,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
         private final FilterTerminalTargetMetadata metadata;
         private final GenericStack[] lastSent;
         private final long[] lastSentStockedAmounts;
-        private final byte[] lastSentSlotPermissions;
-        private final byte[][] lastSentAcceptedKeyTypes;
+        private final FilterTerminalSlotInfo[] lastSentSlotInfo;
         private final byte slotsPerRow;
 
         private TargetTracker(IFilterTerminalTarget target, long serverId) {
@@ -223,8 +221,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             var view = target.getConfigView();
             this.lastSent = new GenericStack[view.size()];
             this.lastSentStockedAmounts = new long[view.size()];
-            this.lastSentSlotPermissions = new byte[view.size()];
-            this.lastSentAcceptedKeyTypes = new byte[view.size()][];
+            this.lastSentSlotInfo = new FilterTerminalSlotInfo[view.size()];
             this.slotsPerRow = getSlotsPerRow(target.getConfigView());
         }
 
@@ -244,8 +241,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             Int2ObjectMap<GenericStack> slots = new Int2ObjectArrayMap<>();
             Int2LongMap stockedAmounts = new Int2LongArrayMap();
             var view = target.getConfigView();
-            updateSlotPermissions(player, view);
-            updateAcceptedKeyTypes(view);
+            updateSlotInfo(player, view);
             for (var i = 0; i < lastSent.length; i++) {
                 var stack = view.getConfig(i);
                 lastSent[i] = stack;
@@ -260,9 +256,9 @@ public class FilterTerminalMenu extends AEBaseMenu {
                 }
             }
 
-            return FilterTerminalPacket.fullUpdate(serverId, lastSent.length, metadata.group(),
-                    metadata.dimension(), metadata.pos(), metadata.side(), lastSentSlotPermissions,
-                    lastSentAcceptedKeyTypes, slots, stockedAmounts, slotsPerRow);
+            var state = new FilterTerminalTargetState(serverId, lastSent.length, metadata,
+                    List.of(lastSentSlotInfo), slotsPerRow, slots, stockedAmounts);
+            return FilterTerminalPacket.fullUpdate(state);
         }
 
         @Nullable
@@ -270,8 +266,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             Int2ObjectMap<GenericStack> slots = null;
             Int2LongMap stockedAmounts = null;
             var view = target.getConfigView();
-            var permissionsChanged = updateSlotPermissions(player, view);
-            var keyTypesChanged = updateAcceptedKeyTypes(view);
+            var slotInfoChanged = updateSlotInfo(player, view);
             for (var i = 0; i < lastSent.length; i++) {
                 var current = view.getConfig(i);
                 if (!Objects.equals(current, lastSent[i])) {
@@ -292,16 +287,15 @@ public class FilterTerminalMenu extends AEBaseMenu {
                 }
             }
 
-            if (!permissionsChanged && !keyTypesChanged
-                    && slots == null && stockedAmounts == null) {
+            if (!slotInfoChanged && slots == null && stockedAmounts == null) {
                 return null;
             }
 
-            return FilterTerminalPacket.incrementalUpdate(serverId,
-                    permissionsChanged ? lastSentSlotPermissions : NO_PERMISSION_CHANGES,
-                    keyTypesChanged ? lastSentAcceptedKeyTypes : NO_ACCEPTED_KEY_TYPE_CHANGES,
+            var update = new FilterTerminalTargetUpdate(serverId,
+                    slotInfoChanged ? List.of(lastSentSlotInfo) : List.of(),
                     slots == null ? new Int2ObjectArrayMap<>() : slots,
                     stockedAmounts == null ? new Int2LongArrayMap() : stockedAmounts);
+            return FilterTerminalPacket.incrementalUpdate(update);
         }
 
         private static long getStockedAmount(IFilterTerminalConfigView view, int slot) {
@@ -312,45 +306,35 @@ public class FilterTerminalMenu extends AEBaseMenu {
                     : 0;
         }
 
-        private boolean updateSlotPermissions(ServerPlayer player, IFilterTerminalConfigView view) {
-            var changed = false;
+        private boolean updateSlotInfo(ServerPlayer player, IFilterTerminalConfigView view) {
             var canEditTarget = target.canEdit(player);
-            for (var slot = 0; slot < lastSentSlotPermissions.length; slot++) {
-                byte permissions = 0;
-                if (canEditTarget && view.canEditConfig(slot)) {
-                    permissions |= FilterTerminalRecord.CAN_EDIT_CONFIG;
-                }
-                if (canEditTarget && view.canEditAmount(slot)) {
-                    permissions |= FilterTerminalRecord.CAN_EDIT_AMOUNT;
-                }
-                if (lastSentSlotPermissions[slot] != permissions) {
-                    lastSentSlotPermissions[slot] = permissions;
-                    changed = true;
-                }
+            var canEditConfig = new boolean[lastSentSlotInfo.length];
+            var canEditAmount = new boolean[lastSentSlotInfo.length];
+            for (var slot = 0; slot < lastSentSlotInfo.length; slot++) {
+                canEditConfig[slot] = canEditTarget && view.canEditConfig(slot);
+                canEditAmount[slot] = canEditTarget && view.canEditAmount(slot);
             }
-            return changed;
-        }
 
-        private boolean updateAcceptedKeyTypes(IFilterTerminalConfigView view) {
-            var changed = false;
-
-            for (var slot = 0; slot < lastSentAcceptedKeyTypes.length; slot++) {
+            var acceptedKeyTypes = new byte[lastSentSlotInfo.length][];
+            for (var slot = 0; slot < lastSentSlotInfo.length; slot++) {
                 var accepted = new ByteArrayList();
-
                 for (var keyType : AEKeyTypes.getAll()) {
                     if (view.acceptsKeyType(slot, keyType)) {
                         accepted.add(keyType.getRawId());
                     }
                 }
+                acceptedKeyTypes[slot] = accepted.toByteArray();
+            }
 
-                var acceptedArray = accepted.toByteArray();
-
-                if (!Arrays.equals(lastSentAcceptedKeyTypes[slot], acceptedArray)) {
-                    lastSentAcceptedKeyTypes[slot] = acceptedArray;
+            var changed = false;
+            for (var slot = 0; slot < lastSentSlotInfo.length; slot++) {
+                var info = FilterTerminalSlotInfo.of(canEditConfig[slot], canEditAmount[slot],
+                        acceptedKeyTypes[slot]);
+                if (!info.equals(lastSentSlotInfo[slot])) {
+                    lastSentSlotInfo[slot] = info;
                     changed = true;
                 }
             }
-
             return changed;
         }
 
