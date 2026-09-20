@@ -45,7 +45,7 @@ public class FilterTerminalSetFilterPacket extends BasePacket {
     @Override
     public void serverPacketData(ServerPlayer player) {
         if (player.containerMenu instanceof FilterTerminalMenu menu) {
-            menu.setRemoteFilter(inventoryId, slot, stack, expectedKey);
+            menu.setRemoteFilter(player, inventoryId, slot, stack, expectedKey);
         }
     }
 }
