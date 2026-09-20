@@ -24,6 +24,7 @@ import appeng.api.filterterminal.IFilterTerminalTarget;
 import appeng.api.networking.IGrid;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.client.gui.me.filterterminal.FilterTerminalRecord;
 import appeng.core.AELog;
 import appeng.core.sync.packets.ClearFilterTerminalPacket;
 import appeng.core.sync.packets.FilterTerminalPacket;
@@ -42,6 +43,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
             .build("filter_terminal");
 
     private static long inventorySerial = Long.MIN_VALUE;
+    private static final byte[] NO_PERMISSION_CHANGES = new byte[0];
 
     private final FilterTerminalPart host;
     private final Map<Object, TargetTracker> trackers = new IdentityHashMap<>();
@@ -102,13 +104,13 @@ public class FilterTerminalMenu extends AEBaseMenu {
                     previousTracker == null ? inventorySerial++ : previousTracker.serverId);
             trackers.put(identity, tracker);
             byId.put(tracker.serverId, tracker);
-            sendPacketToClient(tracker.createFullPacket());
+            sendPacketToClient(tracker.createFullPacket((ServerPlayer) getPlayer()));
         }
     }
 
     private void sendIncrementalUpdates() {
         for (var tracker : trackers.values()) {
-            var packet = tracker.createUpdatePacket();
+            var packet = tracker.createUpdatePacket((ServerPlayer) getPlayer());
             if (packet != null) {
                 sendPacketToClient(packet);
             }
@@ -125,9 +127,10 @@ public class FilterTerminalMenu extends AEBaseMenu {
         refreshTargets();
     }
 
-    public void doRemoteAction(InventoryAction action, long id, int slot, @Nullable AEKey expectedKey) {
+    public void doRemoteAction(ServerPlayer player, InventoryAction action, long id, int slot,
+            @Nullable AEKey expectedKey) {
         var tracker = getValidTracker(id, slot);
-        if (tracker == null) {
+        if (tracker == null || !tracker.target.canEdit(player)) {
             refreshTargets();
             return;
         }
@@ -146,17 +149,17 @@ public class FilterTerminalMenu extends AEBaseMenu {
         }
     }
 
-    public void setRemoteFilter(long id, int slot, ItemStack stack, @Nullable AEKey expectedKey) {
+    public void setRemoteFilter(ServerPlayer player, long id, int slot, ItemStack stack, @Nullable AEKey expectedKey) {
         var tracker = getValidTracker(id, slot);
-        if (tracker == null
+        if (tracker == null || !tracker.target.canEdit(player)
                 || !FilterTerminalEditValidation.setFilter(tracker.target.getConfigView(), slot, stack, expectedKey)) {
             refreshTargets();
         }
     }
 
-    public void openSetAmountMenu(long id, int slot, @Nullable AEKey expectedKey) {
+    public void openSetAmountMenu(ServerPlayer player, long id, int slot, @Nullable AEKey expectedKey) {
         var tracker = getValidTracker(id, slot);
-        if (tracker == null) {
+        if (tracker == null || !tracker.target.canEdit(player)) {
             refreshTargets();
             return;
         }
@@ -169,7 +172,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
 
         var configured = view.getConfig(slot);
         if (configured != null) {
-            FilterTerminalSetAmountMenu.open((ServerPlayer) getPlayer(), getLocator(), tracker.target, slot,
+            FilterTerminalSetAmountMenu.open(player, getLocator(), tracker.target, slot,
                     configured);
         }
     }
@@ -202,9 +205,9 @@ public class FilterTerminalMenu extends AEBaseMenu {
         private final long serverId;
         private IFilterTerminalTarget target;
         private final FilterTerminalTargetMetadata metadata;
-        private final boolean supportsAmountEditing;
         private final GenericStack[] lastSent;
         private final long[] lastSentStockedAmounts;
+        private final byte[] lastSentSlotPermissions;
 
         private TargetTracker(IFilterTerminalTarget target, long serverId) {
             this.serverId = serverId;
@@ -212,16 +215,15 @@ public class FilterTerminalMenu extends AEBaseMenu {
             this.metadata = target.getMetadata();
 
             var view = target.getConfigView();
-            this.supportsAmountEditing = supportsAmountEditing(view);
             this.lastSent = new GenericStack[view.size()];
             this.lastSentStockedAmounts = new long[view.size()];
+            this.lastSentSlotPermissions = new byte[view.size()];
         }
 
         private boolean matches(IFilterTerminalTarget currentTarget) {
             var currentView = currentTarget.getConfigView();
             return target.getIdentity() == currentTarget.getIdentity()
                     && lastSent.length == currentView.size()
-                    && supportsAmountEditing == supportsAmountEditing(currentView)
                     && metadata.equals(currentTarget.getMetadata());
         }
 
@@ -229,10 +231,11 @@ public class FilterTerminalMenu extends AEBaseMenu {
             target = currentTarget;
         }
 
-        private FilterTerminalPacket createFullPacket() {
+        private FilterTerminalPacket createFullPacket(ServerPlayer player) {
             Int2ObjectMap<GenericStack> slots = new Int2ObjectArrayMap<>();
             Int2LongMap stockedAmounts = new Int2LongArrayMap();
             var view = target.getConfigView();
+            updateSlotPermissions(player, view);
             for (var i = 0; i < lastSent.length; i++) {
                 var stack = view.getConfig(i);
                 lastSent[i] = stack;
@@ -248,15 +251,16 @@ public class FilterTerminalMenu extends AEBaseMenu {
             }
 
             return FilterTerminalPacket.fullUpdate(serverId, lastSent.length, metadata.group(),
-                    metadata.dimension(), metadata.pos(), metadata.side(), supportsAmountEditing, slots,
+                    metadata.dimension(), metadata.pos(), metadata.side(), lastSentSlotPermissions, slots,
                     stockedAmounts);
         }
 
         @Nullable
-        private FilterTerminalPacket createUpdatePacket() {
+        private FilterTerminalPacket createUpdatePacket(ServerPlayer player) {
             Int2ObjectMap<GenericStack> slots = null;
             Int2LongMap stockedAmounts = null;
             var view = target.getConfigView();
+            var permissionsChanged = updateSlotPermissions(player, view);
             for (var i = 0; i < lastSent.length; i++) {
                 var current = view.getConfig(i);
                 if (!Objects.equals(current, lastSent[i])) {
@@ -277,11 +281,12 @@ public class FilterTerminalMenu extends AEBaseMenu {
                 }
             }
 
-            if (slots == null && stockedAmounts == null) {
+            if (!permissionsChanged && slots == null && stockedAmounts == null) {
                 return null;
             }
 
             return FilterTerminalPacket.incrementalUpdate(serverId,
+                    permissionsChanged ? lastSentSlotPermissions : NO_PERMISSION_CHANGES,
                     slots == null ? new Int2ObjectArrayMap<>() : slots,
                     stockedAmounts == null ? new Int2LongArrayMap() : stockedAmounts);
         }
@@ -294,13 +299,23 @@ public class FilterTerminalMenu extends AEBaseMenu {
                     : 0;
         }
 
-        private static boolean supportsAmountEditing(IFilterTerminalConfigView view) {
-            for (var slot = 0; slot < view.size(); slot++) {
-                if (view.canEditAmount(slot)) {
-                    return true;
+        private boolean updateSlotPermissions(ServerPlayer player, IFilterTerminalConfigView view) {
+            var changed = false;
+            var canEditTarget = target.canEdit(player);
+            for (var slot = 0; slot < lastSentSlotPermissions.length; slot++) {
+                byte permissions = 0;
+                if (canEditTarget && view.canEditConfig(slot)) {
+                    permissions |= FilterTerminalRecord.CAN_EDIT_CONFIG;
+                }
+                if (canEditTarget && view.canEditAmount(slot)) {
+                    permissions |= FilterTerminalRecord.CAN_EDIT_AMOUNT;
+                }
+                if (lastSentSlotPermissions[slot] != permissions) {
+                    lastSentSlotPermissions[slot] = permissions;
+                    changed = true;
                 }
             }
-            return false;
+            return changed;
         }
     }
 }

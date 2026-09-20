@@ -23,6 +23,9 @@ public class FilterTerminalSlot extends FakeSlot {
 
     @Override
     public void setFilterTo(ItemStack stack) {
+        if (!machine.canEditConfig(slot)) {
+            return;
+        }
         NetworkHandler.instance().sendToServer(
                 new FilterTerminalSetFilterPacket(machine.getServerId(), slot, stack,
                         machine.getInventory().getKey(slot)));

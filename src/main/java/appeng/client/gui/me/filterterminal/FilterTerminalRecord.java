@@ -20,6 +20,9 @@ import appeng.util.ConfigMenuInventory;
  */
 public final class FilterTerminalRecord implements Comparable<FilterTerminalRecord> {
 
+    public static final byte CAN_EDIT_CONFIG = 0x1;
+    public static final byte CAN_EDIT_AMOUNT = 0x2;
+
     private final long serverId;
     private final PatternContainerGroup group;
     private final String searchName;
@@ -30,10 +33,10 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
     private final GenericStackInv inventory;
     private final ConfigMenuInventory menuInventory;
     private final long[] stockedAmounts;
-    private final boolean supportsAmountEditing;
+    private final byte[] slotPermissions;
 
     public FilterTerminalRecord(long serverId, int slots, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, boolean supportsAmountEditing) {
+            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, byte[] slotPermissions) {
         this.serverId = serverId;
         this.group = group;
         this.searchName = group.name().getString().toLowerCase(Locale.ROOT);
@@ -43,7 +46,7 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         this.inventory = new ClientInventory(slots);
         this.menuInventory = inventory.createMenuWrapper();
         this.stockedAmounts = new long[slots];
-        this.supportsAmountEditing = supportsAmountEditing;
+        this.slotPermissions = slotPermissions;
     }
 
     public long getServerId() {
@@ -83,12 +86,28 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         return stockedAmounts[slot];
     }
 
-    public boolean supportsAmountEditing() {
-        return supportsAmountEditing;
-    }
-
     void setStockedAmount(int slot, long amount) {
         stockedAmounts[slot] = amount;
+    }
+
+    void setSlotPermissions(byte[] permissions) {
+        if (permissions.length != slotPermissions.length) {
+            throw new IllegalArgumentException("Expected " + slotPermissions.length + " slot permissions, got "
+                    + permissions.length);
+        }
+        System.arraycopy(permissions, 0, slotPermissions, 0, permissions.length);
+    }
+
+    public boolean canEditConfig(int slot) {
+        return slot >= 0
+                && slot < slotPermissions.length
+                && (slotPermissions[slot] & CAN_EDIT_CONFIG) != 0;
+    }
+
+    public boolean canEditAmount(int slot) {
+        return slot >= 0
+                && slot < slotPermissions.length
+                && (slotPermissions[slot] & CAN_EDIT_AMOUNT) != 0;
     }
 
     @Override

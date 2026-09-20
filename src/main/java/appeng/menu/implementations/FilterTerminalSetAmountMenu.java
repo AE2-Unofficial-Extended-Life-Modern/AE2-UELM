@@ -81,7 +81,8 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
             return;
         }
 
-        if (!isTargetValid()) {
+        var player = (ServerPlayer) getPlayer();
+        if (!isTargetValid(player)) {
             host.returnToMainMenu(getPlayer(), this);
             return;
         }
@@ -101,7 +102,7 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
         host.returnToMainMenu(getPlayer(), this);
     }
 
-    private boolean isTargetValid() {
+    private boolean isTargetValid(ServerPlayer player) {
         if (target == null || expectedKey == null || targetSlot < 0
                 || targetSlot >= target.getConfigView().size()) {
             return false;
@@ -109,7 +110,8 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
 
         var terminalNode = host.getActionableNode();
         return terminalNode != null && terminalNode.isActive()
-                && FilterTerminalEditValidation.isValidTarget(terminalNode.getGrid(), target);
+                && FilterTerminalEditValidation.isValidTarget(terminalNode.getGrid(), target)
+                && target.canEdit(player);
     }
 
     @Override

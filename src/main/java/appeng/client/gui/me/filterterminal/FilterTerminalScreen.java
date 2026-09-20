@@ -188,6 +188,9 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
                             column * SLOT_SIZE + GUI_PADDING_X, (visibleRow + 1) * SLOT_SIZE + 12);
                     menu.addClientSideSlot(slot, null);
                     clientSlots.add(slot);
+                    if (!slotsRow.container.canEditConfig(logicalSlot)) {
+                        guiGraphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x60000000);
+                    }
                 }
             } else if (row instanceof GroupHeaderRow headerRow) {
                 var group = headerRow.group;
@@ -234,9 +237,13 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
     @Override
     protected void slotClicked(@Nullable Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
-        if (slot instanceof FilterTerminalSlot interfaceSlot) {
-            var machine = interfaceSlot.getMachine();
-            var expectedKey = machine.getInventory().getKey(interfaceSlot.slot);
+        if (slot instanceof FilterTerminalSlot filterSlot) {
+            var machine = filterSlot.getMachine();
+            if (!machine.canEditConfig(filterSlot.slot)) {
+                return;
+            }
+
+            var expectedKey = machine.getInventory().getKey(filterSlot.slot);
 
             InventoryAction action = null;
             if (mouseButton == 1 && getEmptyingAction(slot, menu.getCarried()) != null) {
@@ -248,7 +255,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
             if (action != null) {
                 NetworkHandler.instance().sendToServer(new FilterTerminalActionPacket(action,
-                        machine.getServerId(), interfaceSlot.slot,
+                        machine.getServerId(), filterSlot.slot,
                         expectedKey));
             }
             return;
@@ -262,7 +269,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
         if (slot instanceof FilterTerminalSlot filterTermSlot) {
             var machine = filterTermSlot.getMachine();
             var expectedKey = machine.getInventory().getKey(filterTermSlot.slot);
-            if (expectedKey != null && machine.supportsAmountEditing()) {
+            if (expectedKey != null && machine.canEditAmount(filterTermSlot.slot)) {
                 NetworkHandler.instance().sendToServer(FilterTerminalActionPacket.openAmount(
                         machine.getServerId(), filterTermSlot.slot, expectedKey));
                 return true;
@@ -295,12 +302,24 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     protected void renderTooltip(GuiGraphics guiGraphics, int x, int y) {
         if (this.hoveredSlot instanceof FilterTerminalSlot slot) {
             var configured = GenericStack.fromItemStack(slot.getItem());
-            if (configured != null && slot.getMachine().supportsAmountEditing()) {
+            if (configured != null) {
+                var machine = slot.getMachine();
+                var stockedAmount = machine.getStockedAmount(slot.slot);
+                var canEditAmount = machine.canEditAmount(slot.slot);
+                if (!canEditAmount && stockedAmount <= 0) {
+                    super.renderTooltip(guiGraphics, x, y);
+                    return;
+                }
+
                 var tooltip = new ArrayList<>(getTooltipFromContainerItem(slot.getItem()));
                 tooltip.add(Tooltips.getAmountTooltip(ButtonToolTips.FilterTerminalStocked,
-                        configured.what(), slot.getMachine().getStockedAmount(slot.slot)));
-                var pickKey = getMinecraft().options.keyPickItem.getTranslatedKeyMessage();
-                tooltip.add(Tooltips.getSetAmountTooltip(pickKey));
+                        configured.what(), stockedAmount));
+
+                if (canEditAmount) {
+                    var pickKey = getMinecraft().options.keyPickItem.getTranslatedKeyMessage();
+                    tooltip.add(Tooltips.getSetAmountTooltip(pickKey));
+                }
+
                 drawTooltip(guiGraphics, x, y, tooltip);
                 return;
             }
@@ -316,15 +335,15 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
     public void postFullUpdate(long inventoryId, int inventorySize, PatternContainerGroup group,
             ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
-            boolean supportsAmountEditing, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
-        state.putFull(inventoryId, inventorySize, group, dimension, pos, side, supportsAmountEditing, slots,
+            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+        state.putFull(inventoryId, inventorySize, group, dimension, pos, side, slotPermissions, slots,
                 stockedAmounts);
         refreshList();
     }
 
-    public void postIncrementalUpdate(long inventoryId, Int2ObjectMap<GenericStack> slots,
+    public void postIncrementalUpdate(long inventoryId, byte[] slotPermissions, Int2ObjectMap<GenericStack> slots,
             Int2LongMap stockedAmounts) {
-        if (!state.applyIncremental(inventoryId, slots, stockedAmounts)) {
+        if (!state.applyIncremental(inventoryId, slotPermissions, slots, stockedAmounts)) {
             LOGGER.warn("Ignoring incremental update for unknown inventory id {}", inventoryId);
             return;
         }

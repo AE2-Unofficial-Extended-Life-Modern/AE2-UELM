@@ -31,6 +31,16 @@ public interface IFilterTerminalConfigView {
     GenericStack getStock(int slot);
 
     /**
+     * Returns whether this slot is generally user-configurable.
+     *
+     * <p>
+     * This is used for client presentation only.
+     */
+    default boolean canEditConfig(int slot) {
+        return true;
+    }
+
+    /**
      * Checks whether the configured stack can be changed. Must be rechecked on the server before applying a client
      * request.
      *

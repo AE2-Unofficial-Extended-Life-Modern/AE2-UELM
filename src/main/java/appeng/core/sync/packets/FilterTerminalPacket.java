@@ -46,15 +46,15 @@ public class FilterTerminalPacket extends BasePacket {
     public static FilterTerminalPacket fullUpdate(long inventoryId, int inventorySize,
             PatternContainerGroup group, ResourceKey<Level> dimension,
             BlockPos pos, @Nullable Direction side,
-            boolean supportsAmountEditing, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
         return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, true, inventorySize,
-                group, dimension, pos, side, supportsAmountEditing, slots, stockedAmounts));
+                group, dimension, pos, side, slotPermissions, slots, stockedAmounts));
     }
 
     public static FilterTerminalPacket incrementalUpdate(long inventoryId,
-            Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
+            byte[] slotPermissions, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
         return new FilterTerminalPacket(new FilterTerminalPacketData(inventoryId, false, 0,
-                null, null, null, null, false, slots, stockedAmounts));
+                null, null, null, null, slotPermissions, slots, stockedAmounts));
     }
 
     @Override
@@ -66,15 +66,16 @@ public class FilterTerminalPacket extends BasePacket {
 
         if (data.fullUpdate()) {
             screen.postFullUpdate(data.inventoryId(), data.inventorySize(), data.group(), data.dimension(), data.pos(),
-                    data.side(), data.supportsAmountEditing(), data.slots(), data.stockedAmounts());
+                    data.side(), data.slotPermissions(), data.slots(), data.stockedAmounts());
         } else {
-            screen.postIncrementalUpdate(data.inventoryId(), data.slots(), data.stockedAmounts());
+            screen.postIncrementalUpdate(data.inventoryId(), data.slotPermissions(), data.slots(),
+                    data.stockedAmounts());
         }
     }
 
     private record FilterTerminalPacketData(long inventoryId, boolean fullUpdate, int inventorySize,
             @Nullable PatternContainerGroup group, @Nullable ResourceKey<Level> dimension,
-            @Nullable BlockPos pos, @Nullable Direction side, boolean supportsAmountEditing,
+            @Nullable BlockPos pos, @Nullable Direction side, byte[] slotPermissions,
             Int2ObjectMap<GenericStack> slots,
             Int2LongMap stockedAmounts) {
 
@@ -86,15 +87,14 @@ public class FilterTerminalPacket extends BasePacket {
             ResourceKey<Level> dimension = null;
             BlockPos pos = null;
             Direction side = null;
-            var supportsAmountEditing = false;
             if (fullUpdate) {
                 inventorySize = stream.readVarInt();
                 group = PatternContainerGroup.readFromPacket(stream);
                 dimension = ResourceKey.create(Registries.DIMENSION, stream.readResourceLocation());
                 pos = stream.readBlockPos();
                 side = stream.readBoolean() ? stream.readEnum(Direction.class) : null;
-                supportsAmountEditing = stream.readBoolean();
             }
+            var slotPermissions = stream.readByteArray();
 
             var slotCount = stream.readVarInt();
             Int2ObjectMap<GenericStack> slots = new Int2ObjectArrayMap<>(slotCount);
@@ -109,7 +109,7 @@ public class FilterTerminalPacket extends BasePacket {
             }
 
             return new FilterTerminalPacketData(inventoryId, fullUpdate, inventorySize, group, dimension, pos, side,
-                    supportsAmountEditing, slots, stockedAmounts);
+                    slotPermissions, slots, stockedAmounts);
         }
 
         void write(FriendlyByteBuf stream) {
@@ -124,8 +124,8 @@ public class FilterTerminalPacket extends BasePacket {
                 if (side != null) {
                     stream.writeEnum(side);
                 }
-                stream.writeBoolean(supportsAmountEditing);
             }
+            stream.writeByteArray(slotPermissions);
 
             stream.writeVarInt(slots.size());
             for (var entry : slots.int2ObjectEntrySet()) {
