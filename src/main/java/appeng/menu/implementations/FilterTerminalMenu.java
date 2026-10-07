@@ -212,6 +212,7 @@ public class FilterTerminalMenu extends AEBaseMenu {
         private final long[] lastSentStockedAmounts;
         private final FilterTerminalSlotInfo[] lastSentSlotInfo;
         private final byte slotsPerRow;
+        private final ByteArrayList acceptedKeyTypesScratch = new ByteArrayList();
 
         private TargetTracker(IFilterTerminalTarget target, long serverId) {
             this.serverId = serverId;
@@ -308,30 +309,22 @@ public class FilterTerminalMenu extends AEBaseMenu {
 
         private boolean updateSlotInfo(ServerPlayer player, IFilterTerminalConfigView view) {
             var canEditTarget = target.canEdit(player);
-            var canEditConfig = new boolean[lastSentSlotInfo.length];
-            var canEditAmount = new boolean[lastSentSlotInfo.length];
-            for (var slot = 0; slot < lastSentSlotInfo.length; slot++) {
-                canEditConfig[slot] = canEditTarget && view.canEditConfig(slot);
-                canEditAmount[slot] = canEditTarget && view.canEditAmount(slot);
-            }
-
-            var acceptedKeyTypes = new byte[lastSentSlotInfo.length][];
-            for (var slot = 0; slot < lastSentSlotInfo.length; slot++) {
-                var accepted = new ByteArrayList();
-                for (var keyType : AEKeyTypes.getAll()) {
-                    if (view.acceptsKeyType(slot, keyType)) {
-                        accepted.add(keyType.getRawId());
-                    }
-                }
-                acceptedKeyTypes[slot] = accepted.toByteArray();
-            }
-
             var changed = false;
             for (var slot = 0; slot < lastSentSlotInfo.length; slot++) {
-                var info = FilterTerminalSlotInfo.of(canEditConfig[slot], canEditAmount[slot],
-                        acceptedKeyTypes[slot]);
-                if (!info.equals(lastSentSlotInfo[slot])) {
-                    lastSentSlotInfo[slot] = info;
+                var permissions = FilterTerminalSlotInfo.permissions(canEditTarget && view.canEditConfig(slot),
+                        canEditTarget && view.canEditAmount(slot));
+
+                acceptedKeyTypesScratch.clear();
+                for (var keyType : AEKeyTypes.getAll()) {
+                    if (view.acceptsKeyType(slot, keyType)) {
+                        acceptedKeyTypesScratch.add(keyType.getRawId());
+                    }
+                }
+
+                var previous = lastSentSlotInfo[slot];
+                if (previous == null || !previous.matches(permissions, acceptedKeyTypesScratch)) {
+                    lastSentSlotInfo[slot] = new FilterTerminalSlotInfo(permissions,
+                            acceptedKeyTypesScratch.toByteArray());
                     changed = true;
                 }
             }

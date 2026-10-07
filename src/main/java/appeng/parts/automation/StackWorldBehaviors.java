@@ -71,21 +71,33 @@ public final class StackWorldBehaviors {
      * {@return filter matching any key for which there is an import strategy}
      */
     public static AEKeyFilter hasImportStrategyFilter() {
-        return what -> importStrategies.getMap().containsKey(what.getType());
+        return what -> supportsImport(what.getType());
     }
 
     /**
      * {@return filter matching any key for which there is an export strategy}
      */
     public static AEKeyFilter hasExportStrategyFilter() {
-        return what -> exportStrategies.getMap().containsKey(what.getType());
+        return what -> supportsExport(what.getType());
     }
 
     /**
-     * {@return filter matching any key for which there is an export strategy}
+     * {@return filter matching any key for which there is a placement strategy}
      */
     public static AEKeyFilter hasPlacementStrategy() {
-        return what -> placementStrategies.getMap().containsKey(what.getType());
+        return what -> supportsPlacement(what.getType());
+    }
+
+    public static boolean supportsImport(AEKeyType type) {
+        return importStrategies.getMap().containsKey(type);
+    }
+
+    public static boolean supportsExport(AEKeyType type) {
+        return exportStrategies.getMap().containsKey(type);
+    }
+
+    public static boolean supportsPlacement(AEKeyType type) {
+        return placementStrategies.getMap().containsKey(type);
     }
 
     public static StackImportStrategy createImportFacade(ServerLevel level, BlockPos fromPos, Direction fromSide) {

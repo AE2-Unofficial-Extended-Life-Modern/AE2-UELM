@@ -16,6 +16,8 @@ public final class FilterTerminalTargetRegistry {
 
     private static final Map<Class<?>, IFilterTerminalTargetProvider<?>> PROVIDERS = new LinkedHashMap<>();
 
+    private static volatile List<IFilterTerminalTargetProvider<?>> providerSnapshot = List.of();
+
     private static boolean frozen;
 
     private FilterTerminalTargetRegistry() {
@@ -47,13 +49,14 @@ public final class FilterTerminalTargetRegistry {
         }
 
         PROVIDERS.put(targetType, provider);
+        providerSnapshot = List.copyOf(PROVIDERS.values());
     }
 
     /**
      * @return an immutable snapshot of registered providers in registration order
      */
-    public static synchronized List<IFilterTerminalTargetProvider<?>> getProviders() {
-        return List.copyOf(PROVIDERS.values());
+    public static List<IFilterTerminalTargetProvider<?>> getProviders() {
+        return providerSnapshot;
     }
 
     /**

@@ -1,6 +1,7 @@
 package appeng.helpers.filterterminal;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -21,6 +22,7 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.IUpgradeableObject;
 import appeng.core.definitions.AEItems;
@@ -28,8 +30,11 @@ import appeng.helpers.IConfigInvHost;
 import appeng.helpers.InterfaceLogicHost;
 import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.parts.AEBasePart;
+import appeng.parts.automation.ExportBusPart;
 import appeng.parts.automation.FormationPlanePart;
 import appeng.parts.automation.IOBusPart;
+import appeng.parts.automation.ImportBusPart;
+import appeng.parts.automation.StackWorldBehaviors;
 import appeng.parts.automation.StorageLevelEmitterPart;
 import appeng.parts.storagebus.StorageBusPart;
 
@@ -82,7 +87,7 @@ public final class AEFilterTerminalTargetProvider implements IFilterTerminalTarg
         }
 
         var config = interfaceHost.getConfig();
-        var view = new ConfigView(config, interfaceHost.getStorage(), config.size(), true);
+        var view = new ConfigView(config, interfaceHost.getStorage(), config.size(), true, type -> true);
         return new Target(identity, gridNode, metadata, view);
     }
 
@@ -96,7 +101,8 @@ public final class AEFilterTerminalTargetProvider implements IFilterTerminalTarg
         }
 
         var config = identity.getConfig();
-        var view = new ConfigView(config, null, getUsableSlotCount(identity), false);
+        var view = new ConfigView(config, null, getUsableSlotCount(identity), false,
+                getAcceptedKeyTypes(part));
         return new Target(identity, gridNode, metadata, view);
     }
 
@@ -105,6 +111,19 @@ public final class AEFilterTerminalTargetProvider implements IFilterTerminalTarg
                 || part instanceof StorageBusPart
                 || part instanceof FormationPlanePart
                 || part instanceof StorageLevelEmitterPart;
+    }
+
+    private static Predicate<AEKeyType> getAcceptedKeyTypes(AEBasePart part) {
+        if (part instanceof ImportBusPart) {
+            return StackWorldBehaviors::supportsImport;
+        }
+        if (part instanceof ExportBusPart) {
+            return StackWorldBehaviors::supportsExport;
+        }
+        if (part instanceof FormationPlanePart) {
+            return StackWorldBehaviors::supportsPlacement;
+        }
+        return type -> true;
     }
 
     private static int getUsableSlotCount(IConfigInvHost host) {
@@ -170,7 +189,8 @@ public final class AEFilterTerminalTargetProvider implements IFilterTerminalTarg
 
     private record ConfigView(
             GenericStackInv config, @Nullable GenericStackInv stock,
-            int size, boolean amountEditable) implements IFilterTerminalConfigView {
+            int size, boolean amountEditable,
+            Predicate<AEKeyType> acceptedKeyTypes) implements IFilterTerminalConfigView {
 
         @Nullable
         @Override
@@ -190,6 +210,11 @@ public final class AEFilterTerminalTargetProvider implements IFilterTerminalTarg
             return configured != null && stocked != null && configured.what().equals(stocked.what())
                     ? stocked
                     : null;
+        }
+
+        @Override
+        public boolean acceptsKeyType(int slot, AEKeyType keyType) {
+            return isValidSlot(slot) && acceptedKeyTypes.test(keyType);
         }
 
         @Override

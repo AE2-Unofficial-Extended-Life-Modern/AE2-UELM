@@ -5,8 +5,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -31,25 +34,34 @@ final class FilterTerminalTargetDiscovery {
 
     private static final Set<Class<?>> REPORTED_AMBIGUOUS_PROVIDER_TYPES = ConcurrentHashMap.newKeySet();
 
+    private static final Map<Class<?>, Optional<IFilterTerminalTargetProvider<?>>> PROVIDER_CACHE = new ConcurrentHashMap<>();
+    @Nullable
+    private static volatile List<IFilterTerminalTargetProvider<?>> cachedProviders;
+
     private FilterTerminalTargetDiscovery() {
     }
 
     static List<IFilterTerminalTarget> findTargets(@Nullable IGrid grid) {
-        return findTargets(grid, FilterTerminalTargetRegistry.getProviders());
+        var providers = FilterTerminalTargetRegistry.getProviders();
+        if (providers != cachedProviders) {
+            PROVIDER_CACHE.clear();
+            cachedProviders = providers;
+        }
+        return findTargets(grid, machineClass -> PROVIDER_CACHE
+                .computeIfAbsent(machineClass, type -> Optional.ofNullable(selectProvider(type, providers)))
+                .orElse(null));
     }
 
     static List<IFilterTerminalTarget> findTargets(@Nullable IGrid grid,
-            Iterable<IFilterTerminalTargetProvider<?>> providers) {
+            Function<Class<?>, IFilterTerminalTargetProvider<?>> providerLookup) {
         if (grid == null) {
             return List.of();
         }
 
-        var providerList = new ArrayList<IFilterTerminalTargetProvider<?>>();
-        providers.forEach(providerList::add);
         Set<Object> identities = Collections.newSetFromMap(new IdentityHashMap<>());
         var result = new ArrayList<IFilterTerminalTarget>();
         for (var machineClass : grid.getMachineClasses()) {
-            var provider = selectProvider(machineClass, providerList);
+            var provider = providerLookup.apply(machineClass);
             if (provider != null) {
                 addProviderTargets(grid, machineClass, provider, identities, result);
             }

@@ -6,6 +6,8 @@ import org.jetbrains.annotations.ApiStatus;
 
 import net.minecraft.network.FriendlyByteBuf;
 
+import it.unimi.dsi.fastutil.bytes.ByteList;
+
 import appeng.api.stacks.AEKeyType;
 
 /**
@@ -21,7 +23,7 @@ public record FilterTerminalSlotInfo(byte permissions, byte[] acceptedKeyTypes) 
         acceptedKeyTypes = acceptedKeyTypes.clone();
     }
 
-    public static FilterTerminalSlotInfo of(boolean canEditConfig, boolean canEditAmount, byte[] acceptedKeyTypes) {
+    public static byte permissions(boolean canEditConfig, boolean canEditAmount) {
         byte permissions = 0;
         if (canEditConfig) {
             permissions |= CAN_EDIT_CONFIG;
@@ -29,7 +31,19 @@ public record FilterTerminalSlotInfo(byte permissions, byte[] acceptedKeyTypes) 
         if (canEditAmount) {
             permissions |= CAN_EDIT_AMOUNT;
         }
-        return new FilterTerminalSlotInfo(permissions, acceptedKeyTypes);
+        return permissions;
+    }
+
+    public boolean matches(byte permissions, ByteList acceptedKeyTypes) {
+        if (this.permissions != permissions || this.acceptedKeyTypes.length != acceptedKeyTypes.size()) {
+            return false;
+        }
+        for (var i = 0; i < this.acceptedKeyTypes.length; i++) {
+            if (this.acceptedKeyTypes[i] != acceptedKeyTypes.getByte(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static FilterTerminalSlotInfo read(FriendlyByteBuf buffer) {
