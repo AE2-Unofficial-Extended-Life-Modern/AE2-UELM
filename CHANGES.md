@@ -325,4 +325,12 @@ Previously if you bound your pick block key to anything other than middle-click,
 
 </details>
 
+<!-- CHANGELOG-PR:39 -->
+<details>
+<summary><strong>Rework filter terminal to be more extensible</strong> · @ko-lja · merged 2026-10-07 18:49 UTC</summary>
+
+This PR aims to make the filter terminal more extensible by adding an API for it allowing any generic parts/machines to be recognized by it.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
