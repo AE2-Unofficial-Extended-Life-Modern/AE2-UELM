@@ -2,6 +2,8 @@ package appeng.client.gui.me.filterterminal;
 
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.stacks.AEItemKey;
+import appeng.api.stacks.GenericStack;
 import appeng.core.sync.network.NetworkHandler;
 import appeng.core.sync.packets.FilterTerminalSetFilterPacket;
 import appeng.menu.slot.FakeSlot;
@@ -22,7 +24,26 @@ public class FilterTerminalSlot extends FakeSlot {
     }
 
     @Override
+    public boolean canSetFilterTo(ItemStack stack) {
+        if (!machine.canEditConfig(slot)) {
+            return false;
+        }
+
+        var genericStack = GenericStack.unwrapItemStack(stack);
+        var key = genericStack != null
+                ? genericStack.what()
+                : AEItemKey.of(stack);
+
+        return key != null
+                && machine.acceptsKeyType(slot, key.getType())
+                && super.canSetFilterTo(stack);
+    }
+
+    @Override
     public void setFilterTo(ItemStack stack) {
+        if (!machine.canEditConfig(slot)) {
+            return;
+        }
         NetworkHandler.instance().sendToServer(
                 new FilterTerminalSetFilterPacket(machine.getServerId(), slot, stack,
                         machine.getInventory().getKey(slot)));
@@ -30,5 +51,20 @@ public class FilterTerminalSlot extends FakeSlot {
 
     @Override
     public void set(ItemStack stack) {
+    }
+
+    @Override
+    public ItemStack getDisplayStack() {
+        var configured = machine.getInventory().getStack(slot);
+
+        if (configured != null && !machine.canEditAmount(slot)) {
+            var stocked = machine.getStockedAmount(slot);
+
+            if (stocked > 0) {
+                return GenericStack.wrapInItemStack(configured.what(), stocked);
+            }
+        }
+
+        return super.getDisplayStack();
     }
 }
