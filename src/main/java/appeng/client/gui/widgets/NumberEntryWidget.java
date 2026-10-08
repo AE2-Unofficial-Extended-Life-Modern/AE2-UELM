@@ -382,7 +382,9 @@ public class NumberEntryWidget implements ICompositeWidget {
         if (textValue.startsWith("=")) {
             textValue = textValue.substring(1);
         }
-        return Mth.clamp(MathExpressionParser.parse(textValue), minValue, maxValue);
+        return Mth.clamp(MathExpressionParser.parse(textValue,
+                new MathExpressionParser.Context().setNumberFormat(decimalFormat)),
+                minValue, maxValue);
     }
 
     /*
