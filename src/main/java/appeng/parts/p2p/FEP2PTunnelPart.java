@@ -51,6 +51,10 @@ public class FEP2PTunnelPart extends CapabilityP2PTunnelPart<FEP2PTunnelPart, IE
     }
 
     private class InputEnergyStorage implements IEnergyStorage {
+
+        // Output where the next insertion will start at, so extra energy of uneven splits rotate across all outputs.
+        private int nextOutput = 0;
+
         @Override
         public int extractEnergy(int maxExtract, boolean simulate) {
             return 0;
@@ -60,19 +64,30 @@ public class FEP2PTunnelPart extends CapabilityP2PTunnelPart<FEP2PTunnelPart, IE
         public int receiveEnergy(int maxReceive, boolean simulate) {
             int total = 0;
 
-            final int outputTunnels = FEP2PTunnelPart.this.getOutputs().size();
+            final List<FEP2PTunnelPart> outputs = FEP2PTunnelPart.this.getOutputs();
+            final int outputTunnels = outputs.size();
 
             if (outputTunnels == 0 | maxReceive == 0) {
                 return 0;
             }
 
             final int amountPerOutput = maxReceive / outputTunnels;
-            int overflow = amountPerOutput == 0 ? maxReceive : maxReceive % amountPerOutput;
+            final int extraAmount = maxReceive % outputTunnels;
+            final int startingOutput = nextOutput % outputTunnels;
+            int overflow = 0;
 
-            for (FEP2PTunnelPart target : FEP2PTunnelPart.this.getOutputs()) {
+            for (int i = 0; i < outputTunnels; i++) {
+                final FEP2PTunnelPart target = outputs.get((startingOutput + i) % outputTunnels);
                 try (CapabilityGuard capabilityGuard = target.getAdjacentCapability()) {
+                    final int toSend = amountPerOutput + (i < extraAmount ? 1 : 0) + overflow;
+
                     final IEnergyStorage output = capabilityGuard.get();
-                    final int toSend = amountPerOutput + overflow;
+
+                    if (toSend <= 0) {
+                        // Nothing is carried over and all extra energy are handed out, further outputs would get 0 too.
+                        break;
+                    }
+
                     final int received = output.receiveEnergy(toSend, simulate);
 
                     overflow = toSend - received;
@@ -81,6 +96,7 @@ public class FEP2PTunnelPart extends CapabilityP2PTunnelPart<FEP2PTunnelPart, IE
             }
 
             if (!simulate) {
+                nextOutput = (startingOutput + extraAmount) % outputTunnels;
                 deductEnergyCost(total, PowerUnits.FE);
             }
 
