@@ -79,7 +79,8 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
         public int fill(FluidStack resource, FluidAction action) {
             int total = 0;
 
-            final int outputTunnels = FluidP2PTunnelPart.this.getOutputs().size();
+            final List<FluidP2PTunnelPart> outputs = FluidP2PTunnelPart.this.getOutputs();
+            final int outputTunnels = outputs.size();
             final int amount = resource.getAmount();
 
             if (outputTunnels == 0 || amount == 0) {
@@ -87,12 +88,19 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
             }
 
             final int amountPerOutput = amount / outputTunnels;
-            int overflow = amountPerOutput == 0 ? amount : amount % amountPerOutput;
+            final int extraAmount = amount % outputTunnels;
+            int overflow = 0;
 
-            for (FluidP2PTunnelPart target : FluidP2PTunnelPart.this.getOutputs()) {
-                try (CapabilityGuard capabilityGuard = target.getAdjacentCapability()) {
+            for (int i = 0; i < outputTunnels; i++) {
+                try (CapabilityGuard capabilityGuard = outputs.get(i).getAdjacentCapability()) {
+                    final int toSend = amountPerOutput + (i < extraAmount ? 1 : 0) + overflow;
                     final IFluidHandler output = capabilityGuard.get();
-                    final int toSend = amountPerOutput + overflow;
+
+                    if (toSend <= 0) {
+                        // Nothing is carried over and all extra items are handed out, further outputs would get 0 too.
+                        break;
+                    }
+
                     final FluidStack fillWithFluidStack = resource.copy();
                     fillWithFluidStack.setAmount(toSend);
 
