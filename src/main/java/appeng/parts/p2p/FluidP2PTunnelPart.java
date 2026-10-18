@@ -102,7 +102,7 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
                     final IFluidHandler output = capabilityGuard.get();
 
                     if (toSend <= 0) {
-                        // Nothing is carried over and all extra items are handed out, further outputs would get 0 too.
+                        // Nothing is carried over and all extra fluids are handed out, further outputs would get 0 too.
                         break;
                     }
 
