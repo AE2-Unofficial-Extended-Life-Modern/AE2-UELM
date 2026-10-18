@@ -55,6 +55,9 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
 
     private class InputItemHandler implements IItemHandler {
 
+        // Output where the next insertion will start at, so extra items of uneven splits rotate across all outputs.
+        private int nextOutput = 0;
+
         @Override
         public int getSlots() {
             return 1;
@@ -79,10 +82,12 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
 
             final int amountPerOutput = amount / outputTunnels;
             final int extraAmount = amount % outputTunnels;
+            final int startingOutput = nextOutput % outputTunnels;
             int overflow = 0;
 
             for (int i = 0; i < outputTunnels; i++) {
-                try (CapabilityGuard capabilityGuard = outputs.get(i).getAdjacentCapability()) {
+                final ItemP2PTunnelPart target = outputs.get((startingOutput + i) % outputTunnels);
+                try (CapabilityGuard capabilityGuard = target.getAdjacentCapability()) {
                     final int toSend = amountPerOutput + (i < extraAmount ? 1 : 0) + overflow;
 
                     final IItemHandler output = capabilityGuard.get();
@@ -106,6 +111,7 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
             }
 
             if (!simulate) {
+                nextOutput = (startingOutput + extraAmount) % outputTunnels;
                 deductTransportCost(amount - remainder, AEKeyType.items());
             }
 
