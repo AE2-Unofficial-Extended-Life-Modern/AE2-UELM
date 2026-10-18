@@ -55,6 +55,9 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
 
     private class InputItemHandler implements IItemHandler {
 
+        // Output where the next insertion will start at, so extra items of uneven splits rotate across all outputs.
+        private int nextOutput = 0;
+
         @Override
         public int getSlots() {
             return 1;
@@ -69,7 +72,8 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
             int remainder = stack.getCount();
 
-            final int outputTunnels = ItemP2PTunnelPart.this.getOutputs().size();
+            final List<ItemP2PTunnelPart> outputs = ItemP2PTunnelPart.this.getOutputs();
+            final int outputTunnels = outputs.size();
             final int amount = stack.getCount();
 
             if (outputTunnels == 0 || amount == 0) {
@@ -77,15 +81,19 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
             }
 
             final int amountPerOutput = amount / outputTunnels;
-            int overflow = amountPerOutput == 0 ? amount : amount % amountPerOutput;
+            final int extraAmount = amount % outputTunnels;
+            final int startingOutput = nextOutput % outputTunnels;
+            int overflow = 0;
 
-            for (ItemP2PTunnelPart target : ItemP2PTunnelPart.this.getOutputs()) {
+            for (int i = 0; i < outputTunnels; i++) {
+                final ItemP2PTunnelPart target = outputs.get((startingOutput + i) % outputTunnels);
                 try (CapabilityGuard capabilityGuard = target.getAdjacentCapability()) {
+                    final int toSend = amountPerOutput + (i < extraAmount ? 1 : 0) + overflow;
+
                     final IItemHandler output = capabilityGuard.get();
-                    final int toSend = amountPerOutput + overflow;
 
                     if (toSend <= 0) {
-                        // Both overflow and amountPerOutput are 0, so they will be for further outputs as well.
+                        // Nothing is carried over and all extra items are handed out, further outputs would get 0 too.
                         break;
                     }
 
@@ -103,6 +111,7 @@ public class ItemP2PTunnelPart extends CapabilityP2PTunnelPart<ItemP2PTunnelPart
             }
 
             if (!simulate) {
+                nextOutput = (startingOutput + extraAmount) % outputTunnels;
                 deductTransportCost(amount - remainder, AEKeyType.items());
             }
 

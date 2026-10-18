@@ -55,6 +55,9 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
 
     private class InputFluidHandler implements IFluidHandler {
 
+        // Output where the next insertion will start at, so extra fluids of uneven splits rotate across all outputs.
+        private int nextOutput = 0;
+
         @Override
         public int getTanks() {
             return 1;
@@ -79,7 +82,8 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
         public int fill(FluidStack resource, FluidAction action) {
             int total = 0;
 
-            final int outputTunnels = FluidP2PTunnelPart.this.getOutputs().size();
+            final List<FluidP2PTunnelPart> outputs = FluidP2PTunnelPart.this.getOutputs();
+            final int outputTunnels = outputs.size();
             final int amount = resource.getAmount();
 
             if (outputTunnels == 0 || amount == 0) {
@@ -87,12 +91,21 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
             }
 
             final int amountPerOutput = amount / outputTunnels;
-            int overflow = amountPerOutput == 0 ? amount : amount % amountPerOutput;
+            final int extraAmount = amount % outputTunnels;
+            final int startingOutput = nextOutput % outputTunnels;
+            int overflow = 0;
 
-            for (FluidP2PTunnelPart target : FluidP2PTunnelPart.this.getOutputs()) {
+            for (int i = 0; i < outputTunnels; i++) {
+                final FluidP2PTunnelPart target = outputs.get((startingOutput + i) % outputTunnels);
                 try (CapabilityGuard capabilityGuard = target.getAdjacentCapability()) {
+                    final int toSend = amountPerOutput + (i < extraAmount ? 1 : 0) + overflow;
                     final IFluidHandler output = capabilityGuard.get();
-                    final int toSend = amountPerOutput + overflow;
+
+                    if (toSend <= 0) {
+                        // Nothing is carried over and all extra fluids are handed out, further outputs would get 0 too.
+                        break;
+                    }
+
                     final FluidStack fillWithFluidStack = resource.copy();
                     fillWithFluidStack.setAmount(toSend);
 
@@ -104,6 +117,7 @@ public class FluidP2PTunnelPart extends CapabilityP2PTunnelPart<FluidP2PTunnelPa
             }
 
             if (action == FluidAction.EXECUTE) {
+                nextOutput = (startingOutput + extraAmount) % outputTunnels;
                 deductTransportCost(total, AEKeyType.fluids());
             }
 
