@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -16,6 +17,7 @@ import net.minecraft.world.inventory.Slot;
 
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.style.Blitter;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
 import appeng.core.localization.GuiText;
@@ -31,6 +33,8 @@ public class SuperMEReplenisherScreen extends AEBaseScreen<SuperMEReplenisherMen
     private final AETextField thresholdField;
     private boolean fieldsInitialized;
 
+    private final Blitter popup;
+
     public SuperMEReplenisherScreen(SuperMEReplenisherMenu menu, Inventory playerInventory, Component title,
             ScreenStyle style) {
         super(menu, playerInventory, title, style);
@@ -39,6 +43,8 @@ public class SuperMEReplenisherScreen extends AEBaseScreen<SuperMEReplenisherMen
         tickRateField.setMaxLength(5);
         thresholdField = widgets.addTextField("threshold");
         thresholdField.setMaxLength(3);
+
+        this.popup = style.getImage("popup");
     }
 
     @Override
@@ -173,5 +179,19 @@ public class SuperMEReplenisherScreen extends AEBaseScreen<SuperMEReplenisherMen
         }
 
         return result;
+    }
+
+    @Override
+    public void drawBG(GuiGraphics guiGraphics, int offsetX, int offsetY, int mouseX, int mouseY, float partialTicks) {
+        super.drawBG(guiGraphics, offsetX, offsetY, mouseX, mouseY, partialTicks);
+
+        var target = getHoveredTarget();
+        if (target != null && hoveredSlot != null) {
+            int height = popup.getSrcHeight();
+
+            popup.dest(offsetX, offsetY - height + 3)
+                    .blit(guiGraphics);
+        }
+
     }
 }
