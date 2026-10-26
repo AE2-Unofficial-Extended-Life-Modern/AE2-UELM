@@ -102,3 +102,28 @@ jobs:
           remote-repository-url: https://repo.expandium.net/releases/
           remote-repository-username: ${{ secrets.MAVEN_USERNAME }}
           remote-repository-password: ${{ secrets.MAVEN_PASSWORD }}
+
+  publish-curseforge:
+    name: Publish to CurseForge
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+      - name: Unpack build artifact
+        run: tar axf build.tar.zst
+      - name: Publish to CurseForge
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          curseforge-id: 1748833
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+          files: ${{ needs.build.outputs.ARTIFACT_PATH }}
+          name: AE2 ${{ needs.build.outputs.VERSION }}
+          version: ${{ needs.build.outputs.VERSION }}
+          version-type: release
+          changelog: ${{ github.event.release.body }}
+          loaders: forge
+          game-versions: 1.20.1
+          java: 17
