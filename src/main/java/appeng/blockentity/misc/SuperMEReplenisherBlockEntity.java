@@ -10,18 +10,19 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 
+import it.unimi.dsi.fastutil.objects.Reference2LongMaps;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 
 import appeng.api.config.Actionable;
@@ -39,8 +40,8 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
 import appeng.api.storage.StorageCells;
+import appeng.block.misc.SuperMEReplenisherBlock;
 import appeng.block.misc.SuperMEReplenisherBlock.Activity;
-import appeng.blockentity.ServerTickingBlockEntity;
 import appeng.blockentity.grid.AENetworkBlockEntity;
 import appeng.capabilities.Capabilities;
 import appeng.core.definitions.AEBlocks;
@@ -59,12 +60,13 @@ import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
 
 public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
-        implements IGridTickable, ServerTickingBlockEntity, InternalInventoryHost, IStockAmountHost {
+        implements IGridTickable, InternalInventoryHost, IStockAmountHost {
     public static final int CONFIG_SLOT_COUNT = 27;
     // maybe move these to aeconfig later?
     public static final int DEFAULT_TICK_RATE = 120;
     public static final int DEFAULT_THRESHOLD = 50;
     public static final int MAX_TICK_RATE = 10_000;
+    private static final int ACTIVITY_UPDATE_INTERVAL = 20;
 
     private static final String TAG_CELLS = "cells";
     private static final String TAG_CONFIG = "config";
@@ -77,6 +79,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     private final TargetInventory config = new TargetInventory();
     private final KeyCounter stock = new KeyCounter();
     private final KeyCounter pendingInput = new KeyCounter();
+    private final Reference2LongOpenHashMap<AEKeyType> amountsByType = new Reference2LongOpenHashMap<>();
     private final IActionSource actionSource = new MachineSource(this);
     private final MEStorage exposedStorage = new ReplenisherStorage();
     private LazyOptional<MEStorage> exposedStorageCapability = LazyOptional.of(() -> exposedStorage);
@@ -86,9 +89,9 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     private int tickRate = DEFAULT_TICK_RATE;
     private int threshold = DEFAULT_THRESHOLD;
     private int ticksUntilWork = DEFAULT_TICK_RATE;
-    private int activityTicks;
-    private boolean clientSyncDirty;
-    private Activity activity = Activity.IDLE;
+    private int ticksUntilActivityUpdate = ACTIVITY_UPDATE_INTERVAL;
+    private boolean insertedRecently;
+    private boolean extractedRecently;
 
     public SuperMEReplenisherBlockEntity(BlockEntityType<?> blockEntityType, BlockPos pos, BlockState blockState) {
         super(blockEntityType, pos, blockState);
@@ -120,7 +123,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
                         || stack.getItem() instanceof CreativeCellItem);
     }
 
-    public boolean canReplaceCell(int slot, ItemStack replacement) {
+    public boolean canReplaceCell(int slot, ItemStack replacement, long usedBytes) {
         long capacity = 0;
         for (int i = 0; i < cells.size(); i++) {
             if (i != slot) {
@@ -128,7 +131,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
             }
         }
         capacity = addCapacity(capacity, getCellBytes(replacement));
-        return capacity == Long.MAX_VALUE || capacity >= getUsedBytes();
+        return capacity >= usedBytes;
     }
 
     private long addCapacity(long current, long additional) {
@@ -180,20 +183,10 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         }
     }
 
-    private void configChanged() {
-        saveChanges();
-        requestClientSync();
-    }
-
     private void updateCapacity() {
-        var previousTotalBytes = totalBytes;
         totalBytes = 0;
         for (var cell : cells) {
             totalBytes = addCapacity(totalBytes, getCellBytes(cell));
-        }
-        updateUsedBytes();
-        if (totalBytes != previousTotalBytes) {
-            requestClientSync();
         }
 
         var powerDraw = totalBytes == Long.MAX_VALUE
@@ -202,45 +195,31 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         getMainNode().setIdlePowerUsage(powerDraw);
     }
 
-    private void updateUsedBytes() {
-        var newUsedBytes = calculateUsedBytes(stock, pendingInput);
-        if (usedBytes != newUsedBytes) {
-            usedBytes = newUsedBytes;
-            requestClientSync();
-        }
+    private void recalculateAmountsByType() {
+        amountsByType.clear();
+        addAmountsByType(stock);
+        addAmountsByType(pendingInput);
+        updateUsedBytes();
     }
 
-    /**
-     * will sync fields like config used bytes etc. to the client
-     */
-    private void requestClientSync() {
-        if (level != null && !level.isClientSide) {
-            clientSyncDirty = true;
-        }
-    }
-
-    static long calculateUsedBytes(KeyCounter first, KeyCounter second) {
-        var amountsByType = new Reference2LongOpenHashMap<AEKeyType>();
-        addAmountsByType(amountsByType, first);
-        addAmountsByType(amountsByType, second);
-
-        long result = 0;
-        for (var entry : amountsByType.reference2LongEntrySet()) {
-            var amountPerByte = Math.max(1, entry.getKey().getAmountPerByte());
-            var amount = entry.getLongValue();
-            var bytes = amount / amountPerByte + (amount % amountPerByte == 0 ? 0 : 1);
-            result = saturatingAdd(result, bytes);
-        }
-        return result;
-    }
-
-    private static void addAmountsByType(Reference2LongOpenHashMap<AEKeyType> amountsByType, KeyCounter counter) {
+    private void addAmountsByType(KeyCounter counter) {
         for (var entry : counter) {
             if (entry.getLongValue() > 0) {
                 var type = entry.getKey().getType();
                 amountsByType.put(type, saturatingAdd(amountsByType.getLong(type), entry.getLongValue()));
             }
         }
+    }
+
+    private void updateUsedBytes() {
+        long result = 0;
+        for (var entry : Reference2LongMaps.fastIterable(amountsByType)) {
+            var amountPerByte = Math.max(1, entry.getKey().getAmountPerByte());
+            var amount = entry.getLongValue();
+            var bytes = amount / amountPerByte + (amount % amountPerByte == 0 ? 0 : 1);
+            result = saturatingAdd(result, bytes);
+        }
+        usedBytes = result;
     }
 
     private static long saturatingAdd(long left, long right) {
@@ -250,51 +229,29 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         return left + right;
     }
 
-    private long getAmountForType(AEKeyType type) {
-        long amount = 0;
-        for (var entry : stock) {
-            if (entry.getKey().getType() == type) {
-                amount = saturatingAdd(amount, entry.getLongValue());
-            }
-        }
-        for (var entry : pendingInput) {
-            if (entry.getKey().getType() == type) {
-                amount = saturatingAdd(amount, entry.getLongValue());
-            }
-        }
-        return amount;
-    }
-
     private long getInsertableAmount(AEKey what, long requested) {
         if (requested <= 0) {
             return 0;
         }
-        if (totalBytes == Long.MAX_VALUE) {
-            return requested;
-        }
 
-        var freeBytes = Math.max(0, totalBytes - usedBytes);
-        var amountPerByte = Math.max(1, what.getType().getAmountPerByte());
-        var typeAmount = getAmountForType(what.getType());
-        var remainder = typeAmount % amountPerByte;
-        var unusedInPartialByte = remainder == 0 ? 0 : amountPerByte - remainder;
-
-        long available;
-        if (freeBytes > Long.MAX_VALUE / amountPerByte) {
-            available = Long.MAX_VALUE;
-        } else {
-            available = saturatingAdd(freeBytes * amountPerByte, unusedInPartialByte);
+        var typeAmount = amountsByType.getLong(what.getType());
+        var available = Long.MAX_VALUE - typeAmount;
+        if (totalBytes != Long.MAX_VALUE) {
+            var freeBytes = Math.max(0, totalBytes - usedBytes);
+            var amountPerByte = Math.max(1, what.getType().getAmountPerByte());
+            var remainder = typeAmount % amountPerByte;
+            var unusedInPartialByte = remainder == 0 ? 0 : amountPerByte - remainder;
+            if (freeBytes <= Long.MAX_VALUE / amountPerByte) {
+                available = Math.min(available, saturatingAdd(freeBytes * amountPerByte, unusedInPartialByte));
+            }
         }
-        return Math.min(requested, available);
+        return Math.max(0, Math.min(requested, available));
     }
 
     private long insert(KeyCounter target, AEKey what, long amount, Actionable mode) {
         var inserted = getInsertableAmount(what, amount);
         if (inserted > 0 && mode == Actionable.MODULATE) {
-            target.add(what, inserted);
-            target.removeZeros();
-            updateUsedBytes();
-            saveChanges();
+            changeAmount(target, what, inserted);
         }
         return inserted;
     }
@@ -302,12 +259,31 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     private long extract(KeyCounter target, AEKey what, long amount, Actionable mode) {
         var extracted = Math.min(amount, Math.max(0, target.get(what)));
         if (extracted > 0 && mode == Actionable.MODULATE) {
-            target.remove(what, extracted);
-            target.removeZeros();
-            updateUsedBytes();
-            saveChanges();
+            changeAmount(target, what, -extracted);
         }
         return extracted;
+    }
+
+    private void changeAmount(KeyCounter counter, AEKey what, long delta) {
+        var newAmount = counter.get(what) + delta;
+        if (newAmount > 0) {
+            counter.set(what, newAmount);
+        } else {
+            counter.remove(what);
+        }
+
+        var type = what.getType();
+        var typeAmount = amountsByType.getLong(type);
+        if (typeAmount == Long.MAX_VALUE) {
+            recalculateAmountsByType();
+        } else {
+            amountsByType.put(type, typeAmount + delta);
+            updateUsedBytes();
+        }
+
+        if (level != null) {
+            level.blockEntityChanged(worldPosition);
+        }
     }
 
     public long getStoredAmount(AEKey what) {
@@ -334,7 +310,6 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         this.tickRate = newTickRate;
         this.ticksUntilWork = Math.min(this.ticksUntilWork, this.tickRate);
         saveChanges();
-        requestClientSync();
     }
 
     public int getThreshold() {
@@ -348,67 +323,32 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         }
         this.threshold = newThreshold;
         saveChanges();
-        requestClientSync();
     }
 
-    public Activity getActivity() {
-        return activity;
-    }
-
-    private void showActivity(Activity newActivity) {
-        if (newActivity != activity) {
-            activity = newActivity;
-            markForUpdate();
+    private void updateActivity() {
+        var state = getBlockState();
+        if (level == null || !state.hasProperty(SuperMEReplenisherBlock.ACTIVITY)) {
+            return;
         }
-        activityTicks = 2;
-    }
 
-    @Override
-    public void serverTick() {
-        if (clientSyncDirty) {
-            clientSyncDirty = false;
-            markForUpdate();
+        var current = state.getValue(SuperMEReplenisherBlock.ACTIVITY);
+        Activity next;
+        if (insertedRecently && extractedRecently) {
+            next = current == Activity.IDLE ? Activity.EXTRACTING : current;
+        } else if (extractedRecently) {
+            next = Activity.EXTRACTING;
+        } else if (insertedRecently) {
+            next = Activity.INSERTING;
+        } else {
+            next = Activity.IDLE;
         }
-        if (activityTicks > 0 && --activityTicks == 0 && activity != Activity.IDLE) {
-            activity = Activity.IDLE;
-            markForUpdate();
-        }
-    }
+        insertedRecently = false;
+        extractedRecently = false;
 
-    @Override
-    protected void writeToStream(FriendlyByteBuf data) {
-        super.writeToStream(data);
-        data.writeEnum(activity);
-        data.writeVarLong(totalBytes);
-        data.writeVarLong(usedBytes);
-        data.writeVarInt(tickRate);
-        data.writeVarInt(threshold);
-        for (int i = 0; i < config.size(); i++) {
-            GenericStack.writeBuffer(config.getStack(i), data);
+        if (next != current) {
+            level.setBlock(worldPosition, state.setValue(SuperMEReplenisherBlock.ACTIVITY, next),
+                    Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
         }
-    }
-
-    // very ugly code but whatever
-    @Override
-    protected boolean readFromStream(FriendlyByteBuf data) {
-        var changed = super.readFromStream(data);
-        var newActivity = data.readEnum(Activity.class);
-        changed |= newActivity != activity;
-        activity = newActivity;
-        var newTotalBytes = data.readVarLong();
-        changed |= newTotalBytes != totalBytes;
-        totalBytes = newTotalBytes;
-        var newUsedBytes = data.readVarLong();
-        changed |= newUsedBytes != usedBytes;
-        usedBytes = newUsedBytes;
-        var newTickRate = data.readVarInt();
-        changed |= newTickRate != tickRate;
-        tickRate = newTickRate;
-        var newThreshold = data.readVarInt();
-        changed |= newThreshold != threshold;
-        threshold = newThreshold;
-        changed |= config.readFromStream(data);
-        return changed;
     }
 
     @Override
@@ -418,6 +358,11 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
 
     @Override
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+        if (--ticksUntilActivityUpdate <= 0) {
+            ticksUntilActivityUpdate = ACTIVITY_UPDATE_INTERVAL;
+            updateActivity();
+        }
+
         if (--ticksUntilWork > 0) {
             return TickRateModulation.SAME;
         }
@@ -429,22 +374,33 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         }
 
         var networkStorage = grid.getStorageService().getInventory();
+        var configuredStockTypes = 0;
         for (int i = 0; i < config.size(); i++) {
             var target = config.getStack(i);
-            if (target == null || target.amount() <= 0) {
+            if (target == null) {
                 continue;
             }
 
-            var stored = getStoredAmount(target.what());
-            if (stored > target.amount()) {
-                returnToNetwork(networkStorage, stock, target.what(), stored - target.amount());
-            } else if (stored * 100.0D / target.amount() < threshold) {
-                requestFromNetwork(networkStorage, target.what(), target.amount() - stored);
+            var what = target.what();
+            if (target.amount() > 0) {
+                var stored = getStoredAmount(what);
+                if (stored > target.amount()) {
+                    returnToNetwork(networkStorage, stock, what, stored - target.amount());
+                } else if (stored * 100.0D / target.amount() < threshold) {
+                    requestFromNetwork(networkStorage, what, target.amount() - stored);
+                }
+            }
+            if (stock.get(what) > 0) {
+                configuredStockTypes++;
             }
         }
 
-        returnUnconfiguredStock(networkStorage);
-        flushPendingInput(networkStorage);
+        if (stock.size() > configuredStockTypes) {
+            returnUnconfiguredStock(networkStorage);
+        }
+        if (!pendingInput.isEmpty()) {
+            flushPendingInput(networkStorage);
+        }
         return TickRateModulation.SAME;
     }
 
@@ -517,6 +473,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         threshold = Mth.clamp(data.contains(TAG_THRESHOLD) ? data.getInt(TAG_THRESHOLD) : DEFAULT_THRESHOLD,
                 1, 100);
         ticksUntilWork = tickRate;
+        recalculateAmountsByType();
         updateCapacity();
     }
 
@@ -590,6 +547,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         config.clear();
         stock.clear();
         pendingInput.clear();
+        recalculateAmountsByType();
         updateCapacity();
     }
 
@@ -662,7 +620,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
 
             var inserted = SuperMEReplenisherBlockEntity.this.insert(pendingInput, what, amount, mode);
             if (inserted > 0 && mode == Actionable.MODULATE) {
-                showActivity(Activity.INSERTING);
+                insertedRecently = true;
             }
             return inserted;
         }
@@ -676,7 +634,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
 
             var extracted = SuperMEReplenisherBlockEntity.this.extract(stock, what, amount, mode);
             if (extracted > 0 && mode == Actionable.MODULATE) {
-                showActivity(Activity.EXTRACTING);
+                extractedRecently = true;
             }
             return extracted;
         }
@@ -694,7 +652,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
 
     private final class TargetInventory extends GenericStackInv {
         private TargetInventory() {
-            super(SuperMEReplenisherBlockEntity.this::configChanged, Mode.CONFIG_STACKS, CONFIG_SLOT_COUNT);
+            super(SuperMEReplenisherBlockEntity.this::saveChanges, Mode.CONFIG_STACKS, CONFIG_SLOT_COUNT);
         }
 
         @Override
@@ -704,7 +662,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
 
         @Override
         public void setStack(int slot, @Nullable GenericStack stack) {
-            if (stack != null) {
+            if (stack != null && (level == null || !level.isClientSide())) {
                 for (int i = 0; i < size(); i++) {
                     if (i != slot && Objects.equals(getKey(i), stack.what())) {
                         return;
@@ -712,18 +670,6 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
                 }
             }
             super.setStack(slot, stack);
-        }
-
-        private boolean readFromStream(FriendlyByteBuf data) {
-            var changed = false;
-            for (int i = 0; i < stacks.length; i++) {
-                var stack = GenericStack.readBuffer(data);
-                if (!Objects.equals(stacks[i], stack)) {
-                    stacks[i] = stack;
-                    changed = true;
-                }
-            }
-            return changed;
         }
     }
 }

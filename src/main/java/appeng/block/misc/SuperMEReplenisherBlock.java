@@ -37,12 +37,6 @@ public class SuperMEReplenisherBlock extends AEBaseEntityBlock<SuperMEReplenishe
     }
 
     @Override
-    protected BlockState updateBlockStateFromBlockEntity(BlockState currentState,
-            SuperMEReplenisherBlockEntity blockEntity) {
-        return currentState.setValue(ACTIVITY, blockEntity.getActivity());
-    }
-
-    @Override
     public InteractionResult onActivated(Level level, BlockPos pos, Player player, InteractionHand hand,
             @Nullable ItemStack heldItem, BlockHitResult hit) {
         if (InteractionUtil.isInAlternateUseMode(player)) {
