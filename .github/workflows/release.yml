@@ -82,7 +82,7 @@ jobs:
           asset_name: ${{ needs.build.outputs.API_NAME }}
           asset_content_type: application/zip
 
-  deploy-github-packages:
+  deploy-maven:
     name: Deploy to Expandium Maven
     needs: build
     runs-on: ubuntu-latest
@@ -95,7 +95,7 @@ jobs:
         run: tar axf build.tar.zst
       - name: Validate artifacts exist
         run: test -d ./build
-      - name: Publish to Expandium MAven
+      - name: Publish to Expandium Maven
         uses: AppliedEnergistics/maven-publish-action@main
         with:
           local-repository-path: build/repo
@@ -117,7 +117,7 @@ jobs:
       - name: Publish to CurseForge
         uses: Kir-Antipov/mc-publish@v3.3
         with:
-          curseforge-id: 1748833
+          curseforge-id: 1624366
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: ${{ needs.build.outputs.ARTIFACT_PATH }}
           name: AE2 ${{ needs.build.outputs.VERSION }}
