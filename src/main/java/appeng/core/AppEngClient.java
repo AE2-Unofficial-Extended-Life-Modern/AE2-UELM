@@ -70,6 +70,7 @@ import appeng.client.Hotkeys;
 import appeng.client.commands.ClientCommands;
 import appeng.client.gui.me.common.PendingCraftingJobs;
 import appeng.client.gui.me.common.PinnedKeys;
+import appeng.client.gui.me.common.TerminalFavorites;
 import appeng.client.gui.style.StyleManager;
 import appeng.client.guidebook.ConfigValueTagExtension;
 import appeng.client.guidebook.PageAnchor;
@@ -162,9 +163,13 @@ public class AppEngClient extends AppEngBase {
         MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn evt) -> {
             PendingCraftingJobs.clearPendingJobs();
             PinnedKeys.loadPinnedKeys(Minecraft.getInstance());
+            TerminalFavorites.load(Minecraft.getInstance());
         });
 
-        MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut evt) -> PinnedKeys.disconnect());
+        MinecraftForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut evt) -> {
+            PinnedKeys.disconnect();
+            TerminalFavorites.disconnect();
+        });
 
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
             if (e.phase == TickEvent.Phase.END) {

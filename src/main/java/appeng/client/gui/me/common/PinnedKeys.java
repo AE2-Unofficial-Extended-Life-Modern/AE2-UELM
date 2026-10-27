@@ -58,7 +58,7 @@ public final class PinnedKeys {
 
     public static void loadPinnedKeys(Minecraft minecraft) {
         clearPinnedKeys();
-        persistenceFile = getPersistenceFile(minecraft);
+        persistenceFile = getPersistenceFile(minecraft, "pinned");
         if (persistenceFile == null) {
             return;
         }
@@ -144,7 +144,7 @@ public final class PinnedKeys {
     }
 
     @Nullable
-    private static Path getPersistenceFile(Minecraft minecraft) {
+    static Path getPersistenceFile(Minecraft minecraft, String directoryName) {
         String scopeType;
         String scopeIdentity;
 
@@ -165,7 +165,7 @@ public final class PinnedKeys {
             scopeIdentity = server.ip.trim().toLowerCase(Locale.ROOT);
         }
 
-        var directory = FMLPaths.CONFIGDIR.get().resolve("ae2").resolve("pinned");
+        var directory = FMLPaths.CONFIGDIR.get().resolve("ae2").resolve(directoryName);
         return PinnedKeysStorage.getFile(directory, scopeType, scopeIdentity);
     }
 
