@@ -57,9 +57,11 @@ import appeng.api.crafting.PatternDetailsHelper;
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.AEItemKey;
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.me.common.TerminalFavorites;
 import appeng.client.gui.style.PaletteColor;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
+import appeng.client.gui.widgets.FavoriteButton;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.client.gui.widgets.ServerSettingToggleButton;
 import appeng.client.gui.widgets.SettingToggleButton;
@@ -94,7 +96,7 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
     /**
      * The maximum length for the string of a text row in pixel.
      */
-    private static final int TEXT_MAX_WIDTH = 155;
+    private static final int TEXT_MAX_WIDTH = 142;
 
     /**
      * Height of a table-row in pixels.
@@ -105,6 +107,8 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
      * Size of a slot in both x and y dimensions in pixel, most likely always the same as ROW_HEIGHT.
      */
     private static final int SLOT_SIZE = ROW_HEIGHT;
+
+    private static final int FAVORITE_BUTTON_X = GUI_PADDING_X + COLUMNS * SLOT_SIZE - 16;
 
     // Bounding boxes of key areas in the UI texture.
     // The upper part of the UI, anything above the scrollable area (incl. its top border)
@@ -132,6 +136,7 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
     private final HashMultimap<PatternContainerGroup, PatternContainerRecord> byGroup = HashMultimap.create();
     private final ArrayList<PatternContainerGroup> groups = new ArrayList<>();
     private final ArrayList<Row> rows = new ArrayList<>();
+    private final ArrayList<FavoriteButton> favoriteButtons = new ArrayList<>();
 
     private final Map<String, Set<Object>> cachedSearches = new WeakHashMap<>();
     private final Scrollbar scrollbar;
@@ -164,12 +169,20 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
 
     @Override
     public void init() {
+        this.favoriteButtons.clear();
+
         this.visibleRows = config.getTerminalStyle().getRows(
                 (this.height - GUI_HEADER_HEIGHT - GUI_FOOTER_HEIGHT - GUI_TOP_AND_BOTTOM_PADDING) / ROW_HEIGHT);
         // Render inventory in correct place.
         this.imageHeight = GUI_HEADER_HEIGHT + GUI_FOOTER_HEIGHT + this.visibleRows * ROW_HEIGHT;
 
         super.init();
+
+        for (int i = 0; i < this.visibleRows; i++) {
+            var favoriteButton = new FavoriteButton(this::refreshList);
+            favoriteButton.setVisibility(false);
+            this.favoriteButtons.add(this.addRenderableWidget(favoriteButton));
+        }
 
         // Auto focus search field
         this.setInitialFocus(this.searchField);
@@ -250,7 +263,7 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
     @Override
     protected void renderTooltip(GuiGraphics guiGraphics, int x, int y) {
         // Draw line tooltip
-        if (hoveredSlot == null) {
+        if (hoveredSlot == null && this.favoriteButtons.stream().noneMatch(button -> button.isMouseOver(x, y))) {
             var hoveredLineIndex = getHoveredLineIndex(x, y);
             if (hoveredLineIndex != -1) {
                 var row = rows.get(hoveredLineIndex);
@@ -432,6 +445,20 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
     @Override
     public void updateBeforeRender() {
         this.showPatternProviders.set(this.menu.getShownProviders());
+
+        final int scrollLevel = scrollbar.getCurrentScroll();
+        for (int i = 0; i < this.favoriteButtons.size(); i++) {
+            var favoriteButton = this.favoriteButtons.get(i);
+            if (scrollLevel + i < this.rows.size()
+                    && this.rows.get(scrollLevel + i) instanceof GroupHeaderRow headerRow) {
+                favoriteButton.setFavoriteKey(headerRow.favoriteKey);
+                favoriteButton.setPosition(leftPos + FAVORITE_BUTTON_X,
+                        topPos + GUI_HEADER_HEIGHT + i * ROW_HEIGHT + 1);
+                favoriteButton.setVisibility(true);
+            } else {
+                favoriteButton.setVisibility(false);
+            }
+        }
     }
 
     /**
@@ -478,13 +505,19 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
         this.groups.clear();
         this.groups.addAll(this.byGroup.keySet());
 
-        this.groups.sort(GROUP_COMPARATOR);
+        var favoriteKeys = new HashMap<PatternContainerGroup, String>();
+        for (var group : this.groups) {
+            favoriteKeys.put(group, getFavoriteKey(group));
+        }
+        this.groups.sort(Comparator
+                .comparing((PatternContainerGroup group) -> !TerminalFavorites.isFavorite(favoriteKeys.get(group)))
+                .thenComparing(GROUP_COMPARATOR));
 
         this.rows.clear();
         this.rows.ensureCapacity(this.getMaxRows());
 
         for (var group : this.groups) {
-            this.rows.add(new GroupHeaderRow(group));
+            this.rows.add(new GroupHeaderRow(group, favoriteKeys.get(group)));
 
             var containers = new ArrayList<>(this.byGroup.get(group));
             Collections.sort(containers);
@@ -510,6 +543,11 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
         // Needs to take the border into account, so offset for 1 px on the top and bottom.
         scrollbar.setHeight(this.visibleRows * ROW_HEIGHT - 2);
         scrollbar.setRange(0, this.rows.size() - this.visibleRows, 2);
+    }
+
+    private static String getFavoriteKey(PatternContainerGroup group) {
+        return "pattern_access:" + (group.icon() == null ? "" : group.icon().getId()) + ":"
+                + Component.Serializer.toJson(group.name());
     }
 
     private boolean itemStackMatchesSearchTerm(ItemStack itemStack, String searchTerm) {
@@ -603,7 +641,7 @@ public class PatternAccessTermScreen<C extends PatternAccessTermMenu> extends AE
     /**
      * A row containing a header for a group.
      */
-    record GroupHeaderRow(PatternContainerGroup group) implements Row {
+    record GroupHeaderRow(PatternContainerGroup group, String favoriteKey) implements Row {
     }
 
     /**
