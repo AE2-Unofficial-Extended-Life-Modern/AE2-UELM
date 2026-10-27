@@ -333,4 +333,13 @@ This PR aims to make the filter terminal more extensible by adding an API for it
 
 </details>
 
+<!-- CHANGELOG-PR:46 -->
+<details>
+<summary><strong>Export crafting tree to image</strong> · @ko-lja · merged 2026-10-27 13:10 UTC</summary>
+
+Will export the current crafting tree as an image, such as the one below, this should also respect any applied resource packs
+<img width="1702" height="1616" alt="2026-10-27_13 27 57" src="https://github.com/user-attachments/assets/1140d1e1-f2b1-4e94-9e58-78e9b9e51d28" />
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
