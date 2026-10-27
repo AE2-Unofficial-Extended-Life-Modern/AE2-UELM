@@ -162,6 +162,8 @@ public enum ButtonToolTips implements LocalizationEnum {
     SubstitutionsOff("Substitutions Disabled"),
     SubstitutionsOn("Substitutions Enabled"),
     TerminalSettings("Terminal Settings"),
+    ExportCraftingPlan("Save as Image"),
+    ExportCraftingPlanHint("Saves the entire crafting plan as a PNG image."),
     TerminalStyle("Terminal Style"),
     TerminalStyle_Small("Small Centered Terminal"),
     TerminalStyle_Medium("Medium Centered Terminal"),
