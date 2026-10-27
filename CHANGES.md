@@ -342,4 +342,12 @@ Will export the current crafting tree as an image, such as the one below, this s
 
 </details>
 
+<!-- CHANGELOG-PR:47 -->
+<details>
+<summary><strong>Add favoriting to the pattern access and filter terminals</strong> · @ko-lja · merged 2026-10-27 13:19 UTC</summary>
+
+Add a small button to groups (pattern access terminal) and individual machines (filter terminal), which when favorited will show at the top of the terminal, if multiple are favorited it'll follow the normal sorting order.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
