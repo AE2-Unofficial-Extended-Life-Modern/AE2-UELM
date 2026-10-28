@@ -149,8 +149,12 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
         }
 
         // Show additional status about the selected CPU and plan when the planning is done
+        Component planDetails = GuiText.CalculatingWait.text();
         Component cpuDetails = Component.empty();
         if (plan != null) {
+            String byteUsed = NumberFormat.getInstance().format(plan.getUsedBytes());
+            planDetails = GuiText.BytesUsed.text(byteUsed);
+
             if (plan.isSimulation()) {
                 cpuDetails = GuiText.PartialPlan.text();
             } else if (this.menu.getCpuAvailableBytes() > 0) {
@@ -162,7 +166,7 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
             }
         }
 
-        setTextContent(TEXT_ID_DIALOG_TITLE, getPlanTitle(plan));
+        setTextContent(TEXT_ID_DIALOG_TITLE, GuiText.CraftingPlan.text(planDetails));
         setTextContent("cpu_status", cpuDetails);
 
         final int size = plan != null ? plan.getEntries().size() : 0;
