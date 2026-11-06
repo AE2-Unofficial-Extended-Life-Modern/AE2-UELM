@@ -30,16 +30,28 @@ jobs:
           # Print status for easier debugging
           git status
           if [ -n "$(git status --porcelain)" ]; then exit 1; fi
-      # Gradle Step for PRs
-      - name: Build PR with Gradle
-        run: ./gradlew build
+      # Derive the build version from the latest (non-prerelease) GitHub release,
+      # e.g. forge/v15.5.5-uelm -> 15.5.5-uelm-dev.<sha> / 15.5.5-uelm-pr.<n>.<sha>
+      - name: Resolve build version
+        id: version
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        if: github.event_name == 'pull_request'
-      # Gradle Step for normal branch pushes
-      - name: Build PR with Gradle
-        run: ./gradlew build
-        if: github.event_name != 'pull_request'
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true)
+          base=${tag#forge/v}
+          base=${base:-0.0.0}
+          short=${SHA::7}
+          if [ -n "$PR" ]; then
+            version="${base}-pr.${PR}.${short}"
+          else
+            version="${base}-dev.${short}"
+          fi
+          echo "Building version $version (from release tag '${tag:-none}')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build with Gradle
+        run: ./gradlew build -Pversion=${{ steps.version.outputs.version }}
       #- name: Run Game Tests
       #  run: ./gradlew runGametest
       - uses: actions/upload-artifact@v4
