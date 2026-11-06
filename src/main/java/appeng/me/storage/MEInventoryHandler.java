@@ -18,14 +18,18 @@
 
 package appeng.me.storage;
 
+import org.jetbrains.annotations.Nullable;
+
 import appeng.api.config.Actionable;
 import appeng.api.config.IncludeExclude;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.api.storage.StickyClaim;
 import appeng.util.prioritylist.DefaultPriorityList;
 import appeng.util.prioritylist.IPartitionList;
+import appeng.util.prioritylist.PrecisePriorityList;
 
 public class MEInventoryHandler extends DelegatingMEInventory {
 
@@ -36,6 +40,7 @@ public class MEInventoryHandler extends DelegatingMEInventory {
     private boolean allowExtraction = true;
     private boolean allowInsertion = true;
     private boolean voidOverflow;
+    private boolean sticky;
 
     private boolean gettingAvailableContent = false;
 
@@ -74,6 +79,10 @@ public class MEInventoryHandler extends DelegatingMEInventory {
 
     public void setVoidOverflow(boolean voidOverflow) {
         this.voidOverflow = voidOverflow;
+    }
+
+    public void setSticky(boolean sticky) {
+        this.sticky = sticky;
     }
 
     @Override
@@ -140,6 +149,23 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         }
 
         return super.isPreferredStorageFor(input, source);
+    }
+
+    @Nullable
+    @Override
+    public StickyClaim getStickyClaim() {
+        if (!this.sticky || !this.allowInsertion) {
+            return null;
+        }
+        return this.partitionListMode == IncludeExclude.WHITELIST
+                && this.partitionList instanceof PrecisePriorityList precisePriorityList
+                        ? new StickyClaim(precisePriorityList.getItems())
+                        : StickyClaim.UNINDEXED;
+    }
+
+    @Override
+    public boolean acceptsSticky(AEKey what) {
+        return this.sticky && this.allowInsertion && passesBlackOrWhitelist(what);
     }
 
     protected boolean canExtract(AEKey request) {

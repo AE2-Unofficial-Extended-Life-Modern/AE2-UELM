@@ -2,6 +2,8 @@ package appeng.me.storage;
 
 import java.util.Objects;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.network.chat.Component;
 
 import appeng.api.config.Actionable;
@@ -9,6 +11,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.api.storage.StickyClaim;
 
 /**
  * Convenient base class for wrapping another {@link MEStorage} and forwarding <strong>all</strong> methods to the base
@@ -54,6 +57,17 @@ public class DelegatingMEInventory implements MEStorage {
     @Override
     public KeyCounter getAvailableStacks() {
         return delegate.getAvailableStacks();
+    }
+
+    @Nullable
+    @Override
+    public StickyClaim getStickyClaim() {
+        return delegate.getStickyClaim();
+    }
+
+    @Override
+    public boolean acceptsSticky(AEKey what) {
+        return delegate.acceptsSticky(what);
     }
 
     @Override
