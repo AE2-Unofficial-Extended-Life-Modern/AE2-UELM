@@ -90,6 +90,8 @@ An example string would be `appeng:appliedenergistics2-forge:15.5.0-uelm:api` fo
 **Current version:** <br>
 [![Latest](https://img.shields.io/github/v/release/AE2-Unofficial-Extended-Life-Modern/AE2-UELM?style=flat-square&label=Release)](https://github.com/AE2-Unofficial-Extended-Life-Modern/AE2-UELM/releases)
 
+**Commit snapshots:** every push is also published to `https://repo.expandium.net/snapshots` as `<latest release>-sha.<short commit>-SNAPSHOT`, for example `appeng:appliedenergistics2-forge:15.5.8-uelm-sha.da3c880-SNAPSHOT`. Add that URL as a repository to try unreleased changes.
+
 ## Contributing
 
 Contributions are always welcome and appreciated!

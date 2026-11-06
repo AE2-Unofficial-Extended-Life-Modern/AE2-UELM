@@ -235,6 +235,11 @@ if (ext.pr) {
     version = "0.0.0-pr.${ext.pr}-SNAPSHOT"
 }
 
+ext.commit = System.getenv('COMMIT_SHA') ?: ""
+if (ext.commit && !ext.pr) {
+    version = "${System.getenv('BASE_VERSION') ?: '0.0.0'}-sha.${ext.commit}-SNAPSHOT"
+}
+
 ext.branch = System.getenv('BRANCH') ?: ""
 if (ext.branch) {
     version = version + "+branch." + ext.branch
