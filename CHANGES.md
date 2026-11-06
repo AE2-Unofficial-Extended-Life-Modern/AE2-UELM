@@ -350,4 +350,26 @@ Add a small button to groups (pattern access terminal) and individual machines (
 
 </details>
 
+<!-- CHANGELOG-PR:49 -->
+<details>
+<summary><strong>Add sticky card</strong> · @ko-lja · merged 2026-11-06 20:10 UTC</summary>
+
+Port of the Sticky card from GTNH AE2 with some improvements
+
+### Description from the GuideME entry, but it describes it pretty well:
+Sticky cards can be applied to storage cells in a cell workbench and to
+storage buses. Anything that matches the partition or filter of a sticky storage
+can only be stored in sticky storages that accept it, no matter their priority. If those
+are full, the stacks will not be stored anywhere else on the network. Stacks returning to an
+autocrafting job are not affected. A sticky card does nothing on a storage without a
+partition or filter.
+
+### Performance Impact
+- Networks with no sticky card only do an empty list check per inseret
+- The cell’s sticky upgrade is read once when the cell is loaded. GTNH re reads the upgrade inventory from the ItemStack on every insert.
+- Storage buses and drives keep the sticky state in a cached field.
+- Inserts now stop looping over priority groups once everything has been placed. This speeds up normal inserts too.
+
+</details>
+
 <!-- CHANGES:ENTRIES -->

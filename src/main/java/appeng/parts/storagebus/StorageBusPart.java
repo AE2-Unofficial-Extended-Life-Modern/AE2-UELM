@@ -55,6 +55,7 @@ import appeng.api.parts.IPartCollisionHelper;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.IPartItem;
 import appeng.api.parts.IPartModel;
+import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
@@ -328,6 +329,7 @@ public class StorageBusPart extends UpgradeablePart
 
         var wasSleeping = this.monitor == null;
         var wasRegistered = this.hasRegisteredCellToNetwork();
+        var wasSticky = this.handler.getStickyClaim() != null;
 
         // Update inventory
         MEStorage newInventory;
@@ -349,8 +351,10 @@ public class StorageBusPart extends UpgradeablePart
         this.handler.setWhitelist(isUpgradedWith(AEItems.INVERTER_CARD) ? IncludeExclude.BLACKLIST
                 : IncludeExclude.WHITELIST);
 
-        this.handler.setPartitionList(createFilter());
+        var filter = createFilter();
+        this.handler.setPartitionList(filter);
         this.handler.setVoidOverflow(this.isUpgradedWith(AEItems.VOID_CARD));
+        this.handler.setSticky(this.isUpgradedWith(AEItems.STICKY_CARD) && !filter.isEmpty());
 
         // Ensure we apply the partition list to the available items.
         boolean filterOnExtract = this.getConfigManager().getSetting(Settings.FILTER_ON_EXTRACT) == YesNo.YES;
@@ -375,7 +379,9 @@ public class StorageBusPart extends UpgradeablePart
             });
         }
 
-        if (wasRegistered != this.hasRegisteredCellToNetwork()) {
+        var isSticky = this.handler.getStickyClaim() != null;
+        if (wasRegistered != this.hasRegisteredCellToNetwork() || wasSticky != isSticky
+                || forceFullUpdate && isSticky) {
             remountStorage();
         }
     }
@@ -474,6 +480,12 @@ public class StorageBusPart extends UpgradeablePart
         public void setAccessRestriction(AccessRestriction setting) {
             setAllowExtraction(setting.isAllowExtraction());
             setAllowInsertion(setting.isAllowInsertion());
+        }
+
+        @Override
+        public boolean acceptsSticky(AEKey what) {
+            return super.acceptsSticky(what) && (!(getDelegate() instanceof CompositeStorage compositeStorage)
+                    || compositeStorage.supportsType(what.getType()));
         }
     }
 

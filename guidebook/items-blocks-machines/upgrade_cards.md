@@ -18,6 +18,7 @@ item_ids:
 - ae2:crafting_card
 - ae2:equal_distribution_card
 - ae2:energy_card
+- ae2:sticky_card
 ---
 
 # Upgrade Cards
@@ -40,6 +41,8 @@ item_ids:
   <ItemImage id="equal_distribution_card" scale="2" />
 
   <ItemImage id="energy_card" scale="2" />
+
+  <ItemImage id="sticky_card" scale="2" />
 </Row>
 
 Upgrade cards change the behavior of AE2 [devices](../ae2-mechanics/devices.md) and machines, increasing their speed, improving their
@@ -168,3 +171,16 @@ Energy cards add more energy storage to certain tools like portable terminals, a
 more efficient.
 
 <RecipeFor id="energy_card" />
+
+## Sticky Card
+
+<ItemImage id="sticky_card" scale="2" />
+
+Sticky cards can be applied to [storage cells](storage_cells.md) in a <ItemLink id="cell_workbench" /> and to
+<ItemLink id="storage_bus" />ses. Anything that matches the [partition](cell_workbench.md) or filter of a sticky storage
+can only be stored in sticky storages that accept it, no matter their [priority](storage_bus.md#priority). If those
+are full, the stacks will not be stored anywhere else on the network. Stacks returning to an
+[autocrafting](../ae2-mechanics/autocrafting.md) job are not affected. A sticky card does nothing on a storage without a
+partition or filter.
+
+<RecipeFor id="sticky_card" />
