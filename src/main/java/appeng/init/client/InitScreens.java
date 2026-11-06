@@ -191,7 +191,7 @@ public final class InitScreens {
         InitScreens.<PatternAccessTermMenu, PatternAccessTermScreen<PatternAccessTermMenu>>register(
                 PatternAccessTermMenu.TYPE, PatternAccessTermScreen::new,
                 "/screens/terminals/pattern_access_terminal.json");
-        register(FilterTerminalMenu.TYPE, FilterTerminalScreen::new,
+        register(FilterTerminalMenu.TYPE, FilterTerminalScreen<FilterTerminalMenu>::new,
                 "/screens/terminals/filter_terminal.json");
         // spotless:on
     }

@@ -40,7 +40,7 @@ public class FilterTerminalPacket extends BasePacket {
     @Override
     @OnlyIn(Dist.CLIENT)
     public void clientPacketData(Player player) {
-        if (!(Minecraft.getInstance().screen instanceof FilterTerminalScreen screen)) {
+        if (!(Minecraft.getInstance().screen instanceof FilterTerminalScreen<?> screen)) {
             return;
         }
 

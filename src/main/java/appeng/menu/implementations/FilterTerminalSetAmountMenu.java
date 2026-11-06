@@ -12,6 +12,7 @@ import net.minecraft.world.inventory.Slot;
 import appeng.api.filterterminal.IFilterTerminalTarget;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
+import appeng.api.storage.ISubMenuHost;
 import appeng.menu.AEBaseMenu;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -19,7 +20,6 @@ import appeng.menu.SlotSemantics;
 import appeng.menu.guisync.GuiSync;
 import appeng.menu.locator.MenuLocator;
 import appeng.menu.slot.InaccessibleSlot;
-import appeng.parts.reporting.FilterTerminalPart;
 import appeng.util.inv.AppEngInternalInventory;
 
 /**
@@ -32,10 +32,10 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
     public static final String ACTION_SET_AMOUNT = "setAmount";
 
     public static final MenuType<FilterTerminalSetAmountMenu> TYPE = MenuTypeBuilder
-            .create(FilterTerminalSetAmountMenu::new, FilterTerminalPart.class)
+            .create(FilterTerminalSetAmountMenu::new, ISubMenuHost.class)
             .build("filter_terminal_set_amount");
 
-    private final FilterTerminalPart host;
+    private final ISubMenuHost host;
     private final Slot configuredStack;
 
     @Nullable
@@ -49,7 +49,7 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
     @GuiSync(2)
     private long maxAmount = -1;
 
-    public FilterTerminalSetAmountMenu(int id, Inventory playerInventory, FilterTerminalPart host) {
+    public FilterTerminalSetAmountMenu(int id, Inventory playerInventory, ISubMenuHost host) {
         super(TYPE, id, playerInventory, host);
         this.host = host;
         this.configuredStack = new InaccessibleSlot(new AppEngInternalInventory(1), 0);
@@ -108,14 +108,15 @@ public class FilterTerminalSetAmountMenu extends AEBaseMenu implements ISubMenu 
             return false;
         }
 
-        var terminalNode = host.getActionableNode();
+        var actionHost = getActionHost();
+        var terminalNode = actionHost != null ? actionHost.getActionableNode() : null;
         return terminalNode != null && terminalNode.isActive()
                 && FilterTerminalEditValidation.isValidTarget(terminalNode.getGrid(), target)
                 && target.canEdit(player);
     }
 
     @Override
-    public FilterTerminalPart getHost() {
+    public ISubMenuHost getHost() {
         return host;
     }
 
