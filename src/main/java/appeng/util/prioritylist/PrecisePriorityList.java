@@ -18,6 +18,8 @@
 
 package appeng.util.prioritylist;
 
+import java.util.Set;
+
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 
@@ -40,7 +42,7 @@ public class PrecisePriorityList implements IPartitionList {
     }
 
     @Override
-    public Iterable<AEKey> getItems() {
+    public Set<AEKey> getItems() {
         return this.list.keySet();
     }
 }

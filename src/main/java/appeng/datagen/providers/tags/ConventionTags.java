@@ -89,6 +89,7 @@ public final class ConventionTags {
 
     public static final TagKey<Item> ENDER_PEARL = Tags.Items.ENDER_PEARLS;
     public static final TagKey<Item> ENDER_PEARL_DUST = tag("forge:dusts/ender_pearl");
+    public static final TagKey<Item> SLIMEBALL = Tags.Items.SLIMEBALLS;
 
     public static final TagKey<Item> WOOD_STICK = Tags.Items.RODS_WOODEN;
     public static final TagKey<Item> CHEST = Tags.Items.CHESTS_WOODEN;

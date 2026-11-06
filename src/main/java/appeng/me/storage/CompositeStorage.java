@@ -33,6 +33,10 @@ public class CompositeStorage implements MEStorage, ITickingMonitor {
         this.storages = Objects.requireNonNull(storages);
     }
 
+    public boolean supportsType(AEKeyType type) {
+        return storages.containsKey(type);
+    }
+
     @Override
     public boolean isPreferredStorageFor(AEKey what, IActionSource source) {
         var storage = storages.get(what.getType());

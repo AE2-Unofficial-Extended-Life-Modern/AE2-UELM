@@ -27,6 +27,8 @@ import java.util.Objects;
 
 import com.google.common.base.Preconditions;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
@@ -93,6 +95,36 @@ public interface MEStorage {
      * @param out The amounts for all available keys will be added to this tally.
      */
     default void getAvailableStacks(KeyCounter out) {
+    }
+
+    /**
+     * Whether and how this storage claims keys on the network it is mounted to. While any sticky storage claims a key,
+     * that key can only be inserted into storages that {@linkplain #acceptsSticky(AEKey) accept} it, regardless of
+     * priority. If those are full, the rest is rejected.
+     * <p/>
+     * If for example a storage bus has a sticky card with a filter for stone, then on that network it is the only place
+     * where stone can be stored.
+     * <p/>
+     * A sticky storage claims exactly the keys it accepts.
+     *
+     * @apiNote Only read when the storage is mounted or unmounted. A storage has to be remounted for a change to take
+     *          effect.
+     * @return The claim, or null if this storage is not sticky.
+     */
+    @Nullable
+    default StickyClaim getStickyClaim() {
+        return null;
+    }
+
+    /**
+     * Whether this storage may receive the given key while it is claimed by a {@linkplain #getStickyClaim() sticky}
+     * storage. For sticky storages, this also decides which keys they claim. Storages that are not sticky can return
+     * true here to keep receiving claimed keys without claiming any themselves.
+     *
+     * @apiNote Read on every insert into the network, so this should be cheap.
+     */
+    default boolean acceptsSticky(AEKey what) {
+        return false;
     }
 
     /**

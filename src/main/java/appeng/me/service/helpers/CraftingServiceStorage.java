@@ -51,6 +51,11 @@ public class CraftingServiceStorage implements IStorageProvider {
         }
 
         @Override
+        public boolean acceptsSticky(AEKey what) {
+            return true;
+        }
+
+        @Override
         public Component getDescription() {
             return GuiText.AutoCrafting.text();
         }
