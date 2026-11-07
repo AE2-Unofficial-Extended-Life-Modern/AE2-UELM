@@ -25,6 +25,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
 
 import com.google.common.base.Preconditions;
@@ -50,6 +51,8 @@ public class NetworkStorage implements MEStorage {
     // This flag prevents both concurrent modifications of the mounted storage while
     // they're being iterated, and recursive extract/insert/list operations.
     private boolean mountsInUse;
+    private Runnable changeListener = () -> {
+    };
 
     private final NavigableMap<Integer, List<MEStorage>> priorityInventory;
     private final Map<AEKey, List<MEStorage>> stickyClaims = new HashMap<>();
@@ -186,7 +189,15 @@ public class NetworkStorage implements MEStorage {
 
         flushQueuedOperations();
 
-        return amount - remaining;
+        var inserted = amount - remaining;
+        if (inserted > 0 && type == Actionable.MODULATE) {
+            changeListener.run();
+        }
+        return inserted;
+    }
+
+    public void setChangeListener(Runnable changeListener) {
+        this.changeListener = Objects.requireNonNull(changeListener);
     }
 
     private boolean isClaimedBySticky(AEKey what) {
@@ -264,6 +275,9 @@ public class NetworkStorage implements MEStorage {
 
         flushQueuedOperations();
 
+        if (extracted > 0 && mode == Actionable.MODULATE) {
+            changeListener.run();
+        }
         return extracted;
     }
 
