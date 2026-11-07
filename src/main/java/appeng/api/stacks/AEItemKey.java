@@ -71,6 +71,11 @@ public final class AEItemKey extends AEKey {
      */
     private int maxStackSize = -1;
 
+    /**
+     * Max damage cache, or {@code -1} if not initialized.
+     */
+    private int maxDamage = -1;
+
     private AEItemKey(Item item, InternedTag internedTag, InternedTag internedCaps) {
         this.item = item;
         this.internedTag = internedTag;
@@ -89,8 +94,9 @@ public final class AEItemKey extends AEKey {
             return null;
         }
         var ret = of(stack.getItem(), stack.getTag(), serializeStackCaps(stack));
-        // Cache max stack size since we already have an ItemStack.
+        // Cache max stack size and max damage since we already have an ItemStack.
         ret.maxStackSize = stack.getMaxStackSize();
+        ret.maxDamage = stack.getMaxDamage();
         return ret;
     }
 
@@ -235,7 +241,13 @@ public final class AEItemKey extends AEKey {
      */
     @Override
     public int getFuzzySearchMaxValue() {
-        return getReadOnlyStack().getMaxDamage();
+        int ret = maxDamage;
+
+        if (ret == -1) {
+            maxDamage = ret = getReadOnlyStack().getMaxDamage();
+        }
+
+        return ret;
     }
 
     @Override
