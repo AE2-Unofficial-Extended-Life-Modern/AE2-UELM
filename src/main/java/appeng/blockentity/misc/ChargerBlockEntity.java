@@ -225,15 +225,17 @@ public class ChargerBlockEntity extends AENetworkPowerBlockEntity implements IGr
 
         // charge from the network!
         if (this.getInternalCurrentPower() < POWER_THRESHOLD) {
-            getMainNode().ifPresent(grid -> {
+            var grid = getMainNode().getGrid();
+            if (grid != null) {
                 double toExtract = Math.min(800.0, this.getInternalMaxPower() - this.getInternalCurrentPower());
                 final double extracted = grid.getEnergyService().extractAEPower(toExtract, Actionable.MODULATE,
                         PowerMultiplier.ONE);
 
-                this.injectExternalPower(PowerUnits.AE, extracted, Actionable.MODULATE);
-            });
-
-            changed = true;
+                if (extracted > 0) {
+                    this.injectExternalPower(PowerUnits.AE, extracted, Actionable.MODULATE);
+                    changed = true;
+                }
+            }
         }
 
         if (changed || this.working != wasWorking) {

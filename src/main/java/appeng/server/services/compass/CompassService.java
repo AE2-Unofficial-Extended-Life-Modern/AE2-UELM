@@ -18,6 +18,8 @@
 
 package appeng.server.services.compass;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,12 +31,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraftforge.event.level.LevelEvent;
 
 import appeng.core.definitions.AEBlocks;
 
 public final class CompassService {
 
-    public record DirectionQuery(ServerLevel level, int cx, int cz, int maxRange) {
+    private record DirectionQuery(int cx, int cz, int maxRange) {
     }
 
     /**
@@ -49,26 +52,44 @@ public final class CompassService {
     }
 
     // We use this basic cache to prevent client-side spamming, although the client can request arbitrary
-    // chunk positions and range, if malicious.
-    private static final LoadingCache<DirectionQuery, Result> DIRECTION_CACHE = CacheBuilder.newBuilder()
-            .maximumSize(100)
-            .weakKeys()
-            .expireAfterWrite(5, TimeUnit.SECONDS)
-            .build(new CacheLoader<>() {
-                @Override
-                public Result load(DirectionQuery directionQuery) {
-                    return calculateCompassDirection(directionQuery);
-                }
-            });
+    // chunk positions and range, if malicious. Caches are per level and removed when the level unloads.
+    // This map is concurrent since invalidation can happen from worldgen threads.
+    private static final Map<ServerLevel, LoadingCache<DirectionQuery, Result>> DIRECTION_CACHE = new ConcurrentHashMap<>();
 
     private static final int CHUNK_SIZE = 16;
 
-    public static Result getDirection(ServerLevel level, ChunkPos chunkPos, int maxRange) {
-        return DIRECTION_CACHE.getUnchecked(new DirectionQuery(level, chunkPos.x, chunkPos.z, maxRange));
+    private static LoadingCache<DirectionQuery, Result> createCache(ServerLevel level) {
+        return CacheBuilder.newBuilder()
+                .maximumSize(100)
+                .expireAfterWrite(5, TimeUnit.SECONDS)
+                .build(CacheLoader.from(query -> calculateCompassDirection(level, query)));
     }
 
-    private static Result calculateCompassDirection(DirectionQuery query) {
-        var cr = CompassRegion.get(query.level(), new ChunkPos(query.cx(), query.cz()));
+    public static Result getDirection(ServerLevel level, ChunkPos chunkPos, int maxRange) {
+        return DIRECTION_CACHE.computeIfAbsent(level, CompassService::createCache)
+                .getUnchecked(new DirectionQuery(chunkPos.x, chunkPos.z, maxRange));
+    }
+
+    /**
+     * A change in one chunk can affect the result of searches originating in any chunk within range, so we invalidate
+     * all cached searches for the level.
+     */
+    private static void invalidateCache(ServerLevel level) {
+        // Do not create a cache here, since this may be called from worldgen threads
+        var cache = DIRECTION_CACHE.get(level);
+        if (cache != null) {
+            cache.invalidateAll();
+        }
+    }
+
+    public static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            DIRECTION_CACHE.remove(level);
+        }
+    }
+
+    private static Result calculateCompassDirection(ServerLevel level, DirectionQuery query) {
+        var cr = CompassRegion.get(level, new ChunkPos(query.cx(), query.cz()));
         var cx = query.cx();
         var cz = query.cz();
 
@@ -144,6 +165,7 @@ public final class CompassService {
         for (var i = 0; i < level.getSectionsCount(); i++) {
             updateArea(compassRegion, chunk, i);
         }
+        invalidateCache(level);
     }
 
     /**
@@ -153,6 +175,7 @@ public final class CompassService {
         ChunkAccess chunk = level.getChunk(pos);
         var compassRegion = CompassRegion.get(level, chunk.getPos());
         updateArea(compassRegion, chunk, level.getSectionIndex(pos.getY()));
+        invalidateCache(level);
     }
 
     private static void updateArea(CompassRegion compassRegion, ChunkAccess chunk, int sectionIndex) {

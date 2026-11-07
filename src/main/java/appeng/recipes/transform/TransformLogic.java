@@ -21,7 +21,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraftforge.client.event.RecipesUpdatedEvent;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 
@@ -176,17 +175,14 @@ public final class TransformLogic {
         return ret;
     }
 
-    @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent e) {
         clearCache();
     }
 
-    @SubscribeEvent
     public static void onReloadServerResources(AddReloadListenerEvent e) {
         clearCache();
     }
 
-    @SubscribeEvent
     public static void onClientRecipesUpdated(RecipesUpdatedEvent e) {
         clearCache();
     }

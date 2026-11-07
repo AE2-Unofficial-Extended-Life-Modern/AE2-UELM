@@ -55,6 +55,11 @@ public class DelegatingMEInventory implements MEStorage {
     }
 
     @Override
+    public int getEstimatedStackCount() {
+        return getDelegate().getEstimatedStackCount();
+    }
+
+    @Override
     public KeyCounter getAvailableStacks() {
         return delegate.getAvailableStacks();
     }

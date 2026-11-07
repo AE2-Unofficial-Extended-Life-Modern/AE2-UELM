@@ -89,8 +89,10 @@ import appeng.init.worldgen.InitStructures;
 import appeng.integration.Integrations;
 import appeng.items.tools.MemoryCardItem;
 import appeng.recipes.AERecipeTypes;
+import appeng.recipes.transform.TransformLogic;
 import appeng.server.AECommand;
 import appeng.server.services.ChunkLoadingService;
+import appeng.server.services.compass.CompassService;
 import appeng.server.testworld.GameTestPlotAdapter;
 import appeng.sounds.AppEngSounds;
 import appeng.spatial.SpatialStorageChunkGenerator;
@@ -174,6 +176,9 @@ public abstract class AppEngBase implements AppEng {
 
         MinecraftForge.EVENT_BUS.addListener(WrenchHook::onPlayerUseBlockEvent);
         MinecraftForge.EVENT_BUS.addListener(SkyStoneBreakSpeed::handleBreakFaster);
+        MinecraftForge.EVENT_BUS.addListener(CompassService::onLevelUnload);
+        MinecraftForge.EVENT_BUS.addListener(TransformLogic::onServerStarted);
+        MinecraftForge.EVENT_BUS.addListener(TransformLogic::onReloadServerResources);
         MinecraftForge.EVENT_BUS.addGenericListener(BlockEntity.class, InitCapabilities::registerGenericInvWrapper);
         // Workaround for https://github.com/MinecraftForge/MinecraftForge/issues/9158.
         // Can be removed once it's fixed in Forge.
