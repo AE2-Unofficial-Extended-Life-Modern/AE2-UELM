@@ -44,6 +44,8 @@ configurations {
     configurations.runtimeClasspath.extendsFrom(guideExportOnly)
 }
 
+import appengbuild.JmhPlugin
+import appengbuild.RunJmh
 import com.diffplug.gradle.spotless.JsonExtension
 
 // All jar files from this folder will be added automatically as runtime mod dependencies
@@ -543,4 +545,31 @@ check.dependsOn tasks.register('validateResources', JavaExec) {
     workingDir "."
     args "guidebook"
     javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+}
+
+/////////////
+// JMH benchmarks (see JmhPlugin)
+// The benchmarks bootstrap Minecraft in the benchmark JVM the same way the unit tests do (BootstrapMinecraftExtension)
+apply plugin: JmhPlugin
+
+sourceSets {
+    jmh {
+        compileClasspath += sourceSets.test.output
+        runtimeClasspath += sourceSets.test.output
+    }
+}
+
+configurations {
+    jmhImplementation.extendsFrom testImplementation
+    jmhCompileOnly.extendsFrom testCompileOnly
+    jmhRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+legacyForge {
+    addModdingDependenciesTo(sourceSets.jmh)
+}
+
+tasks.named('jmh', RunJmh) {
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+    // Pass additional JMH arguments with -Pjmh.args, i.e. -Pjmh.args="fullCell -prof gc"
 }
