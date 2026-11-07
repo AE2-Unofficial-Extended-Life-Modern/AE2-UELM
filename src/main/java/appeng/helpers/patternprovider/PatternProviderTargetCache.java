@@ -35,11 +35,23 @@ class PatternProviderTargetCache {
     }
 
     @Nullable
+    private MEStorage lastMeStorage;
+    @Nullable
+    private PatternProviderTarget lastMeTarget;
+    private final IdentityHashMap<AEKeyType, MEStorage> lastExternalStorages = new IdentityHashMap<>(2);
+    @Nullable
+    private PatternProviderTarget lastExternalTarget;
+
+    @Nullable
     PatternProviderTarget find() {
         // our capability first: allows any storage channel
         var meStorage = cache.find(direction);
         if (meStorage != null) {
-            return wrapMeStorage(meStorage);
+            if (meStorage != lastMeStorage) {
+                lastMeStorage = meStorage;
+                lastMeTarget = wrapMeStorage(meStorage);
+            }
+            return lastMeTarget;
         }
 
         // otherwise fall back to the platform capability
@@ -52,11 +64,16 @@ class PatternProviderTargetCache {
             }
         }
 
-        if (externalStorages.size() > 0) {
-            return wrapMeStorage(new CompositeStorage(externalStorages));
+        if (externalStorages.isEmpty()) {
+            return null;
         }
 
-        return null;
+        if (lastExternalTarget == null || !externalStorages.equals(lastExternalStorages)) {
+            lastExternalStorages.clear();
+            lastExternalStorages.putAll(externalStorages);
+            lastExternalTarget = wrapMeStorage(new CompositeStorage(externalStorages));
+        }
+        return lastExternalTarget;
     }
 
     private PatternProviderTarget wrapMeStorage(MEStorage storage) {

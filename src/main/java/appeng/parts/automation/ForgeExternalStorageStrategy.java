@@ -10,12 +10,17 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 
 import appeng.api.behaviors.ExternalStorageStrategy;
 import appeng.api.storage.MEStorage;
+import appeng.me.storage.ExternalStorageFacade;
 import appeng.util.BlockApiCache;
 
 public class ForgeExternalStorageStrategy<C, S> implements ExternalStorageStrategy {
     private final BlockApiCache<C> apiCache;
     private final Direction fromSide;
     private final HandlerStrategy<C, S> conversion;
+    @Nullable
+    private C lastHandler;
+    @Nullable
+    private ExternalStorageFacade lastFacade;
 
     public ForgeExternalStorageStrategy(Capability<C> capability,
             HandlerStrategy<C, S> conversion,
@@ -35,7 +40,11 @@ public class ForgeExternalStorageStrategy<C, S> implements ExternalStorageStrate
             return null;
         }
 
-        var result = conversion.getFacade(storage);
+        if (storage != lastHandler) {
+            lastHandler = storage;
+            lastFacade = conversion.getFacade(storage);
+        }
+        var result = lastFacade;
         result.setChangeListener(injectOrExtractCallback);
         result.setExtractableOnly(extractableOnly);
         return result;
