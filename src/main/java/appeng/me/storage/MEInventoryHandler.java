@@ -123,8 +123,14 @@ public class MEInventoryHandler extends DelegatingMEInventory {
                     return;
                 }
 
+                if (this.partitionList.isEmpty()) {
+                    super.getAvailableStacks(out);
+                    return;
+                }
+
+                var whitelist = this.partitionListMode == IncludeExclude.WHITELIST;
                 for (var entry : getDelegate().getAvailableStacks()) {
-                    if (canExtract(entry.getKey())) {
+                    if (this.partitionList.isListed(entry.getKey()) == whitelist) {
                         out.add(entry.getKey(), entry.getLongValue());
                     }
                 }
@@ -132,6 +138,13 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         } finally {
             this.gettingAvailableContent = false;
         }
+    }
+
+    @Override
+    public KeyCounter getAvailableStacks() {
+        var result = new KeyCounter(getEstimatedStackCount());
+        getAvailableStacks(result);
+        return result;
     }
 
     @Override
