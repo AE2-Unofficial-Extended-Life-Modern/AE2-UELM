@@ -64,6 +64,7 @@ import appeng.capabilities.Capabilities;
 import appeng.core.definitions.AEItems;
 import appeng.core.settings.TickRates;
 import appeng.me.helpers.MachineSource;
+import appeng.me.service.StorageService;
 import appeng.me.storage.DelegatingMEInventory;
 import appeng.util.ConfigInventory;
 import appeng.util.ConfigManager;
@@ -217,7 +218,9 @@ public class InterfaceLogic implements ICraftingRequester, IUpgradeableObject, I
     }
 
     public void gridChanged() {
-        this.networkStorage = mainNode.getGrid().getStorageService().getInventory();
+        var storageService = mainNode.getGrid().getStorageService();
+        this.networkStorage = storageService instanceof StorageService service ? service.getCachedView()
+                : storageService.getInventory();
 
         this.notifyNeighbors();
     }
