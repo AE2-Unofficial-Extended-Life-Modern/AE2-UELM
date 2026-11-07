@@ -103,6 +103,7 @@ import appeng.init.client.InitRenderTypes;
 import appeng.init.client.InitScreens;
 import appeng.init.client.InitStackRenderHandlers;
 import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.recipes.transform.TransformLogic;
 import appeng.siteexport.AESiteExporter;
 import appeng.spatial.SpatialStorageDimensionIds;
 import appeng.spatial.SpatialStorageSkyProperties;
@@ -170,6 +171,8 @@ public class AppEngClient extends AppEngBase {
             PinnedKeys.disconnect();
             TerminalFavorites.disconnect();
         });
+
+        MinecraftForge.EVENT_BUS.addListener(TransformLogic::onClientRecipesUpdated);
 
         MinecraftForge.EVENT_BUS.addListener((TickEvent.ClientTickEvent e) -> {
             if (e.phase == TickEvent.Phase.END) {
