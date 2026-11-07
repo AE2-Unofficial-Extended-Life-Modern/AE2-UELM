@@ -372,4 +372,63 @@ partition or filter.
 
 </details>
 
+<!-- CHANGELOG-PR:50 -->
+<details>
+<summary><strong>Port some performance work from upstream</strong> · @ko-lja · merged 2026-11-07 23:12 UTC</summary>
+
+Ports a batch of upstream performance fixes to 1.20.1, one commit per upstream change, plus the JMH setup used to measure the storage and crafting ones.
+
+## Benchmarks: baseline (commit 1) vs HEAD
+
+| Benchmark | Baseline (ops/s) | HEAD (ops/s) | Change |
+|---|---|---|---|
+| `CraftingProvidersBenchmark.getCraftingFor_manyProviders` | 71,309 ± 2,400 | 99,684,000 ± 3,374,000 | 1398x |
+| `InventoryBenchmark.getAvailableStacks_emptyCell` | 17,953,000 ± 524,300 | 34,088,000 ± 803,600 | 1.90x |
+| `InventoryBenchmark.getAvailableStacks_fullCell` | 158,980 ± 2,929 | 613,200 ± 29,220 | 3.86x |
+| `InventoryBenchmark.getAvailableStacks_inventoryHandler` | 1,950 ± 61 | 4,107 ± 89 | 2.11x |
+| `InventoryBenchmark.getAvailableStacks_networkStorage` | 1,892 ± 80 | 4,749 ± 99 | 2.51x |
+| `InventoryBenchmark.getAvailableStacks_service` | 122.2 ± 7.4 | 220.7 ± 34.3 | 1.81x |
+
+&lt;details&gt;
+&lt;summary&gt;Per-commit trend (5 iterations)&lt;/summary&gt;
+
+| # | Commit | emptyCell | fullCell | inventoryHandler | networkStorage | service | craftingFor |
+|---|---|---|---|---|---|---|---|
+| 1 | 0b012b4b4 | 1.00x | 1.00x | 1.00x | 1.00x | 1.00x | 1.00x |
+| 2 | 0ca3f2463 (#8965) | 0.91x | 2.09x | 1.39x | 0.89x | 1.10x | 1.10x |
+| 3 | 41c56cf11 (#8966) | 1.33x | 3.81x | 1.76x | 1.63x | 0.86x | 0.95x |
+| 4 | 5406c6dba (#8967) | 1.55x | 3.78x | 1.73x | 1.75x | 1.09x | 0.91x |
+| 5 | b9f1fc5b2 (#8891) | 1.25x | 3.40x | 2.17x | 2.42x | 1.81x | 1.05x |
+| 6 | c932c618c (#9000) | 1.46x | 3.24x | 2.30x | 2.34x | 1.78x | 1376x |
+| 7 | fdf31ca12 (#8989) | 1.41x | 3.19x | 2.59x | 2.28x | 1.82x | 1359x |
+| 8 | e99d00a1b (#9004) | 2.03x | 4.45x | 2.30x | 2.37x | 1.77x | 1313x |
+| 9 | 2c9a3d652 (#8992) | 1.71x | 4.63x | 2.47x | 2.17x | 1.82x | 1367x |
+| 10 | 95d30d97b (#9042) | 1.91x | 4.51x | 2.53x | 2.39x | 1.67x | 1264x |
+| 11 | f80efbf6e (#9011) | 1.66x | 4.17x | 2.15x | 2.11x | 1.62x | 1279x |
+
+&lt;/details&gt;
+
+| Benchmark | 5406c6dba (#8967) | b9f1fc5b2 (#8891) | Change |
+|---|---|---|---|
+| emptyCell | 26,830,000 ± 1,455,000 | 34,655,000 ± 1,701,000 | +29% |
+| fullCell | 500,610 ± 33,930 | 515,720 ± 19,980 | +3% |
+| inventoryHandler | 3,126 ± 276 | 4,591 ± 423 | +47% |
+| networkStorage | 3,485 ± 121 | 4,323 ± 267 | +24% |
+| service | 128.9 ± 9.7 | 220.9 ± 12.3 | +71% |
+| craftingFor | 68,583 ± 1,922 | 77,437 ± 1,179 | +13% |
+
+# Graphs
+
+<img width="1475" height="914" alt="image" src="https://github.com/user-attachments/assets/94b14983-0d63-421a-91fa-dc8c7233a28a" />
+<img width="1798" height="1228" alt="image" src="https://github.com/user-attachments/assets/66f1e8f6-619d-4414-a283-4d1605e9aa79" />
+
+&lt;details&gt;
+&lt;summary&gt;Crafting specific improvements&lt;/summary&gt;
+<img width="1745" height="1160" alt="image" src="https://github.com/user-attachments/assets/da836947-0ff1-4b37-947b-c648176b5730" />
+<img width="1839" height="1217" alt="image" src="https://github.com/user-attachments/assets/f48e101b-3d22-4c31-b7e6-5202f2d98249" />
+
+&lt;/details&gt;
+
+</details>
+
 <!-- CHANGES:ENTRIES -->
