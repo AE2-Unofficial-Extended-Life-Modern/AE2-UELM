@@ -52,6 +52,10 @@ import appeng.api.stacks.KeyCounter;
  * want to control their {@code MEStorage}.
  */
 public interface MEStorage {
+    default boolean reportsExactChanges() {
+        return false;
+    }
+
     /**
      * Returns whether this inventory is the preferred storage location for the given stack when being compared to other
      * inventories of the same overall priority.

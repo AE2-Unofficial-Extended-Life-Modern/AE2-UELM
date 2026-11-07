@@ -51,8 +51,7 @@ public class NetworkStorage implements MEStorage {
     // This flag prevents both concurrent modifications of the mounted storage while
     // they're being iterated, and recursive extract/insert/list operations.
     private boolean mountsInUse;
-    private Runnable changeListener = () -> {
-    };
+    private ChangeListener changeListener = ChangeListener.NONE;
 
     private final NavigableMap<Integer, List<MEStorage>> priorityInventory;
     private final Map<AEKey, List<MEStorage>> stickyClaims = new HashMap<>();
@@ -163,7 +162,7 @@ public class NetworkStorage implements MEStorage {
                     }
 
                     if (inv.isPreferredStorageFor(what, src)) {
-                        remaining -= inv.insert(what, remaining, type, src);
+                        remaining -= insertInto(inv, what, remaining, type, src);
                     } else {
                         secondPassInventories.add(inv);
                     }
@@ -179,7 +178,7 @@ public class NetworkStorage implements MEStorage {
                         continue;
                     }
 
-                    remaining -= inv.insert(what, remaining, type, src);
+                    remaining -= insertInto(inv, what, remaining, type, src);
                 }
             }
 
@@ -189,14 +188,50 @@ public class NetworkStorage implements MEStorage {
 
         flushQueuedOperations();
 
-        var inserted = amount - remaining;
+        return amount - remaining;
+    }
+
+    private long insertInto(MEStorage inv, AEKey what, long amount, Actionable type, IActionSource src) {
+        var inserted = inv.insert(what, amount, type, src);
         if (inserted > 0 && type == Actionable.MODULATE) {
-            changeListener.run();
+            reportChange(inv, what, inserted);
         }
         return inserted;
     }
 
-    public void setChangeListener(Runnable changeListener) {
+    private long extractFrom(MEStorage inv, AEKey what, long amount, Actionable mode, IActionSource src) {
+        var extracted = inv.extract(what, amount, mode, src);
+        if (extracted > 0 && mode == Actionable.MODULATE) {
+            reportChange(inv, what, -extracted);
+        }
+        return extracted;
+    }
+
+    private void reportChange(MEStorage inv, AEKey what, long delta) {
+        if (inv.reportsExactChanges()) {
+            changeListener.onExactChange(what, delta);
+        } else {
+            changeListener.onOtherChange();
+        }
+    }
+
+    public interface ChangeListener {
+        ChangeListener NONE = new ChangeListener() {
+            @Override
+            public void onExactChange(AEKey what, long delta) {
+            }
+
+            @Override
+            public void onOtherChange() {
+            }
+        };
+
+        void onExactChange(AEKey what, long delta);
+
+        void onOtherChange();
+    }
+
+    public void setChangeListener(ChangeListener changeListener) {
         this.changeListener = Objects.requireNonNull(changeListener);
     }
 
@@ -266,7 +301,7 @@ public class NetworkStorage implements MEStorage {
                         continue;
                     }
 
-                    extracted += inv.extract(what, amount - extracted, mode, source);
+                    extracted += extractFrom(inv, what, amount - extracted, mode, source);
                 }
             }
         } finally {
@@ -275,9 +310,6 @@ public class NetworkStorage implements MEStorage {
 
         flushQueuedOperations();
 
-        if (extracted > 0 && mode == Actionable.MODULATE) {
-            changeListener.run();
-        }
         return extracted;
     }
 

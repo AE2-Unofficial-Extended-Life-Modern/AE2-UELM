@@ -95,27 +95,82 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     private final MEStorage cachedView;
     private boolean partialBuild;
 
+    private final KeyCounter pendingDeltas = new KeyCounter();
+
     public StorageService() {
         this.storage = new NetworkStorage();
-        this.storage.setChangeListener(this::markContentsChanged);
+        this.storage.setChangeListener(new NetworkStorage.ChangeListener() {
+            @Override
+            public void onExactChange(AEKey what, long delta) {
+                pendingDeltas.add(what, delta);
+            }
+
+            @Override
+            public void onOtherChange() {
+                markContentsChanged();
+            }
+        });
         this.cachedView = new CachedView();
     }
 
     @Override
     public void onServerEndTick() {
         ticksSinceRebuild++;
-        if (!contentsChanged && ticksSinceRebuild < FULL_REBUILD_INTERVAL) {
-            return;
+        if (contentsChanged || ticksSinceRebuild >= FULL_REBUILD_INTERVAL) {
+            if (interestManager.isEmpty()) {
+                // lazily rebuild cache list
+                cachedStacksNeedUpdate = true;
+                contentsChanged = false;
+                ticksSinceRebuild = 0;
+                pendingDeltas.clear();
+            } else {
+                // rebuild the cache now to notify listeners
+                updateCachedStacks();
+            }
+        } else if (!pendingDeltas.isEmpty()) {
+            if (cachedStacksNeedUpdate) {
+                pendingDeltas.clear();
+            } else {
+                applyPendingDeltas();
+            }
         }
+    }
 
-        if (interestManager.isEmpty()) {
-            // lazily rebuild cache list
-            cachedStacksNeedUpdate = true;
-            contentsChanged = false;
-            ticksSinceRebuild = 0;
-        } else {
-            // rebuild the cache now to notify listeners
+    private void applyPendingDeltas() {
+        var mismatch = false;
+        for (var entry : pendingDeltas) {
+            var delta = entry.getLongValue();
+            if (delta == 0) {
+                continue;
+            }
+            var what = entry.getKey();
+            var amount = cachedAvailableAmounts.getLong(what) + delta;
+            if (amount < 0) {
+                mismatch = true;
+                break;
+            } else if (amount == 0) {
+                cachedAvailableStacks.remove(what);
+                cachedAvailableAmounts.removeLong(what);
+            } else {
+                cachedAvailableStacks.set(what, amount);
+                cachedAvailableAmounts.put(what, amount);
+            }
+            postWatcherUpdate(what, amount);
+        }
+        pendingDeltas.clear();
+
+        if (mismatch) {
             updateCachedStacks();
+        } else {
+            markDependentsChanged();
+        }
+    }
+
+    private void markDependentsChanged() {
+        if (!dependents.isEmpty()) {
+            for (var dependent : List.copyOf(dependents)) {
+                dependent.markContentsChanged();
+            }
         }
     }
 
@@ -125,9 +180,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             return;
         }
         contentsChanged = true;
-        for (var dependent : List.copyOf(dependents)) {
-            dependent.markContentsChanged();
-        }
+        markDependentsChanged();
     }
 
     public MEStorage getCachedView() {
@@ -138,6 +191,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
         cachedStacksNeedUpdate = false;
         contentsChanged = false;
         ticksSinceRebuild = 0;
+        pendingDeltas.clear();
 
         for (var included : includedServices) {
             included.dependents.remove(this);
