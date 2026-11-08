@@ -270,6 +270,11 @@ public class FormationPlanePart extends UpgradeablePart implements IStorageProvi
      */
     class InWorldStorage implements MEStorage {
         @Override
+        public boolean reportsAllChanges() {
+            return true;
+        }
+
+        @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             if (filter != null && !filter.matchesFilter(what, filterMode)) {
                 return 0;

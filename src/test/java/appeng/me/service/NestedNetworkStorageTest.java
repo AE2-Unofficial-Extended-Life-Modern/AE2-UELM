@@ -151,6 +151,143 @@ class NestedNetworkStorageTest {
         assertThat(subnet.getCachedInventory().get(dirt)).isEqualTo(4);
     }
 
+    @Test
+    void testStoragesThatDontReportChangesAreListedEverySecond() {
+        var service = new StorageService();
+        var contents = contents(stone, 5);
+        mount(service, contents);
+        service.getCachedInventory();
+
+        contents.counter.add(stone, 3);
+        tickTimes(20, service);
+
+        assertThat(service.getCachedInventory().get(stone)).isEqualTo(8);
+    }
+
+    @Test
+    void testNetworksWhereEveryStorageReportsChangesDontListThemEverySecond() {
+        var service = new StorageService();
+        var contents = reportingContents(stone, 5);
+        mount(service, contents);
+        service.getCachedInventory();
+        var listings = contents.listings;
+
+        for (var i = 0; i < 199; i++) {
+            tick(service);
+            service.getCachedInventory();
+        }
+        assertThat(contents.listings).isEqualTo(listings);
+
+        tick(service);
+        service.getCachedInventory();
+        assertThat(contents.listings).isEqualTo(listings + 1);
+    }
+
+    @Test
+    void testReportedChangesShowUpRightAway() {
+        var service = new StorageService();
+        var contents = reportingContents(stone, 5);
+        mount(service, contents);
+        service.getCachedInventory();
+
+        contents.counter.add(stone, 3);
+        service.markContentsChanged();
+        tick(service);
+
+        assertThat(service.getCachedInventory().get(stone)).isEqualTo(8);
+    }
+
+    @Test
+    void testMountingAStorageThatDoesntReportChangesGoesBackToListingEverySecond() {
+        var service = new StorageService();
+        mount(service, reportingContents(stone, 5));
+        service.getCachedInventory();
+
+        var unreported = contents(dirt, 1);
+        mount(service, unreported);
+        service.markContentsChanged();
+        tick(service);
+        service.getCachedInventory();
+
+        unreported.counter.add(dirt, 2);
+        tickTimes(20, service);
+
+        assertThat(service.getCachedInventory().get(dirt)).isEqualTo(3);
+    }
+
+    @Test
+    void testSubnetWithAnUnreportedStorageKeepsTheParentListingEverySecond() {
+        var parent = new StorageService();
+        var subnet = new StorageService();
+        var contents = contents(stone, 5);
+        mount(subnet, contents);
+        mount(parent, subnet.getCachedView());
+        parent.getCachedInventory();
+
+        contents.counter.add(stone, 3);
+        tickTimes(20, subnet, parent);
+
+        assertThat(parent.getCachedInventory().get(stone)).isEqualTo(8);
+    }
+
+    @Test
+    void testSubnetThatReportsEverythingIsNotListedEverySecond() {
+        var parent = new StorageService();
+        var subnet = new StorageService();
+        var subnetContents = exactContents(stone, 5);
+        subnetContents.reportsAll = true;
+        mount(subnet, subnetContents);
+        mount(parent, subnet.getCachedView());
+        parent.getCachedInventory();
+        var listings = subnetContents.listings;
+
+        subnet.getInventory().insert(stone, 3, Actionable.MODULATE, IActionSource.empty());
+        for (var i = 0; i < 150; i++) {
+            tick(subnet, parent);
+            parent.getCachedInventory();
+        }
+
+        assertThat(parent.getCachedInventory().get(stone)).isEqualTo(8);
+        assertThat(subnetContents.listings).isEqualTo(listings);
+    }
+
+    @Test
+    void testListingTheNetworkUsesTheCacheAndReturnsACopy() {
+        var service = new StorageService();
+        var contents = exactContents(stone, 5);
+        mount(service, contents);
+        service.getCachedInventory();
+        var listings = contents.listings;
+
+        service.getInventory().insert(stone, 2, Actionable.MODULATE, IActionSource.empty());
+        var listed = service.getInventory().getAvailableStacks();
+
+        assertThat(listed.get(stone)).isEqualTo(7);
+        assertThat(contents.listings).isEqualTo(listings);
+
+        listed.add(stone, 100);
+        assertThat(service.getCachedInventory().get(stone)).isEqualTo(7);
+    }
+
+    @Test
+    void testAnyAvailableReadsTheCacheOfTheView() {
+        var service = new StorageService();
+        var contents = exactContents(stone, 5);
+        mount(service, contents);
+        service.getCachedInventory();
+        var listings = contents.listings;
+
+        assertThat(service.getCachedView().anyAvailable(stone::equals)).isTrue();
+        assertThat(service.getCachedView().anyAvailable(dirt::equals)).isFalse();
+        assertThat(contents.listings).isEqualTo(listings);
+    }
+
+    private static void tickTimes(int times, StorageService... services) {
+        for (var i = 0; i < times; i++) {
+            tick(services);
+        }
+    }
+
     private static void tick(StorageService... services) {
         for (var service : services) {
             service.onServerEndTick();
@@ -173,14 +310,26 @@ class NestedNetworkStorageTest {
         return storage;
     }
 
+    private static CounterStorage reportingContents(AEKey key, long amount) {
+        var storage = contents(key, amount);
+        storage.reportsAll = true;
+        return storage;
+    }
+
     private static class CounterStorage implements MEStorage {
         final KeyCounter counter = new KeyCounter();
         boolean exact;
+        boolean reportsAll;
         int listings;
 
         @Override
         public boolean reportsExactChanges() {
             return exact;
+        }
+
+        @Override
+        public boolean reportsAllChanges() {
+            return reportsAll;
         }
 
         @Override

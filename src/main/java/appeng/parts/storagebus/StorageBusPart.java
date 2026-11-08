@@ -388,6 +388,8 @@ public class StorageBusPart extends UpgradeablePart
                 || forceFullUpdate && isSticky) {
             remountStorage();
         }
+
+        getMainNode().ifPresent((grid, node) -> grid.getStorageService().markContentsChanged());
     }
 
     private boolean isExtractableOnly() {
@@ -484,6 +486,11 @@ public class StorageBusPart extends UpgradeablePart
         public void setAccessRestriction(AccessRestriction setting) {
             setAllowExtraction(setting.isAllowExtraction());
             setAllowInsertion(setting.isAllowInsertion());
+        }
+
+        @Override
+        public boolean reportsAllChanges() {
+            return getDelegate() instanceof CompositeStorage || super.reportsAllChanges();
         }
 
         @Override

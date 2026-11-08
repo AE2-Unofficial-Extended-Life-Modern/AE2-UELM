@@ -24,6 +24,7 @@
 package appeng.api.storage;
 
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
 
@@ -53,6 +54,19 @@ import appeng.api.stacks.KeyCounter;
  */
 public interface MEStorage {
     default boolean reportsExactChanges() {
+        return false;
+    }
+
+    default boolean reportsAllChanges() {
+        return false;
+    }
+
+    default boolean anyAvailable(Predicate<AEKey> predicate) {
+        for (var entry : getAvailableStacks()) {
+            if (predicate.test(entry.getKey())) {
+                return true;
+            }
+        }
         return false;
     }
 

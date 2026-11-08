@@ -144,6 +144,10 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         return getDelegate() == storage;
     }
 
+    public boolean wraps(Class<? extends MEStorage> type) {
+        return type.isInstance(getDelegate());
+    }
+
     public boolean listsKey(AEKey key) {
         if (!this.filterAvailableContents) {
             return true;
@@ -157,6 +161,10 @@ public class MEInventoryHandler extends DelegatingMEInventory {
 
     @Override
     public boolean reportsExactChanges() {
+        return getClass() == MEInventoryHandler.class && filtersKeepChangesExact();
+    }
+
+    protected final boolean filtersKeepChangesExact() {
         if (this.voidOverflow) {
             return false;
         }
@@ -164,6 +172,11 @@ public class MEInventoryHandler extends DelegatingMEInventory {
             return false;
         }
         return getDelegate().reportsExactChanges();
+    }
+
+    @Override
+    public boolean reportsAllChanges() {
+        return getDelegate().reportsAllChanges();
     }
 
     @Override
