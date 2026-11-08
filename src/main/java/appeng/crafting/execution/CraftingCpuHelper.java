@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.google.common.collect.Iterables;
+
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.nbt.CompoundTag;
@@ -209,12 +211,11 @@ public class CraftingCpuHelper {
         var substitutes = new ArrayList<InputTemplate>(possibleInputs.length);
         for (var stack : possibleInputs) {
             for (var fuzz : inv.findFuzzyTemplates(stack.what())) {
-                if (input.isValid(fuzz, level)) {
-                    substitutes.add(new InputTemplate(fuzz, stack.amount()));
-                }
+                substitutes.add(new InputTemplate(fuzz, stack.amount()));
             }
         }
-        return substitutes;
+
+        return Iterables.filter(substitutes, stack -> input.isValid(stack.key(), level));
     }
 
     /**
