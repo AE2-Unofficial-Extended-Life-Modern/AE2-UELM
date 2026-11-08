@@ -34,12 +34,19 @@ public class ProjectDefaultsPlugin implements Plugin<Project> {
 
     private String getProjectVersion(Project project) {
         String tag = System.getenv("TAG");
+        String pr = System.getenv("PR_NUMBER");
+        String commit = System.getenv("COMMIT_SHA");
 
         if (tag != null && !tag.isEmpty()) {
             if (!tag.startsWith("neoforge/v")) {
                 throw new IllegalArgumentException("Tags for the neoforge version should start with neoforge/: " + tag);
             }
             return tag.substring("neoforge/v".length());
+        } else if (pr != null && !pr.isEmpty()) {
+            return "0.0.0-pr." + pr + "-SNAPSHOT";
+        } else if (commit != null && !commit.isEmpty()) {
+            String base = System.getenv("BASE_VERSION");
+            return (base == null || base.isEmpty() ? "0.0.0" : base) + "-sha." + commit + "-SNAPSHOT";
         } else {
             // Use Gradle's Provider API for configuration cache support
             var versionProvider = project.getProviders()

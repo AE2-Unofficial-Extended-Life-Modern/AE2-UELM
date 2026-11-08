@@ -139,6 +139,9 @@ neoForge {
             // systemProperty('mixin.debug.export', 'true')
             logLevel = org.slf4j.event.Level.INFO
             systemProperty('guideme.ae2.guide.sources', file('guidebook').absolutePath)
+            if (System.getProperty("java.vendor", "").contains("JetBrains")) {
+                jvmArguments.add("-XX:+AllowEnhancedClassRedefinition")
+            }
         }
         client {
             client()
