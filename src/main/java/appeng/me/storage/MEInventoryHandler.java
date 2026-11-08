@@ -140,6 +140,21 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         }
     }
 
+    public boolean wraps(MEStorage storage) {
+        return getDelegate() == storage;
+    }
+
+    public boolean listsKey(AEKey key) {
+        if (!this.filterAvailableContents) {
+            return true;
+        }
+        if (!this.allowExtraction) {
+            return false;
+        }
+        return this.partitionList.isEmpty()
+                || this.partitionList.isListed(key) == (this.partitionListMode == IncludeExclude.WHITELIST);
+    }
+
     @Override
     public boolean reportsExactChanges() {
         if (this.voidOverflow) {
