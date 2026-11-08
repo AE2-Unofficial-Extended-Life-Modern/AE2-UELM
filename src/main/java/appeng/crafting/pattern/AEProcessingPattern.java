@@ -129,7 +129,7 @@ public class AEProcessingPattern implements IPatternDetails {
         }
     }
 
-    private static class Input implements IInput {
+    public static final class Input implements IInput {
         private final GenericStack[] template;
         private final long multiplier;
 
