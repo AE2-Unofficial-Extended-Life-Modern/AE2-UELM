@@ -125,6 +125,7 @@ public class CraftingCPUScreen<T extends CraftingCPUMenu> extends AEBaseScreen<T
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float btn) {
         this.cancel.active = !getVisualEntries().isEmpty();
         this.suspend.active = this.cancel.active;
+        this.suspend.visible = this.cancel.active;
 
         super.render(guiGraphics, mouseX, mouseY, btn);
     }
