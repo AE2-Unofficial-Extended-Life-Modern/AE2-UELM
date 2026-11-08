@@ -187,8 +187,10 @@ public class AppEngClient extends AppEngBase {
 
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn evt) -> {
             PendingCraftingJobs.clearPendingJobs();
-            PinnedKeys.clearPinnedKeys();
+            PinnedKeys.loadPinnedKeys(Minecraft.getInstance());
         });
+
+        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut evt) -> PinnedKeys.disconnect());
 
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> {
             tickPinnedKeys(Minecraft.getInstance());
