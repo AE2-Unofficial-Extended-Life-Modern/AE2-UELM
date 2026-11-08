@@ -33,6 +33,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsTooltip;
+import appeng.api.crafting.PatternInfo;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -47,6 +48,7 @@ public class AEProcessingPattern implements IPatternDetails {
     private final List<GenericStack> sparseInputs, sparseOutputs;
     private final Input[] inputs;
     private final List<GenericStack> condensedOutputs;
+    private final String author;
 
     public AEProcessingPattern(AEItemKey definition) {
         this.definition = definition;
@@ -60,6 +62,7 @@ public class AEProcessingPattern implements IPatternDetails {
 
         this.sparseInputs = encodedPattern.sparseInputs();
         this.sparseOutputs = encodedPattern.sparseOutputs();
+        this.author = encodedPattern.author();
         var condensedInputs = AEPatternHelper.condenseStacks(sparseInputs);
         this.inputs = new Input[condensedInputs.size()];
         for (int i = 0; i < inputs.length; ++i) {
@@ -71,6 +74,13 @@ public class AEProcessingPattern implements IPatternDetails {
     }
 
     public static void encode(ItemStack stack, List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs) {
+        encode(stack, sparseInputs, sparseOutputs, PatternInfo.EMPTY);
+    }
+
+    public static void encode(ItemStack stack, List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs,
+            PatternInfo info) {
+        info = info == null ? PatternInfo.EMPTY : info;
+
         if (sparseInputs.stream().noneMatch(Objects::nonNull)) {
             throw new IllegalArgumentException("At least one input must be non-null.");
         }
@@ -78,7 +88,7 @@ public class AEProcessingPattern implements IPatternDetails {
                 "The first (primary) output must be non-null.");
 
         stack.set(AEComponents.ENCODED_PROCESSING_PATTERN, new EncodedProcessingPattern(
-                sparseInputs, sparseOutputs));
+                sparseInputs, sparseOutputs, info.author()));
     }
 
     @Override
@@ -104,6 +114,11 @@ public class AEProcessingPattern implements IPatternDetails {
     @Override
     public List<GenericStack> getOutputs() {
         return condensedOutputs;
+    }
+
+    @Override
+    public String getAuthor() {
+        return author;
     }
 
     public List<GenericStack> getSparseInputs() {

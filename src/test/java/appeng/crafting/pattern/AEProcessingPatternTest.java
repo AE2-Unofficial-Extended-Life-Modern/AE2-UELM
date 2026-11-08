@@ -97,9 +97,11 @@ class AEProcessingPatternTest {
         assertNull(decode(encodedTag));
         assertThat(getExtraTooltip(encodedTag)).containsExactly(
                 "Invalid Pattern",
-                "Produces: 1 x minecraft:does_not_exist",
-                "with: 1 x Torch",
-                " and 1 x Diamond");
+                "Produces:",
+                "  1 x minecraft:does_not_exist",
+                "Ingredients:",
+                "  1 x Torch",
+                "  1 x Diamond");
     }
 
     /**
@@ -121,9 +123,11 @@ class AEProcessingPatternTest {
         assertNull(decode(encodedTag));
         assertThat(getExtraTooltip(encodedTag)).containsExactly(
                 "Invalid Pattern",
-                "Produces: 1 x minecraft:stick (some_mod:missing_chan)",
-                "with: 1 x minecraft:torch (some_mod:missing_chan)",
-                " and 1 x minecraft:diamond (some_mod:missing_chan)");
+                "Produces:",
+                "  1 x minecraft:stick (some_mod:missing_chan)",
+                "Ingredients:",
+                "  1 x minecraft:torch (some_mod:missing_chan)",
+                "  1 x minecraft:diamond (some_mod:missing_chan)");
     }
 
     private List<String> getExtraTooltip(CompoundTag tag) {

@@ -63,6 +63,9 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
     // rather simple client side caching.
     private static final Map<ItemStack, ItemStack> SIMPLE_CACHE = new WeakHashMap<>();
 
+    static final Component YES = GuiText.Yes.text().withStyle(ChatFormatting.GREEN);
+    static final Component NO = GuiText.No.text().withStyle(ChatFormatting.RED);
+
     private final EncodedPatternDecoder<T> decoder;
 
     @Nullable
@@ -134,9 +137,11 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
         }
 
         PatternDetailsTooltip tooltip;
+        var author = "";
         try {
             var details = Objects.requireNonNull(decoder.decode(what, clientLevel), "decoder returned null");
             tooltip = details.getTooltip(clientLevel, flags);
+            author = details.getAuthor();
         } catch (Exception e) {
             lines.add(GuiText.InvalidPattern.text().copy().withStyle(ChatFormatting.RED));
             if (invalidPatternTooltip != null) {
@@ -147,22 +152,19 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
         }
 
         if (tooltip != null) {
-            var label = Component.empty().append(tooltip.getOutputMethod())
-                    .append(": ").withStyle(ChatFormatting.GRAY);
-            var and = Component.literal(" ").append(GuiText.And.text())
-                    .append(" ").withStyle(ChatFormatting.GRAY);
-            var with = GuiText.With.text().copy().append(": ").withStyle(ChatFormatting.GRAY);
-
-            boolean first = true;
+            if (!tooltip.getOutputs().isEmpty()) {
+                lines.add(Component.empty().append(tooltip.getOutputMethod()).append(":")
+                        .withStyle(ChatFormatting.DARK_AQUA));
+            }
             for (var output : tooltip.getOutputs()) {
-                lines.add(Component.empty().append(first ? label : and).append(getTooltipEntryLine(output)));
-                first = false;
+                lines.add(Component.literal("  ").append(getTooltipEntryLine(output, false)));
             }
 
-            first = true;
+            if (!tooltip.getInputs().isEmpty()) {
+                lines.add(GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN));
+            }
             for (var input : tooltip.getInputs()) {
-                lines.add(Component.empty().append(first ? with : and).append(getTooltipEntryLine(input)));
-                first = false;
+                lines.add(Component.literal("  ").append(getTooltipEntryLine(input, true)));
             }
 
             for (var property : tooltip.getProperties()) {
@@ -175,9 +177,18 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
                 }
             }
         }
+
+        if (!author.isEmpty()) {
+            lines.add(GuiText.EncodedBy.text(author).withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
     }
 
+    @Deprecated
     protected static Component getTooltipEntryLine(GenericStack stack) {
+        return getTooltipEntryLine(stack, false);
+    }
+
+    protected static Component getTooltipEntryLine(GenericStack stack, boolean isInput) {
         if (stack.what() instanceof AEItemKey itemKey
                 && itemKey.getReadOnlyStack().getItem() instanceof MissingContentItem missingContentItem) {
             var brokenStackInfo = missingContentItem.getBrokenStackInfo(itemKey.getReadOnlyStack());
@@ -187,7 +198,11 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
             }
         }
 
-        return getTooltipEntryLine(stack.what().getDisplayName(), stack.what().getType(), stack.amount());
+        var type = stack.what().getType();
+        var color = type == AEKeyType.items()
+                ? (isInput ? ChatFormatting.GREEN : ChatFormatting.YELLOW)
+                : (isInput ? ChatFormatting.AQUA : ChatFormatting.BLUE);
+        return getTooltipEntryLine(stack.what().getDisplayName().copy().withStyle(color), type, stack.amount());
     }
 
     protected static Component getTooltipEntryLine(Component displayName, @Nullable AEKeyType amountType, long amount) {

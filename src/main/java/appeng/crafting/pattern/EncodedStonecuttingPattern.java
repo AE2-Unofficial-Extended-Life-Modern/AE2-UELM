@@ -15,13 +15,20 @@ public record EncodedStonecuttingPattern(
         ItemStack input,
         ItemStack output,
         boolean canSubstitute,
-        ResourceLocation recipeId) {
+        ResourceLocation recipeId,
+        String author) {
+
+    public EncodedStonecuttingPattern(ItemStack input, ItemStack output, boolean canSubstitute,
+            ResourceLocation recipeId) {
+        this(input, output, canSubstitute, recipeId, "");
+    }
 
     public static final Codec<EncodedStonecuttingPattern> CODEC = RecordCodecBuilder.create(builder -> builder.group(
             ItemStack.CODEC.fieldOf("input").forGetter(EncodedStonecuttingPattern::input),
             ItemStack.CODEC.fieldOf("output").forGetter(EncodedStonecuttingPattern::output),
             Codec.BOOL.fieldOf("canSubstitute").forGetter(EncodedStonecuttingPattern::canSubstitute),
-            ResourceLocation.CODEC.fieldOf("recipeId").forGetter(EncodedStonecuttingPattern::recipeId))
+            ResourceLocation.CODEC.fieldOf("recipeId").forGetter(EncodedStonecuttingPattern::recipeId),
+            Codec.STRING.optionalFieldOf("author", "").forGetter(EncodedStonecuttingPattern::author))
             .apply(builder, EncodedStonecuttingPattern::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, EncodedStonecuttingPattern> STREAM_CODEC = StreamCodec
@@ -34,6 +41,8 @@ public record EncodedStonecuttingPattern(
                     EncodedStonecuttingPattern::canSubstitute,
                     ResourceLocation.STREAM_CODEC,
                     EncodedStonecuttingPattern::recipeId,
+                    ByteBufCodecs.STRING_UTF8,
+                    EncodedStonecuttingPattern::author,
                     EncodedStonecuttingPattern::new);
 
     public boolean containsMissingContent() {
@@ -51,7 +60,8 @@ public record EncodedStonecuttingPattern(
         return canSubstitute == that.canSubstitute
                 && ItemStack.matches(input, that.input)
                 && ItemStack.matches(output, that.output)
-                && recipeId.equals(that.recipeId);
+                && recipeId.equals(that.recipeId)
+                && author.equals(that.author);
     }
 
     @Override
@@ -60,6 +70,7 @@ public record EncodedStonecuttingPattern(
         result = 31 * result + ItemStack.hashItemAndComponents(output);
         result = 31 * result + Boolean.hashCode(canSubstitute);
         result = 31 * result + recipeId.hashCode();
+        result = 31 * result + author.hashCode();
         return result;
     }
 }

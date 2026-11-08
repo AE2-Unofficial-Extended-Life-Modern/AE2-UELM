@@ -41,6 +41,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsTooltip;
+import appeng.api.crafting.PatternInfo;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -60,6 +61,7 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
 
     private final AEItemKey definition;
     public final boolean canSubstitute;
+    private final String author;
     private final ResourceLocation recipeId;
     private final SmithingRecipe recipe;
     private final ItemStack output;
@@ -83,6 +85,7 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
         this.base = Objects.requireNonNull(AEItemKey.of(encodedPattern.base()), "base");
         this.addition = Objects.requireNonNull(AEItemKey.of(encodedPattern.addition()), "addition");
         this.canSubstitute = encodedPattern.canSubstitute();
+        this.author = encodedPattern.author();
 
         // Find recipe
         this.recipeId = encodedPattern.recipeId();
@@ -170,6 +173,11 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
     @Override
     public List<GenericStack> getOutputs() {
         return outputs;
+    }
+
+    @Override
+    public String getAuthor() {
+        return author;
     }
 
     public boolean canSubstitute() {
@@ -263,11 +271,18 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
     public static void encode(ItemStack stack, RecipeHolder<SmithingRecipe> recipe, AEItemKey template, AEItemKey base,
             AEItemKey addition,
             AEItemKey output, boolean allowSubstitutes) {
+        encode(stack, recipe, template, base, addition, output, allowSubstitutes, PatternInfo.EMPTY);
+    }
+
+    public static void encode(ItemStack stack, RecipeHolder<SmithingRecipe> recipe, AEItemKey template, AEItemKey base,
+            AEItemKey addition,
+            AEItemKey output, boolean allowSubstitutes, PatternInfo info) {
         Preconditions.checkNotNull(recipe, "recipe");
         Preconditions.checkNotNull(recipe, "template");
         Preconditions.checkNotNull(base, "base");
         Preconditions.checkNotNull(addition, "addition");
         Preconditions.checkNotNull(output, "output");
+        info = info == null ? PatternInfo.EMPTY : info;
 
         stack.set(AEComponents.ENCODED_SMITHING_TABLE_PATTERN, new EncodedSmithingTablePattern(
                 template.toStack(),
@@ -275,13 +290,15 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
                 addition.toStack(),
                 output.toStack(),
                 allowSubstitutes,
-                recipe.id()));
+                recipe.id(),
+                info.author()));
     }
 
     @Override
     public PatternDetailsTooltip getTooltip(Level level, TooltipFlag flags) {
         var tooltip = new PatternDetailsTooltip(PatternDetailsTooltip.OUTPUT_TEXT_CRAFTS);
         tooltip.addInputsAndOutputs(this);
+        tooltip.addProperty(GuiText.Substitute.text(), canSubstitute ? EncodedPatternItem.YES : EncodedPatternItem.NO);
         if (flags.isAdvanced()) {
             tooltip.addProperty(Component.literal("Recipe"), Component.literal(recipeId.toString()));
         }
@@ -298,9 +315,8 @@ public class AESmithingTablePattern implements IPatternDetails, IMolecularAssemb
             tooltip.addInput(GenericStack.fromItemStack(encodedPattern.base()));
             tooltip.addInput(GenericStack.fromItemStack(encodedPattern.addition()));
             tooltip.addOutput(GenericStack.fromItemStack(encodedPattern.resultItem()));
-            if (encodedPattern.canSubstitute()) {
-                tooltip.addProperty(GuiText.PatternTooltipSubstitutions.text());
-            }
+            tooltip.addProperty(GuiText.Substitute.text(),
+                    encodedPattern.canSubstitute() ? EncodedPatternItem.YES : EncodedPatternItem.NO);
             if (flags.isAdvanced()) {
                 tooltip.addProperty(Component.literal("Recipe"),
                         Component.literal(encodedPattern.recipeId().toString()));

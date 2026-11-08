@@ -120,11 +120,13 @@ class AECraftingPatternTest {
         assertNull(decode(encodedTag));
         assertThat(getExtraTooltip(brokenPatternStack)).containsExactly(
                 "Invalid Pattern",
-                "Crafts: 1 x Stick",
-                "with: 1 x minecraft:does_not_exist",
-                " and 1 x Diamond",
-                "Substitutes alternate items",
-                "Uses fluids directly",
+                "Crafts:",
+                "  1 x Stick",
+                "Ingredients:",
+                "  1 x minecraft:does_not_exist",
+                "  1 x Diamond",
+                "Using Substitutions: Yes",
+                "Fluid Substitutions: Yes",
                 "Recipe: ae2:test_recipe");
     }
 
