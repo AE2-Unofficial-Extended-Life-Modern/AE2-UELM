@@ -39,6 +39,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import appeng.client.Point;
 import appeng.client.gui.AEBaseScreen;
@@ -367,7 +368,7 @@ public class NumberEntryWidget implements ICompositeWidget {
         if (textValue.startsWith("=")) {
             textValue = textValue.substring(1);
         }
-        return MathExpressionParser.parse(textValue);
+        return Mth.clamp(MathExpressionParser.parse(textValue), 0.0, Long.MAX_VALUE);
     }
 
     /*

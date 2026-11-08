@@ -9,7 +9,7 @@ import appeng.core.network.CustomAppEngPayload;
 import appeng.core.network.ServerboundPacket;
 import appeng.menu.me.crafting.CraftAmountMenu;
 
-public record ConfirmAutoCraftPacket(int amount,
+public record ConfirmAutoCraftPacket(long amount,
         boolean craftMissingAmount,
         boolean autoStart) implements ServerboundPacket {
 
@@ -26,14 +26,14 @@ public record ConfirmAutoCraftPacket(int amount,
     }
 
     public static ConfirmAutoCraftPacket decode(RegistryFriendlyByteBuf stream) {
-        var amount = stream.readInt();
+        var amount = stream.readLong();
         var craftMissingAmount = stream.readBoolean();
         var autoStart = stream.readBoolean();
         return new ConfirmAutoCraftPacket(amount, craftMissingAmount, autoStart);
     }
 
     public void write(RegistryFriendlyByteBuf data) {
-        data.writeInt(amount);
+        data.writeLong(amount);
         data.writeBoolean(craftMissingAmount);
         data.writeBoolean(autoStart);
     }

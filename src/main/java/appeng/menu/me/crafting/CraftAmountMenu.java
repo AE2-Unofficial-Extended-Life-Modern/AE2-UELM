@@ -81,7 +81,7 @@ public class CraftAmountMenu extends AEBaseMenu implements ISubMenu {
     /**
      * Opens the craft amount screen for the given player.
      */
-    public static void open(ServerPlayer player, MenuHostLocator locator, AEKey whatToCraft, int initialAmount) {
+    public static void open(ServerPlayer player, MenuHostLocator locator, AEKey whatToCraft, long initialAmount) {
         MenuOpener.open(CraftAmountMenu.TYPE, player, locator);
 
         if (player.containerMenu instanceof CraftAmountMenu cca) {
@@ -94,7 +94,7 @@ public class CraftAmountMenu extends AEBaseMenu implements ISubMenu {
         return this.getPlayerInventory().player.level();
     }
 
-    private void setWhatToCraft(AEKey whatToCraft, int initialAmount) {
+    private void setWhatToCraft(AEKey whatToCraft, long initialAmount) {
         this.whatToCraft = Objects.requireNonNull(whatToCraft, "whatToCraft");
         this.craftingItem.set(GenericStack.wrapInItemStack(whatToCraft, initialAmount));
     }
@@ -107,7 +107,7 @@ public class CraftAmountMenu extends AEBaseMenu implements ISubMenu {
      * @param craftMissingAmount Craft only as much as needed to have <code>amount</code>
      * @param autoStart          Start crafting immediately when the planning is done.
      */
-    public void confirm(int amount, boolean craftMissingAmount, boolean autoStart) {
+    public void confirm(long amount, boolean craftMissingAmount, boolean autoStart) {
         if (!isServerSide()) {
             ServerboundPacket message = new ConfirmAutoCraftPacket(amount, craftMissingAmount, autoStart);
             PacketDistributor.sendToServer(message);
@@ -124,8 +124,8 @@ public class CraftAmountMenu extends AEBaseMenu implements ISubMenu {
                 var node = host.getActionableNode();
                 if (node != null) {
                     var storage = node.getGrid().getStorageService();
-                    var existingAmount = (int) Math.min(storage.getCachedInventory().get(whatToCraft),
-                            Integer.MAX_VALUE);
+                    var existingAmount = Math.min(storage.getCachedInventory().get(whatToCraft),
+                            Long.MAX_VALUE);
                     if (existingAmount > amount) {
                         amount = 0;
                     } else {
