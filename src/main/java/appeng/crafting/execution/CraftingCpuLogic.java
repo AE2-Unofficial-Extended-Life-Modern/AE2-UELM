@@ -549,6 +549,7 @@ public class CraftingCpuLogic {
                     job.finalOutput.what(),
                     job.finalOutput.amount(),
                     job.remainingAmount,
+                    job.timeTracker.getElapsedTime(),
                     status);
             connectedPlayer.connection.send(message);
         }
