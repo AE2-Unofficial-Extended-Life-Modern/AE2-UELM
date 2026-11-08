@@ -1,0 +1,50 @@
+name: 'Publish Commit Snapshot'
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snapshot-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Commit Snapshot
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/gradle-setup
+
+      - name: Compute snapshot version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '[.[].tagName | select(startswith("neoforge/v"))][0] // ""')
+          BASE_VERSION=${LATEST_TAG#neoforge/v}
+          echo "COMMIT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "BASE_VERSION=${BASE_VERSION:-0.0.0}" >> "$GITHUB_ENV"
+
+      - name: Build Maven repository
+        run: ./gradlew build publish -x check --max-workers 1
+
+      - name: Publish to Expandium Maven
+        uses: AppliedEnergistics/maven-publish-action@main
+        with:
+          local-repository-path: build/repo
+          remote-repository-url: https://repo.expandium.net/snapshots/
+          remote-repository-username: ${{ secrets.MAVEN_USERNAME }}
+          remote-repository-password: ${{ secrets.MAVEN_PASSWORD }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### Snapshot published"
+            echo
+            echo "Version: \`${BASE_VERSION}-sha.${COMMIT_SHA}-SNAPSHOT\`"
+            echo
+            echo "Repository: \`https://repo.expandium.net/snapshots/\`"
+          } >> "$GITHUB_STEP_SUMMARY"

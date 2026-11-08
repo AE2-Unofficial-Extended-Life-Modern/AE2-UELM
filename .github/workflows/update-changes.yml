@@ -1,0 +1,111 @@
+name: Update CHANGES.md
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: changes-md-${{ github.event.repository.full_name }}
+  cancel-in-progress: false
+
+jobs:
+  update-changes:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate GitHub App token
+        id: changes-app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CHANGES_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CHANGES_APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Check out default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ steps.changes-app.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Get GitHub App bot identity
+        id: changes-app-bot
+        env:
+          GH_TOKEN: ${{ steps.changes-app.outputs.token }}
+          APP_SLUG: ${{ steps.changes-app.outputs.app-slug }}
+        run: |
+          echo "id=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
+
+      - name: Read changelog menu state
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+
+            const marker = "<!-- changes-menu:v1 -->";
+            const { owner, repo } = context.repo;
+            const issueNumber = context.payload.pull_request.number;
+
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100
+              }
+            );
+
+            const menu = comments.find(comment =>
+              comment.user?.login === "github-actions[bot]" &&
+              comment.body?.includes(marker)
+            );
+
+            const outputPath = path.join(
+              process.env.RUNNER_TEMP,
+              "changes-menu.md"
+            );
+
+            fs.writeFileSync(outputPath, menu?.body ?? "", "utf8");
+
+      - name: Add pull request entry
+        env:
+          MENU_FILE: ${{ runner.temp }}/changes-menu.md
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        run: python3 .github/scripts/update_changes.py
+
+      - name: Commit and push CHANGES.md
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          APP_SLUG: ${{ steps.changes-app.outputs.app-slug }}
+          APP_USER_ID: ${{ steps.changes-app-bot.outputs.id }}
+          GH_TOKEN: ${{ steps.changes-app.outputs.token }}
+        run: |
+          if git diff --quiet -- CHANGES.md; then
+            echo "No CHANGES.md update was requested."
+            exit 0
+          fi
+
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${APP_USER_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+
+          gh auth setup-git
+
+          git add CHANGES.md
+          git commit -m "docs: record changes from #${PR_NUMBER}"
+          git push origin "HEAD:${DEFAULT_BRANCH}"
