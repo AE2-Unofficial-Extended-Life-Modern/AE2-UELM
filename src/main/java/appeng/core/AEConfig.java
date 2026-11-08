@@ -18,11 +18,13 @@
 
 package appeng.core;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
 
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -48,6 +50,7 @@ public final class AEConfig {
 
     // Default Energy Conversion Rates
     private static final double DEFAULT_FE_EXCHANGE = 0.5;
+    private static final double DEFAULT_EU_EXCHANGE = 2;
 
     private static AEConfig instance;
 
@@ -191,8 +194,9 @@ public final class AEConfig {
     }
 
     public void nextEnergyUnit(boolean backwards) {
-        var selected = EnumCycler.rotateEnum(getSelectedEnergyUnit(), backwards,
-                Settings.POWER_UNITS.getValues());
+        var availablePowerUnits = EnumSet.copyOf(Settings.POWER_UNITS.getValues());
+        availablePowerUnits.removeIf(pu -> pu.modId != null && !ModList.get().isLoaded(pu.modId));
+        var selected = EnumCycler.rotateEnum(getSelectedEnergyUnit(), backwards, availablePowerUnits);
         client.selectedPowerUnit.set(selected);
         client.spec.save();
     }
@@ -574,6 +578,7 @@ public final class AEConfig {
 
         // Power Ratios
         public final DoubleValue powerRatioForgeEnergy;
+        public final DoubleValue powerRatioEnergyUnit;
         public final DoubleValue powerUsageMultiplier;
         public final DoubleValue gridEnergyStoragePerNode;
         public final DoubleValue crystalResonanceGeneratorRate;
@@ -665,6 +670,7 @@ public final class AEConfig {
 
             builder.push("powerRatios");
             powerRatioForgeEnergy = define(builder, "forgeEnergy", DEFAULT_FE_EXCHANGE);
+            powerRatioEnergyUnit = define(builder, "energyUnit", DEFAULT_EU_EXCHANGE);
             powerUsageMultiplier = define(builder, "usageMultiplier", 1.0, 0.01, Double.MAX_VALUE);
             gridEnergyStoragePerNode = define(builder, "gridEnergyStoragePerNode", 25.0, 1.0, 1000000.0,
                     "How much energy can the internal grid buffer storage per node attached to the grid.");
@@ -705,6 +711,7 @@ public final class AEConfig {
 
         public void sync() {
             PowerUnit.FE.conversionRatio = powerRatioForgeEnergy.get();
+            PowerUnit.EU.conversionRatio = powerRatioEnergyUnit.get();
             PowerMultiplier.CONFIG.multiplier = powerUsageMultiplier.get();
 
             CondenserOutput.MATTER_BALLS.requiredPower = condenserMatterBallsPower.get();
