@@ -260,6 +260,7 @@ public enum GuiText implements LocalizationEnum {
     Unformatted("Unformatted"),
     Unlinked("Unlinked"),
     UpgradeToolbelt("Upgrade Toolbelt"),
+    UsedAmount("Used: %s"),
     VibrationChamber("Vibration Chamber"),
     White("White"),
     Wireless("Wireless Access Point"),

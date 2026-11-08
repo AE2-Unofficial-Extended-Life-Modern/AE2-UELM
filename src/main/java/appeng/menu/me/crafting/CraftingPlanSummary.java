@@ -132,6 +132,7 @@ public class CraftingPlanSummary {
 
         var storage = grid.getStorageService().getInventory();
         var crafting = grid.getCraftingService();
+        var cachedInv = grid.getStorageService().getCachedInventory(); // we do not need to be that precise here
 
         for (var out : plan.entrySet()) {
             long missingAmount;
@@ -144,13 +145,14 @@ public class CraftingPlanSummary {
                 missingAmount = 0;
             }
             long craftAmount = out.getValue().crafting;
+            long availableAmount = cachedInv.get(out.getKey());
 
             entries.add(new CraftingPlanSummaryEntry(
                     out.getKey(),
                     missingAmount,
                     storedAmount,
-                    craftAmount));
-
+                    craftAmount,
+                    availableAmount));
         }
 
         Collections.sort(entries);
