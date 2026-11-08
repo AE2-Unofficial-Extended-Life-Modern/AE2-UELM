@@ -72,9 +72,13 @@ import appeng.integration.abstraction.ItemListMod;
 import appeng.integration.modules.itemlists.CompatLayerHelper;
 import appeng.integration.modules.itemlists.ItemPredicates;
 import appeng.integration.modules.rei.transfer.EncodePatternTransferHandler;
+import appeng.integration.modules.rei.transfer.FilterTransferHandler;
 import appeng.integration.modules.rei.transfer.UseCraftingRecipeTransfer;
 import appeng.items.parts.FacadeItem;
 import appeng.items.tools.powered.powersink.AEBasePoweredItem;
+import appeng.menu.implementations.IOBusMenu;
+import appeng.menu.implementations.InterfaceMenu;
+import appeng.menu.implementations.StorageBusMenu;
 import appeng.menu.me.items.CraftingTermMenu;
 import appeng.menu.me.items.PatternEncodingTermMenu;
 import appeng.recipes.AERecipeTypes;
@@ -161,6 +165,9 @@ public class ReiPlugin implements REIClientPlugin {
         // Allow recipe transfer from JEI to crafting and pattern terminal
         registry.register(new EncodePatternTransferHandler<>(PatternEncodingTermMenu.class));
         registry.register(new UseCraftingRecipeTransfer<>(CraftingTermMenu.class));
+        registry.register(new FilterTransferHandler<>(InterfaceMenu.class));
+        registry.register(new FilterTransferHandler<>(StorageBusMenu.class));
+        registry.register(new FilterTransferHandler<>(IOBusMenu.class));
     }
 
     @Override
