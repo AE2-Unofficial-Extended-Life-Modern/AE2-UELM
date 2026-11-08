@@ -54,6 +54,7 @@ import appeng.client.gui.implementations.SpatialAnchorScreen;
 import appeng.client.gui.implementations.SpatialIOPortScreen;
 import appeng.client.gui.implementations.StorageBusScreen;
 import appeng.client.gui.implementations.StorageLevelEmitterScreen;
+import appeng.client.gui.implementations.SuperMEReplenisherScreen;
 import appeng.client.gui.implementations.VibrationChamberScreen;
 import appeng.client.gui.implementations.WirelessAccessPointScreen;
 import appeng.client.gui.me.common.MEStorageScreen;
@@ -92,6 +93,7 @@ import appeng.menu.implementations.SpatialAnchorMenu;
 import appeng.menu.implementations.SpatialIOPortMenu;
 import appeng.menu.implementations.StorageBusMenu;
 import appeng.menu.implementations.StorageLevelEmitterMenu;
+import appeng.menu.implementations.SuperMEReplenisherMenu;
 import appeng.menu.implementations.VibrationChamberMenu;
 import appeng.menu.implementations.WirelessAccessPointMenu;
 import appeng.menu.me.common.MEStorageMenu;
@@ -151,6 +153,7 @@ public final class InitScreens {
         register(event, CraftConfirmMenu.TYPE, CraftConfirmScreen::new, "/screens/craft_confirm.json");
         register(event, CraftingStatusMenu.TYPE, CraftingStatusScreen::new, "/screens/crafting_status.json");
         register(event, SpatialAnchorMenu.TYPE, SpatialAnchorScreen::new, "/screens/spatial_anchor.json");
+        register(event, SuperMEReplenisherMenu.TYPE, SuperMEReplenisherScreen::new, "/screens/super_me_replenisher.json");
 
         // Terminals
         InitScreens.<MEStorageMenu, MEStorageScreen<MEStorageMenu>>register(event,
