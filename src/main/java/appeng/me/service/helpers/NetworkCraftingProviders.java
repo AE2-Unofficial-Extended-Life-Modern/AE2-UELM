@@ -23,7 +23,6 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.AEKeyFilter;
-import appeng.hooks.ticking.TickHandler;
 
 /**
  * Keeps track of the crafting patterns in the network, and related information.
@@ -38,10 +37,7 @@ public class NetworkCraftingProviders {
     private final KeyCounter craftableItemsList = new KeyCounter();
     private final Map<AEKey, Integer> emitableItems = new HashMap<>();
 
-    private final Set<AEKey> craftableKeys = Collections.unmodifiableSet(craftableItems.keySet());
-    private final Set<AEKey> emittableKeys = Collections.unmodifiableSet(emitableItems.keySet());
-
-    private long lastModifiedOnTick = TickHandler.instance().getCurrentTick();
+    private final Set<AEKey> changedCraftables = new HashSet<>();
 
     public void addProvider(IGridNode node) {
         var provider = node.getService(ICraftingProvider.class);
@@ -52,7 +48,6 @@ public class NetworkCraftingProviders {
             var state = new ProviderState(provider);
             state.mount(this);
             craftingProviders.put(node, state);
-            setLastModifiedOnTick();
         }
     }
 
@@ -62,9 +57,21 @@ public class NetworkCraftingProviders {
             var state = craftingProviders.remove(node);
             if (state != null) {
                 state.unmount(this);
-                setLastModifiedOnTick();
             }
         }
+    }
+
+    public boolean isCraftable(AEKey key) {
+        return craftableItems.containsKey(key) || emitableItems.containsKey(key);
+    }
+
+    public List<AEKey> takeChangedCraftables() {
+        if (changedCraftables.isEmpty()) {
+            return List.of();
+        }
+        var changed = List.copyOf(changedCraftables);
+        changedCraftables.clear();
+        return changed;
     }
 
     public Set<AEKey> getCraftables(AEKeyFilter filter) {
@@ -84,14 +91,6 @@ public class NetworkCraftingProviders {
         }
 
         return result;
-    }
-
-    public Set<AEKey> getCraftableKeys() {
-        return craftableKeys;
-    }
-
-    public Set<AEKey> getEmittableKeys() {
-        return emittableKeys;
     }
 
     public Collection<IPatternDetails> getCraftingFor(AEKey whatToCraft) {
@@ -160,7 +159,9 @@ public class NetworkCraftingProviders {
 
         private void mount(NetworkCraftingProviders methods) {
             for (var emitable : emitableItems) {
-                methods.emitableItems.merge(emitable, 1, Integer::sum);
+                if (methods.emitableItems.merge(emitable, 1, Integer::sum) == 1) {
+                    methods.changedCraftables.add(emitable);
+                }
             }
             for (var pattern : patterns) {
                 // output -> pattern (for simulation)
@@ -168,8 +169,10 @@ public class NetworkCraftingProviders {
 
                 methods.craftableItemsList.add(primaryOutput.what(), 1);
 
-                var patternsForKey = methods.craftableItems.computeIfAbsent(primaryOutput.what(),
-                        k -> new PatternsForKey());
+                var patternsForKey = methods.craftableItems.computeIfAbsent(primaryOutput.what(), k -> {
+                    methods.changedCraftables.add(k);
+                    return new PatternsForKey();
+                });
                 patternsForKey.patterns.add(new PatternInfo(pattern, this));
                 patternsForKey.needsSorting = true;
 
@@ -180,7 +183,13 @@ public class NetworkCraftingProviders {
 
         private void unmount(NetworkCraftingProviders methods) {
             for (var emitable : emitableItems) {
-                methods.emitableItems.compute(emitable, (key, cnt) -> cnt == 1 ? null : cnt - 1);
+                methods.emitableItems.compute(emitable, (key, cnt) -> {
+                    if (cnt == 1) {
+                        methods.changedCraftables.add(key);
+                        return null;
+                    }
+                    return cnt - 1;
+                });
             }
             for (var pattern : patterns) {
                 var primaryOutput = pattern.getPrimaryOutput();
@@ -190,7 +199,11 @@ public class NetworkCraftingProviders {
                 methods.craftableItems.computeIfPresent(primaryOutput.what(), (key, patternsForKey) -> {
                     patternsForKey.patterns.remove(new PatternInfo(pattern, this));
                     patternsForKey.needsSorting = true;
-                    return patternsForKey.patterns.isEmpty() ? null : patternsForKey;
+                    if (patternsForKey.patterns.isEmpty()) {
+                        methods.changedCraftables.add(key);
+                        return null;
+                    }
+                    return patternsForKey;
                 });
 
                 methods.craftingMethods.computeIfPresent(pattern, (pat, list) -> {
@@ -224,16 +237,5 @@ public class NetworkCraftingProviders {
     }
 
     private record PatternInfo(IPatternDetails pattern, ProviderState state) {
-    }
-
-    private void setLastModifiedOnTick() {
-        lastModifiedOnTick = TickHandler.instance().getCurrentTick();
-    }
-
-    /**
-     * @see TickHandler#getCurrentTick()
-     */
-    public long getLastModifiedOnTick() {
-        return lastModifiedOnTick;
     }
 }
