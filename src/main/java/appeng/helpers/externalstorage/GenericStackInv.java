@@ -457,6 +457,10 @@ public class GenericStackInv implements MEStorage, GenericInternalInventory {
         }
     }
 
+    public int getEstimatedStackCount() {
+        return stacks.length;
+    }
+
     @Override
     public Component getDescription() {
         return description;
