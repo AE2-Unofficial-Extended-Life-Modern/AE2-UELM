@@ -322,8 +322,13 @@ public class StorageBusPart extends UpgradeablePart
     }
 
     private void onCapabilityInvalidation() {
+        var wasSticky = this.handler.getStickyClaim() != null;
         // Immediately replace the inventory by a null inventory to avoid any further operations on the old inventory.
         this.handler.setDelegate(NullInventory.of());
+        // A sticky claim must not outlive its target, or matching inserts are refused network-wide.
+        if (wasSticky) {
+            remountStorage();
+        }
         // TODO: potentially set handlerDescription to null?
         // Enqueue update.
         this.scheduleUpdate();
