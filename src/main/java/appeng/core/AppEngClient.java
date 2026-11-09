@@ -81,6 +81,7 @@ import appeng.client.gui.me.common.PinnedKeys;
 import appeng.client.gui.style.StyleManager;
 import appeng.client.guidebook.ConfigValueTagExtension;
 import appeng.client.guidebook.PartAnnotationStrategy;
+import appeng.client.render.PatternClientTooltipComponent;
 import appeng.client.render.StorageCellClientTooltipComponent;
 import appeng.client.render.crafting.CraftingMonitorRenderer;
 import appeng.client.render.crafting.MolecularAssemblerRenderer;
@@ -108,6 +109,7 @@ import appeng.core.definitions.AEEntities;
 import appeng.core.network.ServerboundPacket;
 import appeng.core.network.serverbound.MouseWheelPacket;
 import appeng.core.network.serverbound.UpdateHoldingCtrlPacket;
+import appeng.crafting.pattern.PatternTooltipComponent;
 import appeng.entity.TinyTNTPrimedRenderer;
 import appeng.helpers.IMouseWheelItem;
 import appeng.hooks.BlockAttackHook;
@@ -282,6 +284,7 @@ public class AppEngClient extends AppEngBase {
 
     private void registerClientTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(StorageCellTooltipComponent.class, StorageCellClientTooltipComponent::new);
+        event.register(PatternTooltipComponent.class, PatternClientTooltipComponent::new);
     }
 
     private void clientSetup(FMLClientSetupEvent event) {

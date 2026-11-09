@@ -21,6 +21,7 @@ package appeng.crafting.pattern;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
@@ -32,6 +33,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -157,14 +159,14 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
                         .withStyle(ChatFormatting.DARK_AQUA));
             }
             for (var output : tooltip.getOutputs()) {
-                lines.add(Component.literal("  ").append(getTooltipEntryLine(output, false)));
+                lines.add(Component.literal("   ").append(getTooltipEntryLine(output, false)));
             }
 
             if (!tooltip.getInputs().isEmpty()) {
                 lines.add(GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN));
             }
             for (var input : tooltip.getInputs()) {
-                lines.add(Component.literal("  ").append(getTooltipEntryLine(input, true)));
+                lines.add(Component.literal("   ").append(getTooltipEntryLine(input, true)));
             }
 
             for (var property : tooltip.getProperties()) {
@@ -272,6 +274,24 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
             return decoder.decode(what, level);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        var clientLevel = AppEng.instance().getClientLevel();
+        var details = decode(stack, clientLevel);
+        if (details == null) {
+            return Optional.empty();
+        }
+
+        try {
+            var tooltip = details.getTooltip(clientLevel, TooltipFlag.NORMAL);
+            return Optional.of(new PatternTooltipComponent(
+                    tooltip.getInputs().stream().map(GenericStack::what).toList(),
+                    tooltip.getOutputs().stream().map(GenericStack::what).toList()));
+        } catch (Exception e) {
+            return Optional.empty();
         }
     }
 }
