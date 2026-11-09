@@ -125,17 +125,14 @@ public class CraftingService implements ICraftingService, IGridServiceProvider {
     private final IEnergyService energyGrid;
     private Set<AEKey> currentlyCrafting = new HashSet<>();
     private Set<AEKey> previouslyCrafting = new HashSet<>();
-    private Set<AEKey> currentlyCraftable = new HashSet<>();
-    private Set<AEKey> previouslyCraftable = new HashSet<>();
+    private final Set<AEKey> currentlyCraftable = new HashSet<>();
     private long lastProcessedCraftingLogicChangeTick;
-    private long lastProcessedCraftableChangeTick;
     private boolean updateList = false;
 
     public CraftingService(IGrid grid, IStorageService storageGrid, IEnergyService energyGrid) {
         this.grid = grid;
         this.energyGrid = energyGrid;
         this.lastProcessedCraftingLogicChangeTick = TickHandler.instance().getCurrentTick();
-        this.lastProcessedCraftableChangeTick = TickHandler.instance().getCurrentTick();
 
         storageGrid.addGlobalStorageProvider(new CraftingServiceStorage(this));
     }
@@ -193,30 +190,15 @@ public class CraftingService implements ICraftingService, IGridServiceProvider {
             }
         }
 
-        // Throttle updates of craftables to once every 10 ticks
-        if (lastProcessedCraftableChangeTick != craftingProviders.getLastModifiedOnTick()) {
-            lastProcessedCraftableChangeTick = craftingProviders.getLastModifiedOnTick();
-
-            // If everything is empty, there's nothing to do
-            if (!currentlyCraftable.isEmpty() || !craftingProviders.getCraftableKeys().isEmpty()
-                    || !craftingProviders.getEmittableKeys().isEmpty()) {
-                var previous = currentlyCraftable;
-                currentlyCraftable = previouslyCraftable;
-                previouslyCraftable = previous;
-                currentlyCraftable.clear();
-                currentlyCraftable.addAll(craftingProviders.getCraftableKeys());
-                currentlyCraftable.addAll(craftingProviders.getEmittableKeys());
-
-                // Only perform the change tracking if there are watchers
-                if (!interests.isEmpty()) {
-                    forEachChange(previouslyCraftable, currentlyCraftable, what -> {
-                        for (var watcher : interestManager.get(what)) {
-                            watcher.getHost().onCraftableChange(what);
-                        }
-                        for (var watcher : interestManager.getAllStacksWatchers()) {
-                            watcher.getHost().onCraftableChange(what);
-                        }
-                    });
+        for (var what : craftingProviders.takeChangedCraftables()) {
+            var changed = craftingProviders.isCraftable(what) ? currentlyCraftable.add(what)
+                    : currentlyCraftable.remove(what);
+            if (changed) {
+                for (var watcher : interestManager.get(what)) {
+                    watcher.getHost().onCraftableChange(what);
+                }
+                for (var watcher : interestManager.getAllStacksWatchers()) {
+                    watcher.getHost().onCraftableChange(what);
                 }
             }
         }
