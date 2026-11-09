@@ -59,6 +59,7 @@ import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
+import net.neoforged.neoforge.client.event.RegisterSpriteSourceTypesEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
@@ -73,6 +74,7 @@ import guideme.scene.ImplicitAnnotationStrategy;
 
 import appeng.api.parts.CableRenderMode;
 import appeng.blockentity.networking.CableBusTESR;
+import appeng.client.ControllerAnimationClient;
 import appeng.client.EffectType;
 import appeng.client.Hotkeys;
 import appeng.client.commands.ClientCommands;
@@ -94,6 +96,7 @@ import appeng.client.render.effects.LightningFX;
 import appeng.client.render.effects.MatterCannonFX;
 import appeng.client.render.effects.ParticleTypes;
 import appeng.client.render.effects.VibrantFX;
+import appeng.client.render.model.ControllerLightTextureLoader;
 import appeng.client.render.model.GlassBakedModel;
 import appeng.client.render.overlay.OverlayManager;
 import appeng.client.render.tesr.ChargerBlockEntityRenderer;
@@ -160,6 +163,7 @@ public class AppEngClient extends AppEngBase {
     public AppEngClient(IEventBus modEventBus, ModContainer container) {
         super(modEventBus, container);
         InitBuiltInModels.init();
+        Hotkeys.registerClientHotkey(ControllerAnimationClient.HOTKEY_ID, ControllerAnimationClient::cycle);
 
         this.registerClientCommands();
 
@@ -173,6 +177,7 @@ public class AppEngClient extends AppEngBase {
         modEventBus.addListener(this::registerEntityLayerDefinitions);
         modEventBus.addListener(this::registerHotkeys);
         modEventBus.addListener(this::registerDimensionSpecialEffects);
+        modEventBus.addListener(this::registerSpriteSourceTypes);
         modEventBus.addListener(InitScreens::init);
         modEventBus.addListener(this::enqueueImcMessages);
 
@@ -208,6 +213,10 @@ public class AppEngClient extends AppEngBase {
         // Our new light-mode UI doesn't play nice with darkmodeeverywhere
         InterModComms.sendTo("darkmodeeverywhere", "dme-shaderblacklist", () -> "appeng.");
         InterModComms.sendTo("framedblocks", "add_ct_property", () -> GlassBakedModel.GLASS_STATE);
+    }
+
+    private void registerSpriteSourceTypes(RegisterSpriteSourceTypesEvent event) {
+        event.register(AppEng.makeId("controller_light"), ControllerLightTextureLoader.TYPE);
     }
 
     private void registerDimensionSpecialEffects(RegisterDimensionSpecialEffectsEvent event) {

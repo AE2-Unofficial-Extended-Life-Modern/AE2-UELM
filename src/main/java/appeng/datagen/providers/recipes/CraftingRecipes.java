@@ -301,6 +301,10 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .unlockedBy("has_purified_fluix_crystal", has(AEItems.FLUIX_CRYSTAL))
                 .unlockedBy("has_engineering_processor", has(AEItems.ENGINEERING_PROCESSOR))
                 .save(consumer, AppEng.makeId("network/blocks/controller"));
+        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEBlocks.COLORABLE_CONTROLLER)
+                .requires(AEBlocks.CONTROLLER)
+                .unlockedBy("has_controller", has(AEBlocks.CONTROLLER))
+                .save(consumer, AppEng.makeId("network/blocks/colorable_controller"));
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AEBlocks.CHARGER)
                 .pattern("aba")
                 .pattern("a  ")

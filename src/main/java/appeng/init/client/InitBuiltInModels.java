@@ -34,6 +34,7 @@ import appeng.client.render.cablebus.P2PTunnelFrequencyModel;
 import appeng.client.render.crafting.CraftingCubeModel;
 import appeng.client.render.crafting.CraftingUnitModelProvider;
 import appeng.client.render.model.ColorApplicatorModel;
+import appeng.client.render.model.ControllerModel;
 import appeng.client.render.model.DriveModel;
 import appeng.client.render.model.GlassModel;
 import appeng.client.render.model.MemoryCardModel;
@@ -50,6 +51,7 @@ public final class InitBuiltInModels {
 
     public static void init() {
         addBuiltInModel("block/cable_bus", CableBusModel::new);
+        addColorableControllerModels();
         addBuiltInModel("block/quartz_glass", GlassModel::new);
         addBuiltInModel("item/meteorite_compass", MeteoriteCompassModel::new);
         addBuiltInModel("item/memory_card", MemoryCardModel::new);
@@ -93,6 +95,41 @@ public final class InitBuiltInModels {
         ResourceLocation sidesTextureId = AppEng.makeId("part/plane_sides");
         ResourceLocation backTextureId = AppEng.makeId("part/transition_plane_back");
         addBuiltInModel(planeName, () -> new PlaneModel(frontTextureId, sidesTextureId, backTextureId));
+    }
+
+    private static void addColorableControllerModels() {
+        addColorableControllerModel("controller_block_offline", "controller_block_offline_base",
+                ControllerModel.CasingType.BLOCK, ControllerModel.LightType.NONE);
+        addBuiltInModel("item/colorable_controller",
+                () -> new ControllerModel(
+                        AppEng.makeId("block/colorable_controller/controller_item_base"),
+                        ControllerModel.CasingType.NONE,
+                        ControllerModel.LightType.NONE));
+        addColorableControllerModel("controller_block_online", "controller_block_online_base",
+                ControllerModel.CasingType.POWERED_BLOCK, ControllerModel.LightType.BLOCK);
+        addColorableControllerModel("controller_block_conflicted", "controller_block_conflicted_base",
+                ControllerModel.CasingType.POWERED_BLOCK, ControllerModel.LightType.NONE);
+        addColorableControllerModel("controller_column_offline", "controller_column_offline_base",
+                ControllerModel.CasingType.COLUMN, ControllerModel.LightType.NONE);
+        addColorableControllerModel("controller_column_online", "controller_column_online_base",
+                ControllerModel.CasingType.POWERED_COLUMN, ControllerModel.LightType.COLUMN);
+        addColorableControllerModel("controller_column_conflicted", "controller_column_conflicted_base",
+                ControllerModel.CasingType.POWERED_COLUMN, ControllerModel.LightType.NONE);
+        addColorableControllerModel("controller_inside_a", "controller_inside_a_base",
+                ControllerModel.CasingType.NONE, ControllerModel.LightType.NONE);
+        addColorableControllerModel("controller_inside_a_conflicted", "controller_inside_a_conflicted_base",
+                ControllerModel.CasingType.NONE, ControllerModel.LightType.NONE);
+        addColorableControllerModel("controller_inside_b", "controller_inside_b_base",
+                ControllerModel.CasingType.NONE, ControllerModel.LightType.NONE);
+        addColorableControllerModel("controller_inside_b_conflicted", "controller_inside_b_conflicted_base",
+                ControllerModel.CasingType.NONE, ControllerModel.LightType.NONE);
+    }
+
+    private static void addColorableControllerModel(String name, String baseName,
+            ControllerModel.CasingType casingType, ControllerModel.LightType lightType) {
+        var baseModel = AppEng.makeId("block/colorable_controller/" + baseName);
+        addBuiltInModel("block/colorable_controller/" + name,
+                () -> new ControllerModel(baseModel, casingType, lightType));
     }
 
     private static <T extends UnbakedModel> void addBuiltInModel(String id,

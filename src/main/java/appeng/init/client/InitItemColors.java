@@ -25,6 +25,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 
+import appeng.api.ids.AEComponents;
 import appeng.api.util.AEColor;
 import appeng.client.render.StaticItemColor;
 import appeng.core.definitions.AEBlocks;
@@ -55,6 +56,7 @@ public final class InitItemColors {
     private static void init(ItemColorRegistrar registrar) {
         // I checked, the ME chest doesn't keep its color in item form
         registrar.register(new StaticItemColor(AEColor.TRANSPARENT), AEBlocks.ME_CHEST.asItem());
+        registrar.register(InitItemColors::getColorableControllerColor, AEBlocks.COLORABLE_CONTROLLER.asItem());
 
         registrar.register(MemoryCardItem::getTintColor, AEItems.MEMORY_CARD);
 
@@ -108,6 +110,15 @@ public final class InitItemColors {
         }
 
         registrar.register((is, tintIndex) -> renderColor, item);
+    }
+
+    private static int getColorableControllerColor(ItemStack itemStack, int tintIndex) {
+        if (tintIndex == 0) {
+            return -1;
+        }
+
+        var color = itemStack.getOrDefault(AEComponents.CONTROLLER_COLOR, AEColor.TRANSPARENT);
+        return color == AEColor.TRANSPARENT ? -1 : color.getVariantByTintIndex(tintIndex);
     }
 
     private static int getColorApplicatorColor(ItemStack itemStack, int idx) {

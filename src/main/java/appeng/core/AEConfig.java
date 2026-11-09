@@ -35,6 +35,7 @@ import net.neoforged.neoforge.common.ModConfigSpec.IntValue;
 
 import appeng.api.config.CondenserOutput;
 import appeng.api.config.PowerMultiplier;
+import appeng.api.config.ControllerAnimation;
 import appeng.api.config.PowerUnit;
 import appeng.api.config.Settings;
 import appeng.api.config.TerminalStyle;
@@ -191,6 +192,15 @@ public final class AEConfig {
 
     public PowerUnit getSelectedEnergyUnit() {
         return this.client.selectedPowerUnit.get();
+    }
+
+    public ControllerAnimation getControllerAnimation() {
+        return client.controllerAnimation.get();
+    }
+
+    public void setControllerAnimation(ControllerAnimation animation) {
+        client.controllerAnimation.set(animation);
+        client.spec.save();
     }
 
     public void nextEnergyUnit(boolean backwards) {
@@ -441,6 +451,7 @@ public final class AEConfig {
         public final BooleanValue notifyForFinishedCraftingJobs;
 
         // Terminal Settings
+        public final EnumValue<ControllerAnimation> controllerAnimation;
         public final EnumValue<TerminalStyle> terminalStyle;
         public final BooleanValue pinAutoCraftedItems;
         public final BooleanValue clearGridOnClose;
@@ -479,6 +490,8 @@ public final class AEConfig {
             this.useLargeFonts = define(builder, "useTerminalUseLargeFont", false);
             this.useColoredCraftingStatus = define(builder, "useColoredCraftingStatus", true);
             this.selectedPowerUnit = defineEnum(builder, "powerUnit", PowerUnit.AE, "Unit of power shown in AE UIs");
+            this.controllerAnimation = defineEnum(builder, "controllerAnimation", ControllerAnimation.RAINBOW,
+                    "Controls the animation displayed by ME Controllers.");
             this.debugGuiOverlays = define(builder, "showDebugGuiOverlays", false, "Show debugging GUI overlays");
             this.showPlacementPreview = define(builder, "showPlacementPreview", true,
                     "Show a preview of part and facade placement");

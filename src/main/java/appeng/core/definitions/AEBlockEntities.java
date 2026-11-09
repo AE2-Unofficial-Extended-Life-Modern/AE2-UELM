@@ -54,6 +54,7 @@ import appeng.blockentity.misc.PaintSplotchesBlockEntity;
 import appeng.blockentity.misc.SuperMEReplenisherBlockEntity;
 import appeng.blockentity.misc.VibrationChamberBlockEntity;
 import appeng.blockentity.networking.CableBusBlockEntity;
+import appeng.blockentity.networking.ColorableControllerBlockEntity;
 import appeng.blockentity.networking.ControllerBlockEntity;
 import appeng.blockentity.networking.CreativeEnergyCellBlockEntity;
 import appeng.blockentity.networking.CrystalResonanceGeneratorBlockEntity;
@@ -104,6 +105,9 @@ public final class AEBlockEntities {
             CableBusBlockEntity::new, AEBlocks.CABLE_BUS);
     public static final DeferredBlockEntityType<ControllerBlockEntity> CONTROLLER = create("controller",
             ControllerBlockEntity.class, ControllerBlockEntity::new, AEBlocks.CONTROLLER);
+    public static final DeferredBlockEntityType<ColorableControllerBlockEntity> COLORABLE_CONTROLLER = create(
+            "colorable_controller", ColorableControllerBlockEntity.class, ColorableControllerBlockEntity::new,
+            AEBlocks.COLORABLE_CONTROLLER);
     public static final DeferredBlockEntityType<DriveBlockEntity> DRIVE = create("drive", DriveBlockEntity.class,
             DriveBlockEntity::new, AEBlocks.DRIVE);
     public static final DeferredBlockEntityType<MEChestBlockEntity> ME_CHEST = create("chest", MEChestBlockEntity.class,

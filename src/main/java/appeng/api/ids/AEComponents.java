@@ -254,6 +254,12 @@ public final class AEComponents {
             builder -> builder.persistent(AEColor.CODEC).networkSynchronized(AEColor.STREAM_CODEC));
 
     /**
+     * The color of a colorable ME controller in item form.
+     */
+    public static final DataComponentType<AEColor> CONTROLLER_COLOR = register("controller_color",
+            builder -> builder.persistent(AEColor.CODEC).networkSynchronized(AEColor.STREAM_CODEC));
+
+    /**
      * Defines the fuzzy mode for a storage cell.
      */
     public static final DataComponentType<FuzzyMode> STORAGE_CELL_FUZZY_MODE = register("storage_cell_fuzzy_mode",
