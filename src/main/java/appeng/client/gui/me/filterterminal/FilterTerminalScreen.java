@@ -57,7 +57,7 @@ import appeng.menu.implementations.FilterTerminalMenu;
  * most of the drawing logic and layout is copied from
  * {@link appeng.client.gui.me.patternaccess.PatternAccessTermScreen} with some adapatations for the two search bars
  */
-public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
+public class FilterTerminalScreen<C extends FilterTerminalMenu> extends AEBaseScreen<C> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterTerminalScreen.class);
 
@@ -103,7 +103,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     private final AETextField configuredSearchField;
     private int visibleRows;
 
-    public FilterTerminalScreen(FilterTerminalMenu menu, Inventory playerInventory, Component title,
+    public FilterTerminalScreen(C menu, Inventory playerInventory, Component title,
             ScreenStyle style) {
         super(menu, playerInventory, title, style);
         scrollbar = widgets.addScrollBar("scrollbar");

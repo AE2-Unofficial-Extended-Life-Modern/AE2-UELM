@@ -26,6 +26,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyTypes;
 import appeng.api.stacks.GenericStack;
+import appeng.api.storage.ISubMenuHost;
 import appeng.core.AELog;
 import appeng.core.network.clientbound.ClearFilterTerminalPacket;
 import appeng.core.network.clientbound.FilterTerminalPacket;
@@ -43,18 +44,21 @@ import appeng.parts.reporting.FilterTerminalPart;
 public class FilterTerminalMenu extends AEBaseMenu {
 
     public static final MenuType<FilterTerminalMenu> TYPE = MenuTypeBuilder
-            .create(FilterTerminalMenu::new, FilterTerminalPart.class)
+            .create((int id, Inventory playerInventory, FilterTerminalPart host) -> new FilterTerminalMenu(id,
+                    playerInventory, host), FilterTerminalPart.class)
             .build("filter_terminal");
 
     private static long inventorySerial = Long.MIN_VALUE;
 
-    private final FilterTerminalPart host;
     private final Map<Object, TargetTracker> trackers = new IdentityHashMap<>();
     private final Long2ObjectOpenHashMap<TargetTracker> byId = new Long2ObjectOpenHashMap<>();
 
     public FilterTerminalMenu(int id, Inventory playerInventory, FilterTerminalPart host) {
-        super(TYPE, id, playerInventory, host);
-        this.host = host;
+        this(TYPE, id, playerInventory, host);
+    }
+
+    public FilterTerminalMenu(MenuType<?> menuType, int id, Inventory playerInventory, ISubMenuHost host) {
+        super(menuType, id, playerInventory, host);
         createPlayerInventorySlots(playerInventory);
     }
 
@@ -90,7 +94,8 @@ public class FilterTerminalMenu extends AEBaseMenu {
 
     @Nullable
     private IGrid getGrid() {
-        var node = host.getActionableNode();
+        var actionHost = getActionHost();
+        var node = actionHost != null ? actionHost.getActionableNode() : null;
         return node != null && node.isActive() ? node.getGrid() : null;
     }
 

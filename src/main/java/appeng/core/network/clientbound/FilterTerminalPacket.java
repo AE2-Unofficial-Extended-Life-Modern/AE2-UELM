@@ -49,7 +49,7 @@ public record FilterTerminalPacket(FilterTerminalPacketData data) implements Cli
     @Override
     @OnlyIn(Dist.CLIENT)
     public void handleOnClient(Player player) {
-        if (!(Minecraft.getInstance().screen instanceof FilterTerminalScreen screen)) {
+        if (!(Minecraft.getInstance().screen instanceof FilterTerminalScreen<?> screen)) {
             return;
         }
 
