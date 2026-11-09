@@ -26,7 +26,6 @@ import java.util.PriorityQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.Iterators;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -53,9 +52,7 @@ public class TickManagerService implements ITickManager, IGridServiceProvider {
     private final Map<IGridNode, TickTracker> alertable = new IdentityHashMap<>();
     private final Map<IGridNode, TickTracker> sleeping = new IdentityHashMap<>();
     private final Map<IGridNode, TickTracker> awake = new IdentityHashMap<>();
-    private final Map<Level, PriorityQueue<TickTracker>> upcomingTicks = new IdentityHashMap<>();
-
-    private PriorityQueue<TickTracker> currentlyTickingQueue = null;
+    private final Map<Level, PriorityQueue<TickTracker.QueueEntry>> upcomingTicks = new IdentityHashMap<>();
 
     private long currentTick = 0;
     private final Stopwatch stopWatch = Stopwatch.createUnstarted();
@@ -84,33 +81,31 @@ public class TickManagerService implements ITickManager, IGridServiceProvider {
         var queue = this.upcomingTicks.get(level);
 
         if (queue != null) {
-            currentlyTickingQueue = queue;
-
-            try {
-                tickQueue(queue);
-            } finally {
-                currentlyTickingQueue = null;
-            }
+            tickQueue(queue);
 
             if (queue.isEmpty()) {
                 this.upcomingTicks.remove(level);
+            } else if (queue.size() > 2 * awake.size() + 64) {
+                queue.removeIf(entry -> !entry.isCurrent());
             }
         }
     }
 
-    private void tickQueue(PriorityQueue<TickTracker> queue) {
-        TickTracker tt;
-
+    private void tickQueue(PriorityQueue<TickTracker.QueueEntry> queue) {
         while (!queue.isEmpty()) {
+            var entry = queue.peek();
+            if (!entry.isCurrent()) {
+                queue.poll();
+                continue;
+            }
             // Peek and stop once it reaches a TickTracker running at a later tick
-            tt = queue.peek();
-            if (tt.getNextTick() > this.currentTick) {
+            if (entry.nextTick() > this.currentTick) {
                 break;
             }
 
-            if (queue.poll() != tt) {
-                throw new IllegalStateException();
-            }
+            queue.poll();
+            var tt = entry.tracker();
+            tt.dequeue();
             var diff = (int) (this.currentTick - tt.getLastTick());
             currentlyTicking = tt.getNode();
             TickRateModulation mod;
@@ -139,7 +134,7 @@ public class TickManagerService implements ITickManager, IGridServiceProvider {
                 // Note that the node _may_ have been removed entirely from the grid in its own tick
                 if (this.awake.containsKey(tt.getNode())) {
                     // Queue already known, no need to use addToQueue() to resolve it again.
-                    queue.add(tt);
+                    queue.add(tt.enqueue());
                 }
             }
         }
@@ -315,24 +310,18 @@ public class TickManagerService implements ITickManager, IGridServiceProvider {
     /**
      * null as level could be used for virtual nodes.
      */
-    private PriorityQueue<TickTracker> getQueue(@Nullable Level level) {
+    private PriorityQueue<TickTracker.QueueEntry> getQueue(@Nullable Level level) {
         return this.upcomingTicks.computeIfAbsent(level, (key) -> new PriorityQueue<>());
     }
 
     private void addToQueue(IGridNode node, TickTracker tt) {
         var queue = getQueue(node.getLevel());
-        queue.add(tt);
+        queue.add(tt.enqueue());
     }
 
-    private void removeFromQueue(IGridNode node, TickTracker tt) {
-        var level = node.getLevel();
-        var queue = getQueue(level);
-        queue.remove(tt);
-
-        // Make sure we don't cleanup a queue we are iterating over,
-        // as something might be added to it later even if it's empty now.
-        if (currentlyTickingQueue != queue && queue.isEmpty()) {
-            this.upcomingTicks.remove(level);
+    private void removeFromQueue(IGridNode node, @Nullable TickTracker tt) {
+        if (tt != null) {
+            tt.dequeue();
         }
     }
 
@@ -381,11 +370,7 @@ public class TickManagerService implements ITickManager, IGridServiceProvider {
 
         // Also check if the node is _really_ queued for ticking. If it's awake
         // and not queued, this indicates a bug.
-        boolean isQueued = false;
-        var tickQueue = upcomingTicks.get(node.getLevel());
-        if (awakeTracker != null && tickQueue != null) {
-            isQueued = Iterators.contains(tickQueue.iterator(), awakeTracker);
-        }
+        boolean isQueued = awakeTracker != null && awakeTracker.isQueued();
 
         // Get the tick-request stats
         var tracker = awakeTracker;
