@@ -159,11 +159,16 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
 
         // Invalid patterns have no tooltip image, so their lines are always shown here.
         if (!valid || !AEConfig.instance().isFancyTooltipsEnabled()) {
-            lines.addAll(patternTooltip(tooltip, author));
+            lines.addAll(patternTooltip(tooltip, author, valid ? "   " : "  "));
         }
     }
 
     public static List<Component> patternTooltip(@Nullable PatternDetailsTooltip tooltip, String author) {
+        return patternTooltip(tooltip, author, "   ");
+    }
+
+    private static List<Component> patternTooltip(@Nullable PatternDetailsTooltip tooltip, String author,
+            String indent) {
         var lines = new ArrayList<Component>();
 
         if (tooltip != null) {
@@ -172,14 +177,14 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
                         .withStyle(ChatFormatting.DARK_AQUA));
             }
             for (var output : tooltip.getOutputs()) {
-                lines.add(Component.literal("   ").append(getTooltipEntryLine(output, false)));
+                lines.add(Component.literal(indent).append(getTooltipEntryLine(output, false)));
             }
 
             if (!tooltip.getInputs().isEmpty()) {
                 lines.add(GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN));
             }
             for (var input : tooltip.getInputs()) {
-                lines.add(Component.literal("   ").append(getTooltipEntryLine(input, true)));
+                lines.add(Component.literal(indent).append(getTooltipEntryLine(input, true)));
             }
 
             for (var property : tooltip.getProperties()) {
