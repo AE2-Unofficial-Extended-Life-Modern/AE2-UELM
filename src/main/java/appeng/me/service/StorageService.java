@@ -19,13 +19,17 @@
 package appeng.me.service;
 
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
@@ -57,6 +61,7 @@ import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.me.helpers.InterestManager;
 import appeng.me.helpers.StackWatcher;
+import appeng.me.storage.DelegatingMEInventory;
 import appeng.me.storage.NetworkStorage;
 import appeng.util.JsonStreamUtil;
 
@@ -96,9 +101,16 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
     private final StatsAccumulator inventoryRefreshStats = new StatsAccumulator();
 
+    private static final Deque<StorageService> BUILDING = new ArrayDeque<>();
+    private final Set<StorageService> includedServices = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<StorageService> dependents = Collections.newSetFromMap(new WeakHashMap<>());
+    private final MEStorage cachedView;
+    private boolean partialBuild;
+
     public StorageService() {
         this.storage = new NetworkStorage();
         this.storage.setChangeListener(this::markContentsChanged);
+        this.cachedView = new CachedView();
     }
 
     @Override
@@ -121,7 +133,17 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
     @Override
     public void markContentsChanged() {
+        if (contentsChanged) {
+            return;
+        }
         contentsChanged = true;
+        for (var dependent : List.copyOf(dependents)) {
+            dependent.markContentsChanged();
+        }
+    }
+
+    public MEStorage getCachedView() {
+        return cachedView;
     }
 
     private void updateCachedStacks() {
@@ -132,9 +154,23 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             contentsChanged = false;
             ticksSinceRebuild = 0;
 
+            for (var included : includedServices) {
+                included.dependents.remove(this);
+            }
+            includedServices.clear();
+
             // Update cachedAvailableStacks to have the latest inventory contents
             cachedAvailableStacks.clear();
-            storage.getAvailableStacks(cachedAvailableStacks);
+            partialBuild = false;
+            BUILDING.push(this);
+            try {
+                storage.getAvailableStacks(cachedAvailableStacks);
+            } finally {
+                BUILDING.pop();
+            }
+            if (partialBuild) {
+                cachedStacksNeedUpdate = true;
+            }
             // clear() only clears the inner maps,
             // so ensure that the outer map gets cleaned up too
             cachedAvailableStacks.removeEmptySubmaps();
@@ -147,6 +183,57 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             cachedAvailableAmounts = listener.currentContents();
         } finally {
             inventoryRefreshStats.add(System.nanoTime() - time);
+        }
+    }
+
+    private boolean isBuilding() {
+        return BUILDING.contains(this);
+    }
+
+    private class CachedView extends DelegatingMEInventory {
+        CachedView() {
+            super(storage);
+        }
+
+        @Override
+        public void getAvailableStacks(KeyCounter out) {
+            var reader = BUILDING.peek();
+            if (isBuilding()) {
+                if (reader != null && reader != StorageService.this) {
+                    reader.partialBuild = true;
+                }
+                super.getAvailableStacks(out);
+                return;
+            }
+            if (contentsChanged) {
+                cachedStacksNeedUpdate = true;
+            }
+            var cached = getCachedInventory();
+            if (reader != null) {
+                reader.includedServices.add(StorageService.this);
+                dependents.add(reader);
+            }
+            if (reader != null && includedServices.contains(reader)) {
+                super.getAvailableStacks(out);
+                return;
+            }
+
+            out.addAll(cached);
+            if (reader != null) {
+                reader.includedServices.addAll(includedServices);
+            }
+        }
+
+        @Override
+        public KeyCounter getAvailableStacks() {
+            var result = new KeyCounter();
+            getAvailableStacks(result);
+            return result;
+        }
+
+        @Override
+        public int getEstimatedStackCount() {
+            return isBuilding() ? super.getEstimatedStackCount() : cachedAvailableStacks.size();
         }
     }
 
