@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -23,6 +24,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 
 import appeng.api.config.Actionable;
+import appeng.api.ids.AEComponents;
 import appeng.api.inventories.ISegmentedInventory;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridFlags;
@@ -50,6 +52,7 @@ import appeng.me.helpers.MachineSource;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.implementations.SuperMEReplenisherMenu;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.AppEngInternalInventory;
 import appeng.util.inv.InternalInventoryHost;
 import appeng.util.inv.filter.IAEItemFilter;
@@ -605,6 +608,32 @@ public class SuperMEReplenisherBlockEntity extends AENetworkedBlockEntity
     @Override
     public ItemStack getMainMenuIcon() {
         return AEBlocks.SUPER_ME_REPLENISHER.stack();
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            var tickRate = input.get(AEComponents.EXPORTED_REPLENISHER_TICK_RATE);
+            if (tickRate != null) {
+                this.setTickRate(tickRate);
+            }
+            var threshold = input.get(AEComponents.EXPORTED_REPLENISHER_THRESHOLD);
+            if (threshold != null) {
+                this.setThreshold(threshold);
+            }
+        }
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            builder.set(AEComponents.EXPORTED_REPLENISHER_TICK_RATE, this.getTickRate());
+            builder.set(AEComponents.EXPORTED_REPLENISHER_THRESHOLD, this.getThreshold());
+        }
     }
 
     private boolean isOwnAction(IActionSource source) {
