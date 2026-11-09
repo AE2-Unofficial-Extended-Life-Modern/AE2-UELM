@@ -32,9 +32,11 @@ import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.AEBaseScreen;
 import appeng.client.gui.Icon;
+import appeng.client.gui.me.common.TerminalFavorites;
 import appeng.client.gui.style.PaletteColor;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.widgets.AETextField;
+import appeng.client.gui.widgets.FavoriteButton;
 import appeng.client.gui.widgets.IconButton;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.client.gui.widgets.SettingToggleButton;
@@ -72,7 +74,8 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     private static final int ROW_HEIGHT = 18;
     private static final int SLOT_SIZE = 18;
     private static final int HIGHLIGHT_BUTTON_X = 152;
-    private static final int TEXT_MAX_WIDTH = HIGHLIGHT_BUTTON_X - GUI_PADDING_X - NAME_MARGIN_X - 4;
+    private static final int FAVORITE_BUTTON_X = HIGHLIGHT_BUTTON_X - 17;
+    private static final int TEXT_MAX_WIDTH = FAVORITE_BUTTON_X - GUI_PADDING_X - NAME_MARGIN_X - 4;
 
     private static final Rect2i HEADER_BBOX = new Rect2i(0, 0, GUI_WIDTH, GUI_HEADER_HEIGHT);
     private static final Rect2i ROW_TEXT_TOP_BBOX = new Rect2i(0, 29, GUI_WIDTH, ROW_HEIGHT);
@@ -93,6 +96,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     private final List<Row> rows = new ArrayList<>();
     private final List<FilterTerminalSlot> clientSlots = new ArrayList<>();
     private final List<HighlightButton> highlightButtons = new ArrayList<>();
+    private final List<FavoriteButton> favoriteButtons = new ArrayList<>();
 
     private final Scrollbar scrollbar;
     private final AETextField nameSearchField;
@@ -123,6 +127,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     public void init() {
         clearClientSlots();
         highlightButtons.clear();
+        favoriteButtons.clear();
 
         visibleRows = config.getTerminalStyle().getRows(
                 (height - GUI_HEADER_HEIGHT - GUI_FOOTER_HEIGHT - GUI_TOP_AND_BOTTOM_PADDING) / ROW_HEIGHT);
@@ -134,6 +139,10 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
             var highlight = new HighlightButton();
             highlight.setVisibility(false);
             highlightButtons.add(addRenderableWidget(highlight));
+
+            var favorite = new FavoriteButton(this::refreshList);
+            favorite.setVisibility(false);
+            favoriteButtons.add(addRenderableWidget(favorite));
         }
 
         setInitialFocus(nameSearchField);
@@ -145,6 +154,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
         super.updateBeforeRender();
 
         highlightButtons.forEach(button -> button.setVisibility(false));
+        favoriteButtons.forEach(button -> button.setVisibility(false));
         var scrollLevel = scrollbar.getCurrentScroll();
         for (var visibleRow = 0; visibleRow < visibleRows; visibleRow++) {
             var rowIndex = scrollLevel + visibleRow;
@@ -153,11 +163,16 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
             }
 
             if (rows.get(rowIndex) instanceof GroupHeaderRow headerRow) {
+                var buttonY = topPos + GUI_HEADER_HEIGHT + visibleRow * ROW_HEIGHT + 1;
                 var button = highlightButtons.get(visibleRow);
                 button.setTarget(headerRow.container);
-                button.setPosition(leftPos + HIGHLIGHT_BUTTON_X,
-                        topPos + GUI_HEADER_HEIGHT + visibleRow * ROW_HEIGHT + 1);
+                button.setPosition(leftPos + HIGHLIGHT_BUTTON_X, buttonY);
                 button.setVisibility(true);
+
+                var favorite = favoriteButtons.get(visibleRow);
+                favorite.setFavoriteKey(getFavoriteKey(headerRow.container));
+                favorite.setPosition(leftPos + FAVORITE_BUTTON_X, buttonY);
+                favorite.setVisibility(true);
             }
         }
     }
@@ -357,10 +372,20 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
         groups.sort(GROUP_COMPARATOR);
 
         rows.clear();
+        addRows(true);
+        addRows(false);
+        resetScrollbar();
+    }
+
+    private void addRows(boolean favorites) {
         for (var group : groups) {
             var containers = new ArrayList<>(byGroup.get(group));
             Collections.sort(containers);
             for (var container : containers) {
+                if (TerminalFavorites.isFavorite(getFavoriteKey(container)) != favorites) {
+                    continue;
+                }
+
                 rows.add(new GroupHeaderRow(group, container));
 
                 var columns = container.getSlotsPerRow();
@@ -370,7 +395,11 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
                 }
             }
         }
-        resetScrollbar();
+    }
+
+    private static String getFavoriteKey(FilterTerminalRecord container) {
+        return "filter_terminal:" + container.getDimension().location() + ":" + container.getPos().asLong() + ":"
+                + container.getSide();
     }
 
     private void resetScrollbar() {
