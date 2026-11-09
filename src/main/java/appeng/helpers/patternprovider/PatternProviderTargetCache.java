@@ -86,12 +86,7 @@ class PatternProviderTargetCache {
                 if (storage instanceof CompositeStorage compositeStorage) {
                     return compositeStorage.containsAnyFuzzy(patternInputs);
                 }
-                for (var stack : storage.getAvailableStacks()) {
-                    if (patternInputs.contains(stack.getKey().dropSecondary())) {
-                        return true;
-                    }
-                }
-                return false;
+                return storage.anyAvailable(key -> patternInputs.contains(key.dropSecondary()));
             }
         };
     }

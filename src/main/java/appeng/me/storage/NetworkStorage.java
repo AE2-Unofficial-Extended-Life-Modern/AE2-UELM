@@ -77,6 +77,21 @@ public class NetworkStorage implements MEStorage {
         }
     }
 
+    public boolean isInUse() {
+        return mountsInUse;
+    }
+
+    public boolean allMountsReportAllChanges() {
+        for (var list : this.priorityInventory.values()) {
+            for (var inv : list) {
+                if (!inv.reportsAllChanges()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     public void mount(int priority, MEStorage inventory) {
         if (mountsInUse) {
             if (queuedOperations == null) {
@@ -217,6 +232,9 @@ public class NetworkStorage implements MEStorage {
     }
 
     private void reportChange(MEStorage inv, AEKey what, long delta) {
+        if (changeListener.ignoresChangesOf(inv)) {
+            return;
+        }
         if (inv.reportsExactChanges()) {
             changeListener.onExactChange(what, delta);
         } else {
@@ -227,6 +245,11 @@ public class NetworkStorage implements MEStorage {
     public interface ChangeListener {
         ChangeListener NONE = new ChangeListener() {
             @Override
+            public boolean ignoresChangesOf(MEStorage inv) {
+                return false;
+            }
+
+            @Override
             public void onExactChange(AEKey what, long delta) {
             }
 
@@ -234,6 +257,8 @@ public class NetworkStorage implements MEStorage {
             public void onOtherChange() {
             }
         };
+
+        boolean ignoresChangesOf(MEStorage inv);
 
         void onExactChange(AEKey what, long delta);
 

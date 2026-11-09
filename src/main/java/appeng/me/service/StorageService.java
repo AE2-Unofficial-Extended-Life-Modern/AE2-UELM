@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
@@ -50,10 +51,8 @@ import net.minecraft.nbt.NbtOps;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
-import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridServiceProvider;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
 import appeng.api.networking.storage.IStorageWatcherNode;
 import appeng.api.stacks.AEKey;
@@ -63,6 +62,7 @@ import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.me.helpers.InterestManager;
 import appeng.me.helpers.StackWatcher;
+import appeng.me.service.helpers.CraftingServiceStorage;
 import appeng.me.storage.DelegatingMEInventory;
 import appeng.me.storage.MEInventoryHandler;
 import appeng.me.storage.NetworkStorage;
@@ -87,7 +87,8 @@ public class StorageService implements IStorageService, IGridServiceProvider {
      * Publicly exposed cached available stacks.
      */
     private final KeyCounter cachedAvailableStacks = new KeyCounter();
-    private static final int FULL_REBUILD_INTERVAL = Integer.getInteger("appeng.storage.fullRebuildInterval", 20);
+    private static final int FULL_REBUILD_INTERVAL = 20;
+    private static final int REPORTED_REBUILD_INTERVAL = 200;
     /**
      * Private cached amounts, to ensure that we send correct change notifications even if
      * {@link #cachedAvailableStacks} is modified by mistake.
@@ -96,6 +97,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     private boolean cachedStacksNeedUpdate = true;
     private boolean contentsChanged = true;
     private int ticksSinceRebuild;
+    private boolean allChangesReported;
     /**
      * Tracks the stack watcher associated with a given grid node. Needed to clean up watchers when the node leaves the
      * grid.
@@ -110,27 +112,36 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     private final MEStorage cachedView;
     private boolean partialBuild;
 
-    private final KeyCounter pendingDeltas = new KeyCounter();
-    private final KeyCounter viewDeltas = new KeyCounter();
-    private int viewOperationDepth;
-    private boolean viewOperationExact;
+    private KeyCounter pendingDeltas = new KeyCounter();
+    private KeyCounter spareDeltas = new KeyCounter();
+    private boolean applyingDeltas;
 
     public StorageService() {
-        this.storage = new NetworkStorage();
+        this.storage = new NetworkStorage() {
+            @Override
+            public KeyCounter getAvailableStacks() {
+                if (!BUILDING.isEmpty() || isInUse()) {
+                    return super.getAvailableStacks();
+                }
+                var result = new KeyCounter();
+                result.addAll(getUpToDateCache());
+                return result;
+            }
+        };
         this.storage.setChangeListener(new NetworkStorage.ChangeListener() {
+            @Override
+            public boolean ignoresChangesOf(MEStorage inv) {
+                return inv instanceof CraftingServiceStorage.Inventory || inv instanceof CachedView
+                        || inv instanceof MEInventoryHandler handler && handler.wraps(CachedView.class);
+            }
+
             @Override
             public void onExactChange(AEKey what, long delta) {
                 pendingDeltas.add(what, delta);
-                if (viewOperationDepth > 0) {
-                    viewDeltas.add(what, delta);
-                }
             }
 
             @Override
             public void onOtherChange() {
-                if (viewOperationDepth > 0) {
-                    viewOperationExact = false;
-                }
                 markContentsChanged();
             }
         });
@@ -140,72 +151,84 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     @Override
     public void onServerEndTick() {
         ticksSinceRebuild++;
-        if (contentsChanged || ticksSinceRebuild >= FULL_REBUILD_INTERVAL) {
+        var rebuildInterval = allChangesReported ? REPORTED_REBUILD_INTERVAL : FULL_REBUILD_INTERVAL;
+        if (contentsChanged || ticksSinceRebuild >= rebuildInterval
+                || cachedStacksNeedUpdate && !interestManager.isEmpty()) {
             if (interestManager.isEmpty()) {
                 // lazily rebuild cache list
                 cachedStacksNeedUpdate = true;
                 contentsChanged = false;
                 ticksSinceRebuild = 0;
-                pendingDeltas.clear();
-                viewDeltas.clear();
+                discardPendingDeltas();
             } else {
                 // rebuild the cache now to notify listeners
                 updateCachedStacks();
             }
         } else if (!pendingDeltas.isEmpty()) {
             if (cachedStacksNeedUpdate) {
-                pendingDeltas.clear();
-                viewDeltas.clear();
+                discardPendingDeltas();
             } else {
                 applyPendingDeltas();
             }
         }
     }
 
+    private void discardPendingDeltas() {
+        if (!pendingDeltas.isEmpty()) {
+            pendingDeltas.clear();
+            markDependentsChanged();
+        }
+    }
+
     private void applyPendingDeltas() {
-        var forward = dependents.isEmpty() ? null : new KeyCounter();
-        var rebuildDependents = !viewDeltas.isEmpty() && dependents.size() > 1;
-        var mismatch = false;
+        if (applyingDeltas) {
+            return;
+        }
         for (var entry : pendingDeltas) {
+            if (cachedAvailableAmounts.getLong(entry.getKey()) + entry.getLongValue() < 0) {
+                updateCachedStacks();
+                return;
+            }
+        }
+
+        var deltas = pendingDeltas;
+        pendingDeltas = spareDeltas;
+        spareDeltas = deltas;
+        for (var entry : deltas) {
             var delta = entry.getLongValue();
             if (delta == 0) {
                 continue;
             }
             var what = entry.getKey();
             var amount = cachedAvailableAmounts.getLong(what) + delta;
-            if (amount < 0) {
-                mismatch = true;
-                break;
-            } else if (amount == 0) {
+            if (amount == 0) {
                 cachedAvailableStacks.remove(what);
                 cachedAvailableAmounts.removeLong(what);
             } else {
                 cachedAvailableStacks.set(what, amount);
                 cachedAvailableAmounts.put(what, amount);
             }
-            postWatcherUpdate(what, amount);
-            if (forward != null) {
-                var forwardDelta = delta - viewDeltas.get(what);
-                if (forwardDelta != 0) {
-                    forward.add(what, forwardDelta);
-                }
-            }
         }
-        pendingDeltas.clear();
-        viewDeltas.clear();
 
-        if (mismatch) {
-            updateCachedStacks();
-        } else if (rebuildDependents) {
-            markDependentsChanged();
-        } else if (forward != null && !forward.isEmpty()) {
-            for (var dependent : List.copyOf(dependents)) {
-                if (includedServices.contains(dependent)) {
-                    dependent.markContentsChanged();
-                } else {
-                    dependent.onIncludedDeltas(this, forward);
+        applyingDeltas = true;
+        try {
+            for (var entry : deltas) {
+                if (entry.getLongValue() != 0) {
+                    postWatcherUpdate(entry.getKey(), cachedAvailableAmounts.getLong(entry.getKey()));
                 }
             }
+            if (!dependents.isEmpty()) {
+                for (var dependent : List.copyOf(dependents)) {
+                    if (includedServices.contains(dependent)) {
+                        dependent.markContentsChanged();
+                    } else {
+                        dependent.onIncludedDeltas(this, deltas);
+                    }
+                }
+            }
+        } finally {
+            deltas.clear();
+            applyingDeltas = false;
         }
     }
 
@@ -264,7 +287,6 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             contentsChanged = false;
             ticksSinceRebuild = 0;
             pendingDeltas.clear();
-            viewDeltas.clear();
 
             for (var included : includedServices) {
                 included.dependents.remove(this);
@@ -280,12 +302,14 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             } finally {
                 BUILDING.pop();
             }
-            if (partialBuild) {
-                cachedStacksNeedUpdate = true;
-            }
             // clear() only clears the inner maps,
             // so ensure that the outer map gets cleaned up too
             cachedAvailableStacks.removeEmptySubmaps();
+
+            if (partialBuild) {
+                cachedStacksNeedUpdate = true;
+                return;
+            }
 
             // Process the contents of cachedAvailableStacks, send notifications, and compute a new
             // cachedAvailableAmounts
@@ -294,12 +318,24 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             listener.sendRemovedStacksToWatchers();
             cachedAvailableAmounts = listener.currentContents();
 
-            if (listener.changed) {
+            var wasReported = allChangesReported;
+            allChangesReported = storage.allMountsReportAllChanges();
+
+            if (listener.changed || wasReported != allChangesReported) {
                 markDependentsChanged();
             }
         } finally {
             inventoryRefreshStats.add(System.nanoTime() - time);
         }
+    }
+
+    private KeyCounter getUpToDateCache() {
+        if (contentsChanged) {
+            cachedStacksNeedUpdate = true;
+        } else if (!cachedStacksNeedUpdate && !pendingDeltas.isEmpty()) {
+            applyPendingDeltas();
+        }
+        return getCachedInventory();
     }
 
     private boolean isBuilding() {
@@ -321,12 +357,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
                 super.getAvailableStacks(out);
                 return;
             }
-            if (contentsChanged) {
-                cachedStacksNeedUpdate = true;
-            } else if (!cachedStacksNeedUpdate && !pendingDeltas.isEmpty()) {
-                applyPendingDeltas();
-            }
-            var cached = getCachedInventory();
+            var cached = getUpToDateCache();
             if (reader != null) {
                 reader.includedServices.add(StorageService.this);
                 dependents.add(reader);
@@ -350,40 +381,21 @@ public class StorageService implements IStorageService, IGridServiceProvider {
         }
 
         @Override
-        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
-            if (mode == Actionable.SIMULATE) {
-                return super.insert(what, amount, mode, source);
-            }
-            beginViewOperation();
-            try {
-                return super.insert(what, amount, mode, source);
-            } finally {
-                viewOperationDepth--;
-            }
+        public boolean reportsAllChanges() {
+            return allChangesReported;
         }
 
         @Override
-        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
-            if (mode == Actionable.SIMULATE) {
-                return super.extract(what, amount, mode, source);
+        public boolean anyAvailable(Predicate<AEKey> predicate) {
+            if (!BUILDING.isEmpty()) {
+                return super.anyAvailable(predicate);
             }
-            beginViewOperation();
-            try {
-                return super.extract(what, amount, mode, source);
-            } finally {
-                viewOperationDepth--;
+            for (var entry : getUpToDateCache()) {
+                if (predicate.test(entry.getKey())) {
+                    return true;
+                }
             }
-        }
-
-        private void beginViewOperation() {
-            if (viewOperationDepth++ == 0) {
-                viewOperationExact = true;
-            }
-        }
-
-        @Override
-        public boolean reportsExactChanges() {
-            return viewOperationExact;
+            return false;
         }
 
         @Override
