@@ -128,6 +128,7 @@ import appeng.init.client.InitItemModelsProperties;
 import appeng.init.client.InitScreens;
 import appeng.init.client.InitStackRenderHandlers;
 import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.recipes.transform.TransformLogic;
 import appeng.siteexport.AESiteExporter;
 import appeng.spatial.SpatialStorageDimensionIds;
 import appeng.spatial.SpatialStorageSkyProperties;
@@ -204,6 +205,8 @@ public class AppEngClient extends AppEngBase {
             PinnedKeys.disconnect();
             TerminalFavorites.disconnect();
         });
+
+        NeoForge.EVENT_BUS.addListener(TransformLogic::onClientRecipesUpdated);
 
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> {
             tickPinnedKeys(Minecraft.getInstance());
