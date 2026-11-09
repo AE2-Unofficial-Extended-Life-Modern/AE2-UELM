@@ -107,6 +107,11 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .requires(AEItems.CALCULATION_PROCESSOR)
                 .unlockedBy("has_advanced_card", has(AEItems.ADVANCED_CARD))
                 .save(consumer, AppEng.makeId("materials/carddistribution"));
+        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEItems.STICKY_CARD)
+                .requires(AEItems.ADVANCED_CARD)
+                .requires(ConventionTags.SLIMEBALL)
+                .unlockedBy("has_advanced_card", has(AEItems.ADVANCED_CARD))
+                .save(consumer, AppEng.makeId("materials/cardsticky"));
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AEItems.ENERGY_CARD)
                 .pattern("ab")
                 .define('a', AEBlocks.DENSE_ENERGY_CELL)

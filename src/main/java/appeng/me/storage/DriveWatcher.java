@@ -18,9 +18,12 @@
 
 package appeng.me.storage;
 
+import org.jetbrains.annotations.Nullable;
+
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
+import appeng.api.storage.StickyClaim;
 import appeng.api.storage.cells.CellState;
 import appeng.api.storage.cells.StorageCell;
 
@@ -32,6 +35,7 @@ public class DriveWatcher extends MEInventoryHandler {
     public DriveWatcher(StorageCell i, Runnable activityCallback) {
         super(i);
         this.activityCallback = activityCallback;
+        setSticky(i.getStickyClaim() != null);
         this.oldStatus = getStatus();
     }
 
@@ -73,5 +77,16 @@ public class DriveWatcher extends MEInventoryHandler {
         }
 
         return extracted;
+    }
+
+    @Override
+    public boolean acceptsSticky(AEKey what) {
+        return super.acceptsSticky(what) && getDelegate().acceptsSticky(what);
+    }
+
+    @Nullable
+    @Override
+    public StickyClaim getStickyClaim() {
+        return super.getStickyClaim() != null ? getDelegate().getStickyClaim() : null;
     }
 }

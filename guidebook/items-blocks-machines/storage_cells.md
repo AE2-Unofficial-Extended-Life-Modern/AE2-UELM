@@ -96,6 +96,7 @@ Storage cells support the following [upgrades](upgrade_cards.md), inserted via a
 *   <ItemLink id="equal_distribution_card" /> allocates the same amount of cell byte space to each type, so one type cannot fill up the entire cell
 *   <ItemLink id="void_card" /> voids items inserted if the cell is full (or that specific type's allocated space in the
     case of an equal distribution card), useful for stopping farms from backing up. Be careful to partition this!
+*   <ItemLink id="sticky_card" /> makes the cell the only place on the network where items matching its partition can be stored. It does nothing without a partition.
 *   Portable cells can accept <ItemLink id="energy_card" /> in order to increase their battery capacity
 
 ## Coloring
