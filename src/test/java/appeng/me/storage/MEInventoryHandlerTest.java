@@ -73,6 +73,37 @@ class MEInventoryHandlerTest {
         assertThat(handler.getAvailableStacks().isEmpty()).isTrue();
     }
 
+    @Test
+    void testReportsExactChangesOnlyIfListingMatchesInsertsAndExtracts() {
+        var exactHandler = new MEInventoryHandler(new MEStorage() {
+            @Override
+            public boolean reportsExactChanges() {
+                return true;
+            }
+
+            @Override
+            public Component getDescription() {
+                return Component.empty();
+            }
+        });
+        assertThat(exactHandler.reportsExactChanges()).isTrue();
+        assertThat(handler.reportsExactChanges()).isFalse();
+
+        exactHandler.setExtractFiltering(true, true);
+        assertThat(exactHandler.reportsExactChanges()).isTrue();
+
+        exactHandler.setExtractFiltering(false, true);
+        assertThat(exactHandler.reportsExactChanges()).isFalse();
+
+        exactHandler.setExtractFiltering(true, true);
+        exactHandler.setAllowExtraction(false);
+        assertThat(exactHandler.reportsExactChanges()).isFalse();
+
+        exactHandler.setAllowExtraction(true);
+        exactHandler.setVoidOverflow(true);
+        assertThat(exactHandler.reportsExactChanges()).isFalse();
+    }
+
     private static IPartitionList partitionList(AEItemKey key) {
         var builder = IPartitionList.builder();
         builder.add(key);

@@ -141,6 +141,17 @@ public class MEInventoryHandler extends DelegatingMEInventory {
     }
 
     @Override
+    public boolean reportsExactChanges() {
+        if (this.voidOverflow) {
+            return false;
+        }
+        if (this.filterAvailableContents && (!this.allowExtraction || !this.filterOnExtraction)) {
+            return false;
+        }
+        return getDelegate().reportsExactChanges();
+    }
+
+    @Override
     public KeyCounter getAvailableStacks() {
         var result = new KeyCounter(getEstimatedStackCount());
         getAvailableStacks(result);

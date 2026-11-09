@@ -588,6 +588,11 @@ public class MEChestBlockEntity extends AENetworkedPoweredBlockEntity
         }
 
         @Override
+        public boolean reportsExactChanges() {
+            return cellInventory.reportsExactChanges();
+        }
+
+        @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
             var inserted = super.insert(what, amount, mode, source);
             if (inserted > 0 && mode == Actionable.MODULATE) {

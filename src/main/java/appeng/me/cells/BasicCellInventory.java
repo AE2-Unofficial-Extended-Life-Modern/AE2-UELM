@@ -368,6 +368,11 @@ public class BasicCellInventory implements StorageCell {
         return hasVoidUpgrade ? amount : inserted;
     }
 
+    @Override
+    public boolean reportsExactChanges() {
+        return !hasVoidUpgrade;
+    }
+
     // Inner insert for items that pass the filter.
     private long innerInsert(AEKey what, long amount, Actionable mode) {
         // Prevent non-empty storage cells from being recursively stored inside this cell
