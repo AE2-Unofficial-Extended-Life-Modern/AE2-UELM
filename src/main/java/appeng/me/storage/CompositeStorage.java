@@ -2,6 +2,7 @@ package appeng.me.storage;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import net.minecraft.network.chat.Component;
 
@@ -35,6 +36,26 @@ public class CompositeStorage implements MEStorage, ITickingMonitor {
 
     public boolean supportsType(AEKeyType type) {
         return storages.containsKey(type);
+    }
+
+    public boolean containsAnyFuzzy(Set<AEKey> keys) {
+        if (keys.isEmpty()) {
+            return false;
+        }
+        for (var storage : storages.values()) {
+            if (storage instanceof ExternalStorageFacade facade) {
+                if (facade.containsAnyFuzzy(keys)) {
+                    return true;
+                }
+            } else {
+                for (var entry : storage.getAvailableStacks()) {
+                    if (keys.contains(entry.getKey().dropSecondary())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override

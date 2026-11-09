@@ -66,6 +66,9 @@ class PatternProviderTargetCache {
 
             @Override
             public boolean containsPatternInput(Set<AEKey> patternInputs) {
+                if (storage instanceof CompositeStorage compositeStorage) {
+                    return compositeStorage.containsAnyFuzzy(patternInputs);
+                }
                 for (var stack : storage.getAvailableStacks()) {
                     if (patternInputs.contains(stack.getKey().dropSecondary())) {
                         return true;

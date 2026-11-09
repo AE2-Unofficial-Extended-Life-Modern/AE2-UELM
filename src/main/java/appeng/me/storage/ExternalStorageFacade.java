@@ -238,11 +238,9 @@ public abstract class ExternalStorageFacade implements MEStorage {
         @Override
         public boolean containsAnyFuzzy(Set<AEKey> keys) {
             for (int i = 0; i < handler.getSlots(); i++) {
-                var what = AEItemKey.of(handler.getStackInSlot(i));
-                if (what != null) {
-                    if (keys.contains(what.dropSecondary())) {
-                        return true;
-                    }
+                var stack = handler.getStackInSlot(i);
+                if (!stack.isEmpty() && keys.contains(AEItemKey.of(stack.getItem()))) {
+                    return true;
                 }
             }
             return false;
@@ -323,11 +321,9 @@ public abstract class ExternalStorageFacade implements MEStorage {
         @Override
         public boolean containsAnyFuzzy(Set<AEKey> keys) {
             for (int i = 0; i < handler.getTanks(); i++) {
-                var what = AEFluidKey.of(handler.getFluidInTank(i));
-                if (what != null) {
-                    if (keys.contains(what.dropSecondary())) {
-                        return true;
-                    }
+                var fluid = handler.getFluidInTank(i);
+                if (!fluid.isEmpty() && keys.contains(AEFluidKey.of(fluid.getFluid()))) {
+                    return true;
                 }
             }
             return false;
