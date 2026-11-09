@@ -72,6 +72,35 @@ public class CraftingCpuHelper {
         return null;
     }
 
+    /**
+     * Extracts all resources that the plan can use at submission time. Unlike {@link #tryExtractInitialItems}, this
+     * keeps successfully extracted resources when another resource is unavailable and returns the remaining deficit. Ig
+     * this may also "solve" the issue of sometimes having to replan a craft?
+     */
+    public static KeyCounter extractInitialItemsAllowMissing(ICraftingPlan plan, IGrid grid,
+            ListCraftingInventory cpuInventory, IActionSource src) {
+        var required = new KeyCounter();
+        required.addAll(plan.usedItems());
+        required.addAll(plan.missingItems());
+
+        var missing = new KeyCounter();
+        var storage = grid.getStorageService().getInventory();
+
+        for (var entry : required) {
+            var what = entry.getKey();
+            var wanted = entry.getLongValue();
+            var extracted = storage.extract(what, wanted, Actionable.MODULATE, src);
+            if (extracted > 0) {
+                cpuInventory.insert(what, extracted, Actionable.MODULATE);
+            }
+            if (extracted < wanted) {
+                missing.add(what, wanted - extracted);
+            }
+        }
+
+        return missing;
+    }
+
     public static CompoundTag generateLinkData(UUID craftId, boolean standalone, boolean req) {
         final CompoundTag tag = new CompoundTag();
 
