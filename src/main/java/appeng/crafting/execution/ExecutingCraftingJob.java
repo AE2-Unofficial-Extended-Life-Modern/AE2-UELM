@@ -172,5 +172,7 @@ public class ExecutingCraftingJob {
 
     static class TaskProgress {
         long value = 0;
+        long nextAttemptTick = 0;
+        int retryDelay = 0;
     }
 }
