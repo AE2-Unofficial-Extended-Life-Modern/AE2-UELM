@@ -66,9 +66,9 @@ public record FilterTerminalActionPacket(boolean openAmount,
         }
 
         if (openAmount) {
-            menu.openSetAmountMenu(inventoryId, slot, expectedKey);
+            menu.openSetAmountMenu(player, inventoryId, slot, expectedKey);
         } else {
-            menu.doRemoteAction(action, inventoryId, slot, expectedKey);
+            menu.doRemoteAction(player, action, inventoryId, slot, expectedKey);
         }
     }
 }

@@ -38,6 +38,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
@@ -50,6 +51,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 import net.neoforged.neoforge.registries.RegistryBuilder;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
+import appeng.api.filterterminal.FilterTerminalTargetRegistry;
 import appeng.api.ids.AEComponents;
 import appeng.api.parts.CableRenderMode;
 import appeng.api.stacks.AEKeyType;
@@ -75,6 +77,7 @@ import appeng.init.InitStats;
 import appeng.init.InitVillager;
 import appeng.init.client.InitParticleTypes;
 import appeng.init.internal.InitBlockEntityMoveStrategies;
+import appeng.init.internal.InitFilterTerminalTargets;
 import appeng.init.internal.InitGridLinkables;
 import appeng.init.internal.InitGridServices;
 import appeng.init.internal.InitP2PAttunements;
@@ -169,6 +172,7 @@ public abstract class AppEngBase implements AppEng {
 
         modEventBus.addListener(Integrations::enqueueIMC);
         modEventBus.addListener(this::commonSetup);
+        modEventBus.addListener(this::loadComplete);
 
         modEventBus.addListener(this::registerTests);
 
@@ -194,11 +198,17 @@ public abstract class AppEngBase implements AppEng {
         });
     }
 
+    private void loadComplete(FMLLoadCompleteEvent event) {
+        // Queue this after load-complete listeners so addons have their full registration window.
+        event.enqueueWork(FilterTerminalTargetRegistry::freeze);
+    }
+
     /**
      * Runs after all mods have had time to run their registrations into registries.
      */
     public void postRegistrationInitialization() {
         // Now that item instances are available, we can initialize registries that need item instances
+        InitFilterTerminalTargets.init();
         InitGridLinkables.init();
         InitStorageCells.init();
 

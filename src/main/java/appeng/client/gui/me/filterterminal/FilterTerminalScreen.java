@@ -15,20 +15,13 @@ import org.slf4j.LoggerFactory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
-
-import it.unimi.dsi.fastutil.ints.Int2LongMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 
 import guideme.document.LytRect;
 import guideme.render.SimpleRenderContext;
@@ -54,6 +47,8 @@ import appeng.core.localization.PlayerMessages;
 import appeng.core.localization.Tooltips;
 import appeng.core.network.serverbound.FilterTerminalActionPacket;
 import appeng.helpers.InventoryAction;
+import appeng.helpers.filterterminal.FilterTerminalTargetState;
+import appeng.helpers.filterterminal.FilterTerminalTargetUpdate;
 import appeng.menu.implementations.FilterTerminalMenu;
 
 /**
@@ -72,7 +67,6 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
     private static final int GUI_HEADER_HEIGHT = 29;
     private static final int GUI_FOOTER_HEIGHT = 97;
-    private static final int COLUMNS = 9;
 
     private static final int NAME_MARGIN_X = 2;
     private static final int ROW_HEIGHT = 18;
@@ -189,6 +183,9 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
                             column * SLOT_SIZE + GUI_PADDING_X, (visibleRow + 1) * SLOT_SIZE + 12);
                     menu.addClientSideSlot(slot, null);
                     clientSlots.add(slot);
+                    if (!slotsRow.container.canEditConfig(logicalSlot)) {
+                        guiGraphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x60000000);
+                    }
                 }
             } else if (row instanceof GroupHeaderRow headerRow) {
                 var group = headerRow.group;
@@ -235,9 +232,13 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
     @Override
     protected void slotClicked(@Nullable Slot slot, int slotIdx, int mouseButton, ClickType clickType) {
-        if (slot instanceof FilterTerminalSlot interfaceSlot) {
-            var machine = interfaceSlot.getMachine();
-            var expectedKey = machine.getInventory().getKey(interfaceSlot.slot);
+        if (slot instanceof FilterTerminalSlot filterSlot) {
+            var machine = filterSlot.getMachine();
+            if (!machine.canEditConfig(filterSlot.slot)) {
+                return;
+            }
+
+            var expectedKey = machine.getInventory().getKey(filterSlot.slot);
 
             InventoryAction action = null;
             if (mouseButton == 1 && getEmptyingAction(slot, menu.getCarried()) != null) {
@@ -249,7 +250,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
 
             if (action != null) {
                 PacketDistributor.sendToServer(new FilterTerminalActionPacket(action,
-                        machine.getServerId(), interfaceSlot.slot,
+                        machine.getServerId(), filterSlot.slot,
                         expectedKey));
             }
             return;
@@ -263,7 +264,7 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
         if (slot instanceof FilterTerminalSlot filterTermSlot) {
             var machine = filterTermSlot.getMachine();
             var expectedKey = machine.getInventory().getKey(filterTermSlot.slot);
-            if (expectedKey != null && machine.supportsAmountEditing()) {
+            if (expectedKey != null && machine.canEditAmount(filterTermSlot.slot)) {
                 PacketDistributor.sendToServer(FilterTerminalActionPacket.openAmount(
                         machine.getServerId(), filterTermSlot.slot, expectedKey));
                 return true;
@@ -296,12 +297,24 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
     protected void renderTooltip(GuiGraphics guiGraphics, int x, int y) {
         if (this.hoveredSlot instanceof FilterTerminalSlot slot) {
             var configured = GenericStack.fromItemStack(slot.getItem());
-            if (configured != null && slot.getMachine().supportsAmountEditing()) {
+            if (configured != null) {
+                var machine = slot.getMachine();
+                var stockedAmount = machine.getStockedAmount(slot.slot);
+                var canEditAmount = machine.canEditAmount(slot.slot);
+                if (!canEditAmount && stockedAmount <= 0) {
+                    super.renderTooltip(guiGraphics, x, y);
+                    return;
+                }
+
                 var tooltip = new ArrayList<>(getTooltipFromContainerItem(slot.getItem()));
                 tooltip.add(Tooltips.getAmountTooltip(ButtonToolTips.FilterTerminalStocked,
-                        configured.what(), slot.getMachine().getStockedAmount(slot.slot)));
-                var pickKey = getMinecraft().options.keyPickItem.getTranslatedKeyMessage();
-                tooltip.add(Tooltips.getSetAmountTooltip(pickKey));
+                        configured.what(), stockedAmount));
+
+                if (canEditAmount) {
+                    var pickKey = getMinecraft().options.keyPickItem.getTranslatedKeyMessage();
+                    tooltip.add(Tooltips.getSetAmountTooltip(pickKey));
+                }
+
                 drawTooltip(guiGraphics, x, y, tooltip);
                 return;
             }
@@ -315,18 +328,14 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
         refreshList();
     }
 
-    public void postFullUpdate(long inventoryId, int inventorySize, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side,
-            boolean supportsAmountEditing, Int2ObjectMap<GenericStack> slots, Int2LongMap stockedAmounts) {
-        state.putFull(inventoryId, inventorySize, group, dimension, pos, side, supportsAmountEditing, slots,
-                stockedAmounts);
+    public void postFullUpdate(FilterTerminalTargetState targetState) {
+        state.putFull(targetState);
         refreshList();
     }
 
-    public void postIncrementalUpdate(long inventoryId, Int2ObjectMap<GenericStack> slots,
-            Int2LongMap stockedAmounts) {
-        if (!state.applyIncremental(inventoryId, slots, stockedAmounts)) {
-            LOGGER.warn("Ignoring incremental update for unknown inventory id {}", inventoryId);
+    public void postIncrementalUpdate(FilterTerminalTargetUpdate update) {
+        if (!state.applyIncremental(update)) {
+            LOGGER.warn("Ignoring incremental update for unknown inventory id {}", update.serverId());
             return;
         }
         refreshList();
@@ -353,8 +362,10 @@ public class FilterTerminalScreen extends AEBaseScreen<FilterTerminalMenu> {
             Collections.sort(containers);
             for (var container : containers) {
                 rows.add(new GroupHeaderRow(group, container));
-                for (var offset = 0; offset < container.getInventory().size(); offset += COLUMNS) {
-                    var slots = Math.min(container.getInventory().size() - offset, COLUMNS);
+
+                var columns = container.getSlotsPerRow();
+                for (var offset = 0; offset < container.getInventory().size(); offset += columns) {
+                    var slots = Math.min(container.getInventory().size() - offset, columns);
                     rows.add(new SlotsRow(container, offset, slots));
                 }
             }

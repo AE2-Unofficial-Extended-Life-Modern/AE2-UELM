@@ -1,5 +1,6 @@
 package appeng.client.gui.me.filterterminal;
 
+import java.util.List;
 import java.util.Locale;
 
 import org.jetbrains.annotations.Nullable;
@@ -11,7 +12,10 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.implementations.blockentities.PatternContainerGroup;
 import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
 import appeng.helpers.externalstorage.GenericStackInv;
+import appeng.helpers.filterterminal.FilterTerminalSlotInfo;
+import appeng.helpers.filterterminal.FilterTerminalTargetState;
 import appeng.util.ConfigMenuInventory;
 
 /**
@@ -30,20 +34,29 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
     private final GenericStackInv inventory;
     private final ConfigMenuInventory menuInventory;
     private final long[] stockedAmounts;
-    private final boolean supportsAmountEditing;
+    private List<FilterTerminalSlotInfo> slotInfo;
+    private final byte slotsPerRow;
 
-    public FilterTerminalRecord(long serverId, int slots, PatternContainerGroup group,
-            ResourceKey<Level> dimension, BlockPos pos, @Nullable Direction side, boolean supportsAmountEditing) {
-        this.serverId = serverId;
-        this.group = group;
+    public FilterTerminalRecord(FilterTerminalTargetState state) {
+        var metadata = state.metadata();
+        this.serverId = state.serverId();
+        this.group = metadata.group();
         this.searchName = group.name().getString().toLowerCase(Locale.ROOT);
-        this.dimension = dimension;
-        this.pos = pos;
-        this.side = side;
-        this.inventory = new ClientInventory(slots);
+        this.dimension = metadata.dimension();
+        this.pos = metadata.pos();
+        this.side = metadata.side();
+        this.inventory = new ClientInventory(state.inventorySize());
         this.menuInventory = inventory.createMenuWrapper();
-        this.stockedAmounts = new long[slots];
-        this.supportsAmountEditing = supportsAmountEditing;
+        this.stockedAmounts = new long[state.inventorySize()];
+        this.slotInfo = state.slotInfo();
+        this.slotsPerRow = state.slotsPerRow();
+
+        for (var entry : state.slots().int2ObjectEntrySet()) {
+            inventory.setStack(entry.getIntKey(), entry.getValue());
+        }
+        for (var entry : state.stockedAmounts().int2LongEntrySet()) {
+            stockedAmounts[entry.getIntKey()] = entry.getLongValue();
+        }
     }
 
     public long getServerId() {
@@ -83,12 +96,38 @@ public final class FilterTerminalRecord implements Comparable<FilterTerminalReco
         return stockedAmounts[slot];
     }
 
-    public boolean supportsAmountEditing() {
-        return supportsAmountEditing;
-    }
-
     void setStockedAmount(int slot, long amount) {
         stockedAmounts[slot] = amount;
+    }
+
+    public byte getSlotsPerRow() {
+        return slotsPerRow;
+    }
+
+    void setSlotInfo(List<FilterTerminalSlotInfo> slotInfo) {
+        if (slotInfo.size() != this.slotInfo.size()) {
+            throw new IllegalArgumentException("Expected " + this.slotInfo.size() + " slot-info entries, got "
+                    + slotInfo.size());
+        }
+        this.slotInfo = List.copyOf(slotInfo);
+    }
+
+    public boolean canEditConfig(int slot) {
+        return slot >= 0
+                && slot < slotInfo.size()
+                && slotInfo.get(slot).canEditConfig();
+    }
+
+    public boolean canEditAmount(int slot) {
+        return slot >= 0
+                && slot < slotInfo.size()
+                && slotInfo.get(slot).canEditAmount();
+    }
+
+    public boolean acceptsKeyType(int slot, AEKeyType keyType) {
+        return slot >= 0
+                && slot < slotInfo.size()
+                && slotInfo.get(slot).acceptsKeyType(keyType);
     }
 
     @Override
