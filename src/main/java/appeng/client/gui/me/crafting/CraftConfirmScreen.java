@@ -20,7 +20,9 @@ package appeng.client.gui.me.crafting;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.List;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.gui.GuiGraphics;
@@ -31,9 +33,11 @@ import net.minecraft.world.entity.player.Inventory;
 
 import appeng.api.config.Settings;
 import appeng.client.gui.AEBaseScreen;
+import appeng.client.gui.Icon;
 import appeng.client.gui.StackWithBounds;
 import appeng.client.gui.style.ScreenStyle;
 import appeng.client.gui.style.TerminalStyle;
+import appeng.client.gui.widgets.IconButton;
 import appeng.client.gui.widgets.Scrollbar;
 import appeng.client.gui.widgets.SettingToggleButton;
 import appeng.core.AEConfig;
@@ -55,6 +59,7 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
     private final Scrollbar scrollbar;
 
     private SettingToggleButton<appeng.api.config.TerminalStyle> terminalStyleButton;
+    private IconButton exportButton;
 
     private final TerminalStyle terminalStyle;
     private int rows = 0;
@@ -85,6 +90,20 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
             this.terminalStyleButton = new SettingToggleButton<>(Settings.TERMINAL_STYLE, currentStyle,
                     this::toggleTerminalStyle);
             this.addToLeftToolbar(this.terminalStyleButton);
+
+            this.exportButton = this.addToLeftToolbar(new IconButton(btn -> exportImage()) {
+                @Override
+                protected Icon getIcon() {
+                    return Icon.EXPORT_IMAGE;
+                }
+
+                @Override
+                public List<Component> getTooltipMessage() {
+                    return List.of(ButtonToolTips.ExportCraftingPlan.text(),
+                            ButtonToolTips.ExportCraftingPlanHint.text());
+                }
+            });
+            this.exportButton.active = false;
         }
     }
 
@@ -125,14 +144,13 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
             this.start.setTooltip(Tooltip.create(ButtonToolTips.ForceStart.text()));
         }
         this.selectCPU.active = hasPlan;
+        if (this.exportButton != null) {
+            this.exportButton.active = hasPlan;
+        }
 
         // Show additional status about the selected CPU and plan when the planning is done
-        Component planDetails = GuiText.CalculatingWait.text();
         Component cpuDetails = Component.empty();
         if (plan != null) {
-            String byteUsed = NumberFormat.getInstance().format(plan.getUsedBytes());
-            planDetails = GuiText.BytesUsed.text(byteUsed);
-
             if (plan.isSimulation()) {
                 cpuDetails = GuiText.PartialPlan.text();
             } else if (this.menu.getCpuAvailableBytes() > 0) {
@@ -144,7 +162,7 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
             }
         }
 
-        setTextContent(TEXT_ID_DIALOG_TITLE, GuiText.CraftingPlan.text(planDetails));
+        setTextContent(TEXT_ID_DIALOG_TITLE, getPlanTitle(plan));
         setTextContent("cpu_status", cpuDetails);
 
         final int size = plan != null ? plan.getEntries().size() : 0;
@@ -154,6 +172,14 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
         if (this.terminalStyleButton != null) {
             this.terminalStyleButton.set(AEConfig.instance().getTerminalStyle());
         }
+    }
+
+    static Component getPlanTitle(@Nullable CraftingPlanSummary plan) {
+        if (plan == null) {
+            return GuiText.CraftingPlan.text(GuiText.CalculatingWait.text());
+        }
+        String byteUsed = NumberFormat.getInstance().format(plan.getUsedBytes());
+        return GuiText.CraftingPlan.text(GuiText.BytesUsed.text(byteUsed));
     }
 
     private Component getNextCpuButtonLabel() {
@@ -209,7 +235,7 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
         terminalStyle.getBottom().dest(offsetX, y - 1).blit(guiGraphics);
     }
 
-    @org.jetbrains.annotations.Nullable
+    @Nullable
     @Override
     public StackWithBounds getStackUnderMouse(double mouseX, double mouseY) {
         if (this.table != null) {
@@ -244,6 +270,13 @@ public class CraftConfirmScreen extends AEBaseScreen<CraftConfirmMenu> {
         boolean allowMissing = plan.isSimulation() && hasShiftDown();
         if (!plan.isSimulation() || allowMissing) {
             getMenu().startJob(allowMissing);
+        }
+    }
+
+    private void exportImage() {
+        var plan = getMenu().getPlan();
+        if (plan != null && this.terminalStyle != null) {
+            CraftingPlanImageExporter.export(this, plan, this.terminalStyle);
         }
     }
 
