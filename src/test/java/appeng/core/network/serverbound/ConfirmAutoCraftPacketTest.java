@@ -2,9 +2,9 @@ package appeng.core.network.serverbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.netty.buffer.Unpooled;
-
 import org.junit.jupiter.api.Test;
+
+import io.netty.buffer.Unpooled;
 
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;

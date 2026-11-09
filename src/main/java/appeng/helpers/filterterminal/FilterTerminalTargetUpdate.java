@@ -26,8 +26,9 @@ public record FilterTerminalTargetUpdate(
         Int2ObjectMap<GenericStack> slots,
         Int2LongMap stockedAmounts) {
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, FilterTerminalTargetUpdate> STREAM_CODEC = StreamCodec.ofMember(
-            FilterTerminalTargetUpdate::write, FilterTerminalTargetUpdate::read);
+    public static final StreamCodec<RegistryFriendlyByteBuf, FilterTerminalTargetUpdate> STREAM_CODEC = StreamCodec
+            .ofMember(
+                    FilterTerminalTargetUpdate::write, FilterTerminalTargetUpdate::read);
 
     public FilterTerminalTargetUpdate {
         slotInfo = List.copyOf(slotInfo);

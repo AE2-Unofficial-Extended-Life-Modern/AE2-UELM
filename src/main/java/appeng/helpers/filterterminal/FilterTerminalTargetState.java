@@ -36,8 +36,9 @@ public record FilterTerminalTargetState(
         Int2ObjectMap<GenericStack> slots,
         Int2LongMap stockedAmounts) {
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, FilterTerminalTargetState> STREAM_CODEC = StreamCodec.ofMember(
-            FilterTerminalTargetState::write, FilterTerminalTargetState::read);
+    public static final StreamCodec<RegistryFriendlyByteBuf, FilterTerminalTargetState> STREAM_CODEC = StreamCodec
+            .ofMember(
+                    FilterTerminalTargetState::write, FilterTerminalTargetState::read);
 
     public FilterTerminalTargetState {
         metadata = Objects.requireNonNull(metadata, "metadata");

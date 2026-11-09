@@ -23,9 +23,9 @@ public class FilterTransferHandler<T extends UpgradeableMenu<? extends IUpgradea
 
     /**
      * @param screen
-     * @return An inventory with the stacks the player can use for crafting. Craftables can only
-     *     ever be discovered if the inventory contains one of its ingredients. A changed inventory
-     *     indicates that EMI needs to refresh craftables.
+     * @return An inventory with the stacks the player can use for crafting. Craftables can only ever be discovered if
+     *         the inventory contains one of its ingredients. A changed inventory indicates that EMI needs to refresh
+     *         craftables.
      */
     @Override
     public EmiPlayerInventory getInventory(AbstractContainerScreen<T> screen) {
@@ -43,10 +43,9 @@ public class FilterTransferHandler<T extends UpgradeableMenu<? extends IUpgradea
 
     /**
      * @param recipe
-     * @return Whether the recipe should always display the ability to be filled if supported by
-     *     this handler. When returning true, the recipe screen will always display a grayed out
-     *     fill button in all contexts. Useful for recipe handlers which support nearly every
-     *     recipe, and do not want to pollute the recipe screen.
+     * @return Whether the recipe should always display the ability to be filled if supported by this handler. When
+     *         returning true, the recipe screen will always display a grayed out fill button in all contexts. Useful
+     *         for recipe handlers which support nearly every recipe, and do not want to pollute the recipe screen.
      */
     @Override
     public boolean alwaysDisplaySupport(EmiRecipe recipe) {
@@ -64,8 +63,7 @@ public class FilterTransferHandler<T extends UpgradeableMenu<? extends IUpgradea
     }
 
     /**
-     * Render feedback about the status of the current fill. Common use is to render an overlay on
-     * missing ingredients
+     * Render feedback about the status of the current fill. Common use is to render an overlay on missing ingredients
      *
      * @param recipe
      * @param context

@@ -20,7 +20,8 @@ import appeng.core.AELog;
  * Atlas source that adds one recolored, switchable controller light sprite.
  */
 public record ControllerLightTextureLoader(ResourceLocation resource, ResourceLocation sprite)
-        implements SpriteSource {
+        implements
+            SpriteSource {
 
     private static final MapCodec<ControllerLightTextureLoader> CODEC = RecordCodecBuilder.mapCodec(
             builder -> builder.group(

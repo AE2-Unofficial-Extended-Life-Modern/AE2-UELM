@@ -9,6 +9,8 @@
     "ae2:exported_priority",
     "ae2:exported_push_direction",
     "ae2:exported_settings",
+    "ae2:exported_replenisher_tick_rate",
+    "ae2:exported_replenisher_threshold",
     "ae2:exported_upgrades",
     "ae2:exported_settings_source"
   ]

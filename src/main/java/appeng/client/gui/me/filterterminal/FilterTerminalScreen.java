@@ -88,7 +88,8 @@ public class FilterTerminalScreen<C extends FilterTerminalMenu> extends AEBaseSc
 
     private static final Comparator<PatternContainerGroup> GROUP_COMPARATOR = Comparator
             .comparing((PatternContainerGroup group) -> group.name().getString().toLowerCase(Locale.ROOT))
-            .thenComparing(group -> group.icon() == null ? "" : group.icon().toTagGeneric(Minecraft.getInstance().level.registryAccess()).toString());
+            .thenComparing(group -> group.icon() == null ? ""
+                    : group.icon().toTagGeneric(Minecraft.getInstance().level.registryAccess()).toString());
 
     private final FilterTerminalClientState state = new FilterTerminalClientState();
     private final HashMultimap<PatternContainerGroup, FilterTerminalRecord> byGroup = HashMultimap.create();

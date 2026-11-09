@@ -34,8 +34,8 @@ import net.neoforged.neoforge.common.ModConfigSpec.EnumValue;
 import net.neoforged.neoforge.common.ModConfigSpec.IntValue;
 
 import appeng.api.config.CondenserOutput;
-import appeng.api.config.PowerMultiplier;
 import appeng.api.config.ControllerAnimation;
+import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
 import appeng.api.config.Settings;
 import appeng.api.config.TerminalStyle;
