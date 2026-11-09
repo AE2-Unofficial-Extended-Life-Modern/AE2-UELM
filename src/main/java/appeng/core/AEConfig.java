@@ -376,6 +376,10 @@ public final class AEConfig {
         return client.tooltipMaxCellContentShown.get();
     }
 
+    public boolean isFancyTooltipsEnabled() {
+        return client.enableFancyTooltips.get();
+    }
+
     public boolean isPinAutoCraftedItems() {
         return client.pinAutoCraftedItems.get();
     }
@@ -470,6 +474,7 @@ public final class AEConfig {
         public final BooleanValue tooltipShowCellUpgrades;
         public final BooleanValue tooltipShowCellContent;
         public final IntValue tooltipMaxCellContentShown;
+        public final BooleanValue enableFancyTooltips;
 
         public ClientConfig() {
             var builder = new ModConfigSpec.Builder();
@@ -534,6 +539,8 @@ public final class AEConfig {
                     "Show a preview of the content in the tooltips of storage cells, color applicators and matter cannons");
             this.tooltipMaxCellContentShown = define(builder, "maxCellContentShown", 5, 1, 32,
                     "The maximum number of content entries to show in the tooltip of storage cells, color applicators and matter cannons");
+            this.enableFancyTooltips = define(builder, "enableFancyTooltips", true,
+                    "Enables fancy tooltips for encoded patterns");
             builder.pop();
 
             this.spec = builder.build();

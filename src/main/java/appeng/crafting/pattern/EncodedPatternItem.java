@@ -18,6 +18,7 @@
 
 package appeng.crafting.pattern;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +49,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AmountFormat;
 import appeng.api.stacks.GenericStack;
+import appeng.core.AEConfig;
 import appeng.core.AppEng;
 import appeng.core.definitions.AEItems;
 import appeng.core.localization.GuiText;
@@ -140,11 +142,13 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
 
         PatternDetailsTooltip tooltip;
         var author = "";
+        var valid = true;
         try {
             var details = Objects.requireNonNull(decoder.decode(what, clientLevel), "decoder returned null");
             tooltip = details.getTooltip(clientLevel, flags);
             author = details.getAuthor();
         } catch (Exception e) {
+            valid = false;
             lines.add(GuiText.InvalidPattern.text().copy().withStyle(ChatFormatting.RED));
             if (invalidPatternTooltip != null) {
                 tooltip = invalidPatternTooltip.getTooltip(stack, clientLevel, e, flags);
@@ -152,6 +156,15 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
                 tooltip = null;
             }
         }
+
+        // Invalid patterns have no tooltip image, so their lines are always shown here.
+        if (!valid || !AEConfig.instance().isFancyTooltipsEnabled()) {
+            lines.addAll(patternTooltip(tooltip, author));
+        }
+    }
+
+    public static List<Component> patternTooltip(@Nullable PatternDetailsTooltip tooltip, String author) {
+        var lines = new ArrayList<Component>();
 
         if (tooltip != null) {
             if (!tooltip.getOutputs().isEmpty()) {
@@ -183,6 +196,8 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
         if (!author.isEmpty()) {
             lines.add(GuiText.EncodedBy.text(author).withStyle(ChatFormatting.LIGHT_PURPLE));
         }
+
+        return lines;
     }
 
     @Deprecated
@@ -279,6 +294,10 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
 
     @Override
     public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        if (!AEConfig.instance().isFancyTooltipsEnabled()) {
+            return Optional.empty();
+        }
+
         var clientLevel = AppEng.instance().getClientLevel();
         var details = decode(stack, clientLevel);
         if (details == null) {
@@ -289,7 +308,8 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
             var tooltip = details.getTooltip(clientLevel, TooltipFlag.NORMAL);
             return Optional.of(new PatternTooltipComponent(
                     tooltip.getInputs().stream().map(GenericStack::what).toList(),
-                    tooltip.getOutputs().stream().map(GenericStack::what).toList()));
+                    tooltip.getOutputs().stream().map(GenericStack::what).toList(),
+                    patternTooltip(tooltip, details.getAuthor())));
         } catch (Exception e) {
             return Optional.empty();
         }
