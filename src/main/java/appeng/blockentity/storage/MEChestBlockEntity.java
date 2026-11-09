@@ -521,6 +521,10 @@ public class MEChestBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void blinkCell(int slot) {
         this.recalculateDisplay();
+        var grid = getMainNode().getGrid();
+        if (grid != null) {
+            grid.getStorageService().markContentsChanged();
+        }
     }
 
     @Override

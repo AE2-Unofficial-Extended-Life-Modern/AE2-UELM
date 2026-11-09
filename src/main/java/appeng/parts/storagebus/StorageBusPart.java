@@ -289,7 +289,11 @@ public class StorageBusPart extends UpgradeablePart
         }
 
         if (this.monitor != null) {
-            return this.monitor.onTick();
+            var result = this.monitor.onTick();
+            if (result == TickRateModulation.URGENT) {
+                node.getGrid().getStorageService().markContentsChanged();
+            }
+            return result;
         }
 
         return this.updateStatus == PendingUpdateStatus.SLOW_UPDATE ? TickRateModulation.IDLE

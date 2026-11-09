@@ -79,12 +79,15 @@ public class StorageService implements IStorageService, IGridServiceProvider {
      * Publicly exposed cached available stacks.
      */
     private final KeyCounter cachedAvailableStacks = new KeyCounter();
+    private static final int FULL_REBUILD_INTERVAL = Integer.getInteger("appeng.storage.fullRebuildInterval", 20);
     /**
      * Private cached amounts, to ensure that we send correct change notifications even if
      * {@link #cachedAvailableStacks} is modified by mistake.
      */
     private Object2LongMap<AEKey> cachedAvailableAmounts = new Object2LongOpenHashMap<>();
     private boolean cachedStacksNeedUpdate = true;
+    private boolean contentsChanged = true;
+    private int ticksSinceRebuild;
     /**
      * Tracks the stack watcher associated with a given grid node. Needed to clean up watchers when the node leaves the
      * grid.
@@ -95,17 +98,30 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
     public StorageService() {
         this.storage = new NetworkStorage();
+        this.storage.setChangeListener(this::markContentsChanged);
     }
 
     @Override
     public void onServerEndTick() {
+        ticksSinceRebuild++;
+        if (!contentsChanged && ticksSinceRebuild < FULL_REBUILD_INTERVAL) {
+            return;
+        }
+
         if (interestManager.isEmpty()) {
             // lazily rebuild cache list
             cachedStacksNeedUpdate = true;
+            contentsChanged = false;
+            ticksSinceRebuild = 0;
         } else {
-            // we need to rebuild the cache every tick to notify listeners
+            // rebuild the cache now to notify listeners
             updateCachedStacks();
         }
+    }
+
+    @Override
+    public void markContentsChanged() {
+        contentsChanged = true;
     }
 
     private void updateCachedStacks() {
@@ -113,6 +129,8 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
         try {
             cachedStacksNeedUpdate = false;
+            contentsChanged = false;
+            ticksSinceRebuild = 0;
 
             // Update cachedAvailableStacks to have the latest inventory contents
             cachedAvailableStacks.clear();
@@ -289,6 +307,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     @Override
     public void invalidateCache() {
         cachedStacksNeedUpdate = true;
+        markContentsChanged();
     }
 
     /**
@@ -325,6 +344,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
             // Mount this inventory into the network storage
             storage.mount(priority, inventory);
+            markContentsChanged();
         }
 
         public void update() {
@@ -346,6 +366,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
         private void unmount(MEStorage inventory) {
             storage.unmount(inventory);
+            markContentsChanged();
         }
     }
 
