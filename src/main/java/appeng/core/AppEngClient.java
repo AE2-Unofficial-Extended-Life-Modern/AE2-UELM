@@ -81,6 +81,7 @@ import appeng.client.gui.me.common.PinnedKeys;
 import appeng.client.gui.style.StyleManager;
 import appeng.client.guidebook.ConfigValueTagExtension;
 import appeng.client.guidebook.PartAnnotationStrategy;
+import appeng.client.render.HighlightManager;
 import appeng.client.render.PatternClientTooltipComponent;
 import appeng.client.render.StorageCellClientTooltipComponent;
 import appeng.client.render.crafting.CraftingMonitorRenderer;
@@ -301,6 +302,7 @@ public class AppEngClient extends AppEngBase {
         NeoForge.EVENT_BUS.addListener(this::wheelEvent);
         NeoForge.EVENT_BUS.addListener(this::ctrlEvent);
         NeoForge.EVENT_BUS.register(OverlayManager.getInstance());
+        NeoForge.EVENT_BUS.register(HighlightManager.INSTANCE);
     }
 
     private void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {

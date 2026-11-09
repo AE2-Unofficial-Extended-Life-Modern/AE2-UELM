@@ -35,6 +35,7 @@ public enum PlayerMessages implements LocalizationEnum {
     MissingUpgrades("Not enough %s to restore upgrades (missing %d)."),
     InvalidMachine("Could not load configuration from an incompatible device."),
     InvalidMachinePartiallyRestored("Partially loaded configuration: %s."),
+    FilterTerminalHighlighted("Highlighting target at §b%s §rin §b%s."),
     LastTransition("Last Transition:"),
     LastTransitionUnknown("Last Transition unknown"),
     LoadedSettings("Loaded device configuration from memory card."),
