@@ -13,6 +13,11 @@ public record ConfirmAutoCraftPacket(long amount,
         boolean craftMissingAmount,
         boolean autoStart) implements ServerboundPacket {
 
+    @Deprecated
+    public ConfirmAutoCraftPacket(int amount, boolean craftMissingAmount, boolean autoStart) {
+        this((long) amount, craftMissingAmount, autoStart);
+    }
+
     public static final StreamCodec<RegistryFriendlyByteBuf, ConfirmAutoCraftPacket> STREAM_CODEC = StreamCodec
             .ofMember(
                     ConfirmAutoCraftPacket::write,
