@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
 
@@ -66,6 +67,14 @@ public class NetworkStorage implements MEStorage {
 
     public NetworkStorage() {
         this.priorityInventory = new TreeMap<>(PRIORITY_SORTER);
+    }
+
+    public void forEachMount(Consumer<MEStorage> consumer) {
+        for (var list : this.priorityInventory.values()) {
+            for (var inv : list) {
+                consumer.accept(inv);
+            }
+        }
     }
 
     public void mount(int priority, MEStorage inventory) {

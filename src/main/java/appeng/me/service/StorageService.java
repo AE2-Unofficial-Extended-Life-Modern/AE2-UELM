@@ -50,8 +50,10 @@ import net.minecraft.nbt.NbtOps;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridServiceProvider;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageService;
 import appeng.api.networking.storage.IStorageWatcherNode;
 import appeng.api.stacks.AEKey;
@@ -62,6 +64,7 @@ import appeng.api.storage.MEStorage;
 import appeng.me.helpers.InterestManager;
 import appeng.me.helpers.StackWatcher;
 import appeng.me.storage.DelegatingMEInventory;
+import appeng.me.storage.MEInventoryHandler;
 import appeng.me.storage.NetworkStorage;
 import appeng.util.JsonStreamUtil;
 
@@ -108,6 +111,9 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     private boolean partialBuild;
 
     private final KeyCounter pendingDeltas = new KeyCounter();
+    private final KeyCounter viewDeltas = new KeyCounter();
+    private int viewOperationDepth;
+    private boolean viewOperationExact;
 
     public StorageService() {
         this.storage = new NetworkStorage();
@@ -115,10 +121,16 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             @Override
             public void onExactChange(AEKey what, long delta) {
                 pendingDeltas.add(what, delta);
+                if (viewOperationDepth > 0) {
+                    viewDeltas.add(what, delta);
+                }
             }
 
             @Override
             public void onOtherChange() {
+                if (viewOperationDepth > 0) {
+                    viewOperationExact = false;
+                }
                 markContentsChanged();
             }
         });
@@ -135,6 +147,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
                 contentsChanged = false;
                 ticksSinceRebuild = 0;
                 pendingDeltas.clear();
+                viewDeltas.clear();
             } else {
                 // rebuild the cache now to notify listeners
                 updateCachedStacks();
@@ -142,6 +155,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
         } else if (!pendingDeltas.isEmpty()) {
             if (cachedStacksNeedUpdate) {
                 pendingDeltas.clear();
+                viewDeltas.clear();
             } else {
                 applyPendingDeltas();
             }
@@ -149,6 +163,8 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     }
 
     private void applyPendingDeltas() {
+        var forward = dependents.isEmpty() ? null : new KeyCounter();
+        var rebuildDependents = !viewDeltas.isEmpty() && dependents.size() > 1;
         var mismatch = false;
         for (var entry : pendingDeltas) {
             var delta = entry.getLongValue();
@@ -168,13 +184,54 @@ public class StorageService implements IStorageService, IGridServiceProvider {
                 cachedAvailableAmounts.put(what, amount);
             }
             postWatcherUpdate(what, amount);
+            if (forward != null) {
+                var forwardDelta = delta - viewDeltas.get(what);
+                if (forwardDelta != 0) {
+                    forward.add(what, forwardDelta);
+                }
+            }
         }
         pendingDeltas.clear();
+        viewDeltas.clear();
 
         if (mismatch) {
             updateCachedStacks();
-        } else {
+        } else if (rebuildDependents) {
             markDependentsChanged();
+        } else if (forward != null && !forward.isEmpty()) {
+            for (var dependent : List.copyOf(dependents)) {
+                if (includedServices.contains(dependent)) {
+                    dependent.markContentsChanged();
+                } else {
+                    dependent.onIncludedDeltas(this, forward);
+                }
+            }
+        }
+    }
+
+    private void onIncludedDeltas(StorageService source, KeyCounter deltas) {
+        if (isBuilding() || contentsChanged || cachedStacksNeedUpdate) {
+            return;
+        }
+        var view = source.cachedView;
+        var mounts = new ArrayList<MEStorage>();
+        storage.forEachMount(mounts::add);
+        var found = false;
+        for (var mount : mounts) {
+            if (mount == view) {
+                found = true;
+                pendingDeltas.addAll(deltas);
+            } else if (mount instanceof MEInventoryHandler handler && handler.wraps(view)) {
+                found = true;
+                for (var entry : deltas) {
+                    if (handler.listsKey(entry.getKey())) {
+                        pendingDeltas.add(entry.getKey(), entry.getLongValue());
+                    }
+                }
+            }
+        }
+        if (!found) {
+            markContentsChanged();
         }
     }
 
@@ -207,6 +264,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             contentsChanged = false;
             ticksSinceRebuild = 0;
             pendingDeltas.clear();
+            viewDeltas.clear();
 
             for (var included : includedServices) {
                 included.dependents.remove(this);
@@ -235,6 +293,10 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             cachedAvailableStacks.forEach(listener);
             listener.sendRemovedStacksToWatchers();
             cachedAvailableAmounts = listener.currentContents();
+
+            if (listener.changed) {
+                markDependentsChanged();
+            }
         } finally {
             inventoryRefreshStats.add(System.nanoTime() - time);
         }
@@ -261,6 +323,8 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             }
             if (contentsChanged) {
                 cachedStacksNeedUpdate = true;
+            } else if (!cachedStacksNeedUpdate && !pendingDeltas.isEmpty()) {
+                applyPendingDeltas();
             }
             var cached = getCachedInventory();
             if (reader != null) {
@@ -286,6 +350,43 @@ public class StorageService implements IStorageService, IGridServiceProvider {
         }
 
         @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            if (mode == Actionable.SIMULATE) {
+                return super.insert(what, amount, mode, source);
+            }
+            beginViewOperation();
+            try {
+                return super.insert(what, amount, mode, source);
+            } finally {
+                viewOperationDepth--;
+            }
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            if (mode == Actionable.SIMULATE) {
+                return super.extract(what, amount, mode, source);
+            }
+            beginViewOperation();
+            try {
+                return super.extract(what, amount, mode, source);
+            } finally {
+                viewOperationDepth--;
+            }
+        }
+
+        private void beginViewOperation() {
+            if (viewOperationDepth++ == 0) {
+                viewOperationExact = true;
+            }
+        }
+
+        @Override
+        public boolean reportsExactChanges() {
+            return viewOperationExact;
+        }
+
+        @Override
         public int getEstimatedStackCount() {
             return isBuilding() ? super.getEstimatedStackCount() : cachedAvailableStacks.size();
         }
@@ -299,6 +400,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
         private final Object2LongMap<AEKey> previous;
         private final Object2LongMap<AEKey> next;
+        private boolean changed;
 
         /**
          * @param previous The last known contents of this storage
@@ -318,6 +420,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             // Remove the key from the previous state, to indicate that we've checked it and sent notifications
             if (newAmount != previous.removeLong(what)) {
                 postWatcherUpdate(what, newAmount);
+                changed = true;
             }
         }
 
@@ -330,6 +433,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
                 var newAmount = next.getOrDefault(what, 0);
                 if (newAmount == 0) {
                     postWatcherUpdate(what, newAmount);
+                    changed = true;
                 }
             }
         }
