@@ -50,7 +50,7 @@ public class SuperMEReplenisherMenu extends AEBaseMenu {
 
         var cells = host.getCellInventory();
         for (int i = 0; i < 3; i++) {
-            addSlot(new RestrictedCellSlot(host, cells, i), SlotSemantics.LEFT_STORAGE_CELL);
+            addSlot(new RestrictedCellSlot(cells, i), SlotSemantics.LEFT_STORAGE_CELL);
         }
 
         var config = host.getConfig().createMenuWrapper();
@@ -59,7 +59,7 @@ public class SuperMEReplenisherMenu extends AEBaseMenu {
         }
 
         for (int i = 3; i < 6; i++) {
-            addSlot(new RestrictedCellSlot(host, cells, i), SlotSemantics.RIGHT_STORAGE_CELL);
+            addSlot(new RestrictedCellSlot(cells, i), SlotSemantics.RIGHT_STORAGE_CELL);
         }
 
         createPlayerInventorySlots(playerInventory);
@@ -123,13 +123,11 @@ public class SuperMEReplenisherMenu extends AEBaseMenu {
         return storedAmounts.get(configSlot);
     }
 
-    private static class RestrictedCellSlot extends RestrictedInputSlot {
-        private final SuperMEReplenisherBlockEntity host;
+    private class RestrictedCellSlot extends RestrictedInputSlot {
         private final int cellSlot;
 
-        RestrictedCellSlot(SuperMEReplenisherBlockEntity host, InternalInventory inventory, int slot) {
+        RestrictedCellSlot(InternalInventory inventory, int slot) {
             super(PlacableItemType.STORAGE_CELLS, inventory, slot);
-            this.host = host;
             this.cellSlot = slot;
             setStackLimit(1);
         }
@@ -145,7 +143,8 @@ public class SuperMEReplenisherMenu extends AEBaseMenu {
             if (!replacement.isEmpty() && !host.isValidCell(replacement)) {
                 replacement = ItemStack.EMPTY;
             }
-            return host.canReplaceCell(cellSlot, replacement) && super.mayPickup(player);
+            var used = isRemote() ? usedBytes : host.getUsedBytes();
+            return host.canReplaceCell(cellSlot, replacement, used) && super.mayPickup(player);
         }
     }
 

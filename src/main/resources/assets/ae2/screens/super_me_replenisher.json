@@ -3,7 +3,7 @@
   "includes": ["common/common.json", "common/player_inventory.json"],
   "background": {
     "texture": "guis/super_me_replenisher.png",
-    "srcRect": [0, 0, 220, 246]
+    "srcRect": [0, 0, 220, 214]
   },
   "slots": {
     "SUPER_ME_REPLENISHER_LEFT_STORAGE_CELL": {
@@ -36,31 +36,31 @@
     "target": {
       "position": {
         "left": 29,
-        "top": 66
+        "top": -28
       }
     },
     "stored": {
       "position": {
         "left": 29,
-        "top": 76
+        "top": -18
       }
     },
     "bytes_used_target": {
       "position": {
         "left": 29,
-        "top": 86
+        "top": -8
       }
     },
     "bytes_total": {
       "position": {
         "left": 29,
-        "top": 105
+        "top": 73
       }
     },
     "bytes_used_total": {
       "position": {
         "left": 29,
-        "top": 115
+        "top": 83
       }
     },
     "tick_rate_label": {
@@ -69,7 +69,7 @@
       },
       "position": {
         "left": 29,
-        "top": 127
+        "top": 95
       }
     },
     "threshold_label": {
@@ -78,14 +78,14 @@
       },
       "position": {
         "left": 100,
-        "top": 127
+        "top": 95
       }
     },
     "threshold_unit": {
       "text": "%",
       "position": {
         "left": 132,
-        "top": 142
+        "top": 110
       }
     },
     "player_inventory_title": {
@@ -98,15 +98,23 @@
   "widgets": {
     "tickRate": {
       "left": 29,
-      "top": 138,
+      "top": 106,
       "width": 52,
       "height": 12
     },
     "threshold": {
       "left": 100,
-      "top": 138,
+      "top": 106,
       "width": 31,
       "height": 12
+    }
+  },
+  "images": {
+    "popup": {
+      "texture": "guis/super_me_replenisher.png",
+      "textureWidth": 256,
+      "textureHeight": 256,
+      "srcRect": [0, 220, 220, 36]
     }
   }
 }
