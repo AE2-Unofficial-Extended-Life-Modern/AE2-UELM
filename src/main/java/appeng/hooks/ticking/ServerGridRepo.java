@@ -18,9 +18,9 @@
 
 package appeng.hooks.ticking;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
@@ -34,12 +34,14 @@ class ServerGridRepo {
     private final ObjectSet<Grid> networks = new ObjectOpenHashSet<>();
     private final ObjectSet<Grid> toAdd = new ObjectOpenHashSet<>();
     private final ObjectSet<Grid> toRemove = new ObjectOpenHashSet<>();
+    private List<Grid> networkList = new ArrayList<>();
 
     /**
      * Resets all internal data
      */
     void clear() {
         this.networks.clear();
+        this.networkList = new ArrayList<>();
         this.toAdd.clear();
         this.toRemove.clear();
     }
@@ -78,18 +80,24 @@ class ServerGridRepo {
      * First all removals are handled, then the ones queued to be added.
      */
     synchronized void updateNetworks() {
+        if (this.toRemove.isEmpty() && this.toAdd.isEmpty()) {
+            return;
+        }
+
         this.networks.removeAll(this.toRemove);
         this.toRemove.clear();
 
         this.networks.addAll(this.toAdd);
         this.toAdd.clear();
+
+        this.networkList = new ArrayList<>(this.networks);
     }
 
     /**
      * Get all registered {@link Grid}s
      */
-    public Set<Grid> getNetworks() {
-        return Collections.unmodifiableSet(networks);
+    public List<Grid> getNetworks() {
+        return networkList;
     }
 
 }

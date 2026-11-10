@@ -88,6 +88,59 @@ class NetworkCraftingProvidersTest {
     }
 
     @Test
+    void testChangedCraftables() {
+        var craftingProviders = new NetworkCraftingProviders();
+        var andesite = AEItemKey.of(Items.ANDESITE);
+        var diamond = AEItemKey.of(Items.DIAMOND);
+        var pattern = new ProcessingPatternBuilder(new GenericStack(andesite, 1)).build();
+        var provider = new ICraftingProvider() {
+            @Override
+            public List<IPatternDetails> getAvailablePatterns() {
+                return List.of(pattern);
+            }
+
+            @Override
+            public boolean pushPattern(IPatternDetails patternDetails, KeyCounter[] inputHolder) {
+                return false;
+            }
+
+            @Override
+            public boolean isBusy() {
+                return true;
+            }
+
+            @Override
+            public Set<AEKey> getEmitableItems() {
+                return Set.of(diamond);
+            }
+        };
+        var node1 = mock(IGridNode.class);
+        when(node1.getService(ICraftingProvider.class)).thenReturn(provider);
+        var node2 = mock(IGridNode.class);
+        when(node2.getService(ICraftingProvider.class)).thenReturn(provider);
+
+        craftingProviders.addProvider(node1);
+        assertThat(craftingProviders.takeChangedCraftables()).containsExactlyInAnyOrder(andesite, diamond);
+        assertThat(craftingProviders.takeChangedCraftables()).isEmpty();
+        assertThat(craftingProviders.isCraftable(andesite)).isTrue();
+        assertThat(craftingProviders.isCraftable(diamond)).isTrue();
+
+        craftingProviders.addProvider(node2);
+        craftingProviders.removeProvider(node1);
+        assertThat(craftingProviders.takeChangedCraftables()).isEmpty();
+
+        craftingProviders.removeProvider(node2);
+        craftingProviders.addProvider(node2);
+        assertThat(craftingProviders.takeChangedCraftables()).containsExactlyInAnyOrder(andesite, diamond);
+        assertThat(craftingProviders.isCraftable(andesite)).isTrue();
+
+        craftingProviders.removeProvider(node2);
+        assertThat(craftingProviders.takeChangedCraftables()).containsExactlyInAnyOrder(andesite, diamond);
+        assertThat(craftingProviders.isCraftable(andesite)).isFalse();
+        assertThat(craftingProviders.isCraftable(diamond)).isFalse();
+    }
+
+    @Test
     void testPatternPriorities() {
         var craftingProviders = new NetworkCraftingProviders();
         var andesite = AEItemKey.of(Items.ANDESITE);

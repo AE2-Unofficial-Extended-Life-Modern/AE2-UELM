@@ -14,6 +14,7 @@ import net.minecraft.data.DataProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
+import appeng.api.config.ControllerAnimation;
 import appeng.api.config.PowerUnit;
 import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEEntities;
@@ -60,6 +61,9 @@ public class LocalizationProvider implements IAE2DataProvider {
         // Can't implement LocalizationEnum since it's not in the API, but PowerUnits is
         for (var powerUnit : PowerUnit.values()) {
             add(powerUnit.unlocalizedName, powerUnit.symbolName);
+        }
+        for (var controllerAnimation : ControllerAnimation.values()) {
+            add(controllerAnimation.getTranslationKey(), controllerAnimation.getEnglishText());
         }
 
         generateJadeLocalizations();
@@ -129,6 +133,8 @@ public class LocalizationProvider implements IAE2DataProvider {
         add("key.ae2.guide", "Open Guide for Items");
         add("key.ae2.mouse_wheel_item_modifier", "Modifier for Mouse-Wheel Items");
         add("key.ae2.part_placement_opposite", "Place Parts on Opposite Side");
+        add("key.ae2.pin_entry", "Pin/Unpin Entry");
+        add("key.ae2.cycle_controller_animation", "Cycle Controller Animation");
         add("key.toggle_focus.desc", "Toggle search box focus");
         add("stat.ae2.items_extracted", "Items extracted from ME Storage");
         add("stat.ae2.items_inserted", "Items added to ME Storage");

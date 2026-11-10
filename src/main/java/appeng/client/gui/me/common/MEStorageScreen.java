@@ -55,6 +55,7 @@ import appeng.api.config.Settings;
 import appeng.api.config.SortDir;
 import appeng.api.config.SortOrder;
 import appeng.api.config.ViewItems;
+import appeng.api.features.HotkeyAction;
 import appeng.api.implementations.blockentities.IMEChest;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKeyType;
@@ -323,9 +324,6 @@ public class MEStorageScreen<C extends MEStorageMenu>
     private void updateScrollbar() {
         scrollbar.setHeight(this.rows * style.getRow().getSrcHeight() - 2);
         int totalRows = (this.repo.size() + getSlotsPerRow() - 1) / getSlotsPerRow();
-        if (repo.hasPinnedRow()) {
-            totalRows++;
-        }
         scrollbar.setRange(0, totalRows - this.rows, Math.max(1, this.rows / 6));
     }
 
@@ -512,16 +510,17 @@ public class MEStorageScreen<C extends MEStorageMenu>
             // Don't return immediately to also grab focus.
         }
 
-        // handler for middle mouse button crafting in survival mode
-        if (Minecraft.getInstance().options.keyPickItem.matchesMouse(btn)) {
-            Slot slot = this.findSlot(xCoord, yCoord);
-            if (slot instanceof RepoSlot repoSlot && repoSlot.isCraftable()) {
-                handleGridInventoryEntryMouseClick(repoSlot.getEntry(), btn, ClickType.CLONE);
-                return true;
-            }
+        return super.mouseClicked(xCoord, yCoord, btn);
+    }
+
+    @Override
+    protected boolean handlePickBlock(@Nullable Slot slot) {
+        if (slot instanceof RepoSlot repoSlot && repoSlot.isCraftable()) {
+            handleGridInventoryEntryMouseClick(repoSlot.getEntry(), 0, ClickType.CLONE);
+            return true;
         }
 
-        return super.mouseClicked(xCoord, yCoord, btn);
+        return super.handlePickBlock(slot);
     }
 
     @Override
@@ -597,11 +596,11 @@ public class MEStorageScreen<C extends MEStorageMenu>
 
         style.getBottom().dest(offsetX, y).blit(guiGraphics);
 
-        // Draw the overlay for the pinned row
-        if (repo.hasPinnedRow()) {
+        // Draw the overlay for the pinned row(s), skips if nothing pinned
+        for (int i = 0; i < repo.getPinnedRows(); i++) {
             Blitter.texture("guis/terminal.png")
                     .src(0, 204, 162, 18)
-                    .dest(offsetX + 7, offsetY + style.getHeader().getSrcHeight())
+                    .dest(offsetX + 7, offsetY + style.getHeader().getSrcHeight() + i * 18)
                     .blit(guiGraphics);
         }
 
@@ -751,6 +750,21 @@ public class MEStorageScreen<C extends MEStorageMenu>
         if (!this.searchField.isFocused() && isCloseHotkey(keyCode, scanCode)) {
             this.getPlayer().closeContainer();
             return true;
+        }
+
+        var pinKey = Hotkeys.getHotkeyMapping(HotkeyAction.PIN_ENTRY);
+        if (pinKey != null && pinKey.mapping().matches(keyCode, scanCode)) {
+            if (this.hoveredSlot instanceof RepoSlot repoSlot) {
+                var entry = repoSlot.getEntry();
+                if (entry != null) {
+                    if (PinnedKeys.isPinned(entry.getWhat()) && !PendingCraftingJobs.hasPendingJob(entry.getWhat())) {
+                        PinnedKeys.unpin(entry.getWhat());
+                    } else {
+                        PinnedKeys.pinKey(entry.getWhat(), PinnedKeys.PinReason.MANUAL);
+                    }
+                    repo.updateView();
+                }
+            }
         }
 
         return super.keyPressed(keyCode, scanCode, p_keyPressed_3_);

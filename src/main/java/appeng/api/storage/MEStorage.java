@@ -24,8 +24,11 @@
 package appeng.api.storage;
 
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
+
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -50,6 +53,23 @@ import appeng.api.stacks.KeyCounter;
  * want to control their {@code MEStorage}.
  */
 public interface MEStorage {
+    default boolean reportsExactChanges() {
+        return false;
+    }
+
+    default boolean reportsAllChanges() {
+        return false;
+    }
+
+    default boolean anyAvailable(Predicate<AEKey> predicate) {
+        for (var entry : getAvailableStacks()) {
+            if (predicate.test(entry.getKey())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Returns whether this inventory is the preferred storage location for the given stack when being compared to other
      * inventories of the same overall priority.
@@ -96,6 +116,36 @@ public interface MEStorage {
     }
 
     /**
+     * Whether and how this storage claims keys on the network it is mounted to. While any sticky storage claims a key,
+     * that key can only be inserted into storages that {@linkplain #acceptsSticky(AEKey) accept} it, regardless of
+     * priority. If those are full, the rest is rejected.
+     * <p/>
+     * If for example a storage bus has a sticky card with a filter for stone, then on that network it is the only place
+     * where stone can be stored.
+     * <p/>
+     * A sticky storage claims exactly the keys it accepts.
+     *
+     * @apiNote Only read when the storage is mounted or unmounted. A storage has to be remounted for a change to take
+     *          effect.
+     * @return The claim, or null if this storage is not sticky.
+     */
+    @Nullable
+    default StickyClaim getStickyClaim() {
+        return null;
+    }
+
+    /**
+     * Whether this storage may receive the given key while it is claimed by a {@linkplain #getStickyClaim() sticky}
+     * storage. For sticky storages, this also decides which keys they claim. Storages that are not sticky can return
+     * true here to keep receiving claimed keys without claiming any themselves.
+     *
+     * @apiNote Read on every insert into the network, so this should be cheap.
+     */
+    default boolean acceptsSticky(AEKey what) {
+        return false;
+    }
+
+    /**
      * @return The type of storage represented by this object.
      */
     Component getDescription();
@@ -106,9 +156,19 @@ public interface MEStorage {
      * @return a new list of this inventories content
      */
     default KeyCounter getAvailableStacks() {
-        var result = new KeyCounter();
+        var result = new KeyCounter(getEstimatedStackCount());
         getAvailableStacks(result);
         return result;
+    }
+
+    /**
+     * Estimate the maximum number of stacks in this storage network This should be a small over-estimate of the number
+     * of stacks
+     *
+     * @return A number greater or equal to the total number of stacks in this storage
+     */
+    default int getEstimatedStackCount() {
+        return 1;
     }
 
     static void checkPreconditions(AEKey what, long amount, Actionable mode, IActionSource source) {

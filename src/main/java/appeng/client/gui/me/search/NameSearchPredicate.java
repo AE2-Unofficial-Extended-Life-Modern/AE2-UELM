@@ -3,6 +3,8 @@ package appeng.client.gui.me.search;
 import java.util.Objects;
 import java.util.function.Predicate;
 
+import net.minecraft.ChatFormatting;
+
 import appeng.api.stacks.AEKey;
 import appeng.menu.me.common.GridInventoryEntry;
 
@@ -16,7 +18,7 @@ final class NameSearchPredicate implements Predicate<GridInventoryEntry> {
     @Override
     public boolean test(GridInventoryEntry gridInventoryEntry) {
         AEKey entryInfo = Objects.requireNonNull(gridInventoryEntry.getWhat());
-        String displayName = entryInfo.getDisplayName().getString();
+        String displayName = ChatFormatting.stripFormatting(entryInfo.getDisplayName().getString());
         return displayName.toLowerCase().contains(term);
     }
 }

@@ -7,7 +7,7 @@ on:
       - '**'
   pull_request:
     branches:
-      - '*'
+      - '**'
 
 # Cancel outdated builds for the same branch
 concurrency:
@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 50
       - run: git fetch origin --tags
         shell: bash
-      - uses: AppliedEnergistics/Applied-Energistics-2/.github/actions/gradle-setup@main
+      - uses: ./.github/actions/gradle-setup
       - name: Generate assets
         run: ./gradlew runData
       - name: Check that datagen ran
@@ -37,22 +37,33 @@ jobs:
           # Print status for easier debugging
           git status
           if [ -n "$(git status --porcelain)" ]; then exit 1; fi
+      # Derive the build version from the latest non-prerelease neoforge release,
+      # e.g. neoforge/v19.2.18-uelm -> 19.2.18-uelm-dev.<sha> / 19.2.18-uelm-pr.<n>.<sha>
+      # Only neoforge tags count: forge/v... releases belong to the 1.20.1 line.
+      - name: Resolve build version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          tag=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '[.[].tagName | select(startswith("neoforge/v"))][0] // ""')
+          base=${tag#neoforge/v}
+          base=${base:-0.0.0}
+          short=${SHA::7}
+          if [ -n "$PR" ]; then
+            version="${base}-pr.${PR}.${short}"
+          else
+            version="${base}-dev.${short}"
+          fi
+          echo "Building version $version (from release tag '${tag:-none}')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build with Gradle
-        run: ./gradlew printProjectVersion build publish --max-workers 1
-        env:
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_KEY }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_KEY_PASSWORD }}
+        run: ./gradlew printProjectVersion build -Pversion=${{ steps.version.outputs.version }} --max-workers 1
 
       - name: Run Game Tests
         run: ./gradlew runGametest
-      - name: Upload new Source Text Strings to Crowdin
-        run: ./gradlew uploadToCrowdin
-        env:
-          GIT_BRANCH: master
-          CROWDIN_TOKEN: ${{ secrets.CROWDIN_TOKEN }}
-        continue-on-error: true
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
       # Always upload test results
       - name: Merge Test Reports
@@ -69,45 +80,3 @@ jobs:
         with:
           name: dist
           path: build/libs/
-
-      - name: Prepare artifact metadata. Note that VERSION is set by the gradle script.
-        id: prepare_artifact_metadata
-        run: |
-          echo ARTIFACT_PATH=./build/libs/appliedenergistics2-${VERSION}.jar >> $GITHUB_OUTPUT
-          echo ARTIFACT_NAME=appliedenergistics2-${VERSION}.jar >> $GITHUB_OUTPUT
-          echo JAVADOC_PATH=./build/libs/appliedenergistics2-${VERSION}-javadoc.jar >> $GITHUB_OUTPUT
-          echo JAVADOC_NAME=appliedenergistics2-${VERSION}-javadoc.jar >> $GITHUB_OUTPUT
-          echo API_PATH=./build/libs/appliedenergistics2-${VERSION}-api.jar >> $GITHUB_OUTPUT
-          echo API_NAME=appliedenergistics2-${VERSION}-api.jar >> $GITHUB_OUTPUT
-          echo VERSION=${VERSION} >> $GITHUB_OUTPUT
-      - name: Archive build results
-        run: tar -I zstd -cf build.tar.zst build/libs build/repo
-      - name: Upload build and gradle folders
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: build.tar.zst
-          if-no-files-found: error
-          retention-days: 3
-
-  publish:
-    name: Publish Snapshot to Maven Central
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-      - name: Unpack build artifact
-        run: tar axf build.tar.zst
-      - name: Validate artifacts exist
-        run: test -d ./build
-      - name: Publish to Maven Central
-        uses: AppliedEnergistics/maven-publish-action@main
-        with:
-          local-repository-path: build/repo
-          remote-repository-url: https://central.sonatype.com/repository/maven-snapshots/
-          remote-repository-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          remote-repository-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}

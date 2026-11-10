@@ -35,9 +35,14 @@ import appeng.menu.me.crafting.CraftingStatusEntry;
 public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingStatusEntry> {
 
     private static final int BACKGROUND_ALPHA = 0x5A000000;
+    private static final int DEFAULT_ROWS = 6;
 
     public CraftingStatusTableRenderer(AEBaseScreen<?> screen, int x, int y) {
-        super(screen, x, y, 6);
+        super(screen, x, y, DEFAULT_ROWS);
+    }
+
+    public CraftingStatusTableRenderer(AEBaseScreen<?> screen, int x, int y, int rows) {
+        super(screen, x, y, rows);
     }
 
     @Override
@@ -56,6 +61,10 @@ public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingS
         if (entry.getPendingAmount() > 0) {
             String amount = entry.getWhat().formatAmount(entry.getPendingAmount(), AmountFormat.SLOT);
             lines.add(GuiText.Scheduled.text(amount));
+        }
+        if (entry.getPendingExternalAmount() > 0) {
+            String amount = entry.getWhat().formatAmount(entry.getPendingExternalAmount(), AmountFormat.SLOT);
+            lines.add(GuiText.Missing.text(amount));
         }
         return lines;
     }
@@ -82,6 +91,10 @@ public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingS
             lines.add(GuiText.Scheduled.text(
                     entry.getWhat().formatAmount(entry.getPendingAmount(), AmountFormat.FULL)));
         }
+        if (entry.getPendingExternalAmount() > 0) {
+            lines.add(GuiText.Missing.text(
+                    entry.getWhat().formatAmount(entry.getPendingExternalAmount(), AmountFormat.FULL)));
+        }
 
         return lines;
 
@@ -94,6 +107,8 @@ public class CraftingStatusTableRenderer extends AbstractTableRenderer<CraftingS
                 return AEColor.GREEN.blackVariant | BACKGROUND_ALPHA;
             } else if (entry.getPendingAmount() > 0) {
                 return AEColor.YELLOW.blackVariant | BACKGROUND_ALPHA;
+            } else if (entry.getPendingExternalAmount() > 0) {
+                return AEColor.RED.blackVariant | BACKGROUND_ALPHA;
             }
         }
         return 0;

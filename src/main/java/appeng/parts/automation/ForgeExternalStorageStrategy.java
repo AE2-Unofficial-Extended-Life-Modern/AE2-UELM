@@ -11,10 +11,15 @@ import net.neoforged.neoforge.capabilities.Capabilities;
 
 import appeng.api.behaviors.ExternalStorageStrategy;
 import appeng.api.storage.MEStorage;
+import appeng.me.storage.ExternalStorageFacade;
 
 public class ForgeExternalStorageStrategy<T, S> implements ExternalStorageStrategy {
     private final BlockCapabilityCache<T, Direction> cache;
     private final HandlerStrategy<T, S> conversion;
+    @Nullable
+    private T lastHandler;
+    @Nullable
+    private ExternalStorageFacade lastFacade;
 
     public ForgeExternalStorageStrategy(BlockCapability<T, Direction> capability,
             HandlerStrategy<T, S> conversion,
@@ -33,7 +38,11 @@ public class ForgeExternalStorageStrategy<T, S> implements ExternalStorageStrate
             return null;
         }
 
-        var result = conversion.getFacade(storage);
+        if (storage != lastHandler) {
+            lastHandler = storage;
+            lastFacade = conversion.getFacade(storage);
+        }
+        var result = lastFacade;
         result.setChangeListener(injectOrExtractCallback);
         result.setExtractableOnly(extractableOnly);
         return result;

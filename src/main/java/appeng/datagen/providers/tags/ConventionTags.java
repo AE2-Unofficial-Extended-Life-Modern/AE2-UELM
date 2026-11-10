@@ -97,6 +97,7 @@ public final class ConventionTags {
 
     public static final TagKey<Item> ENDER_PEARL = Tags.Items.ENDER_PEARLS;
     public static final TagKey<Item> ENDER_PEARL_DUST = tag("c:dusts/ender_pearl");
+    public static final TagKey<Item> SLIMEBALL = Tags.Items.SLIMEBALLS;
 
     public static final TagKey<Item> SKY_STONE_DUST = tag("c:dusts/sky_stone");
 

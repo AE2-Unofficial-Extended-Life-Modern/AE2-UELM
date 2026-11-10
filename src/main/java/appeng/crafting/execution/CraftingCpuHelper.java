@@ -19,6 +19,7 @@
 package appeng.crafting.execution;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import com.google.common.collect.Iterables;
@@ -37,6 +38,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.crafting.inv.ICraftingInventory;
 import appeng.crafting.inv.ListCraftingInventory;
+import appeng.crafting.pattern.AEProcessingPattern;
 
 /**
  * Helper functions used by the CPU.
@@ -70,6 +72,35 @@ public class CraftingCpuHelper {
         }
 
         return null;
+    }
+
+    /**
+     * Extracts all resources that the plan can use at submission time. Unlike {@link #tryExtractInitialItems}, this
+     * keeps successfully extracted resources when another resource is unavailable and returns the remaining deficit. Ig
+     * this may also "solve" the issue of sometimes having to replan a craft?
+     */
+    public static KeyCounter extractInitialItemsAllowMissing(ICraftingPlan plan, IGrid grid,
+            ListCraftingInventory cpuInventory, IActionSource src) {
+        var required = new KeyCounter();
+        required.addAll(plan.usedItems());
+        required.addAll(plan.missingItems());
+
+        var missing = new KeyCounter();
+        var storage = grid.getStorageService().getInventory();
+
+        for (var entry : required) {
+            var what = entry.getKey();
+            var wanted = entry.getLongValue();
+            var extracted = storage.extract(what, wanted, Actionable.MODULATE, src);
+            if (extracted > 0) {
+                cpuInventory.insert(what, extracted, Actionable.MODULATE);
+            }
+            if (extracted < wanted) {
+                missing.add(what, wanted - extracted);
+            }
+        }
+
+        return missing;
     }
 
     public static CompoundTag generateLinkData(UUID craftId, boolean standalone, boolean req) {
@@ -115,6 +146,9 @@ public class CraftingCpuHelper {
             long remainingMultiplier = inputs[x].getMultiplier();
             for (var template : getValidItemTemplates(sourceInv, inputs[x], level)) {
                 long extracted = extractTemplates(sourceInv, template, remainingMultiplier);
+                if (extracted == 0) {
+                    continue;
+                }
                 list.add(template.key(), extracted * template.amount());
 
                 // Container items!
@@ -169,8 +203,12 @@ public class CraftingCpuHelper {
             IPatternDetails.IInput input, Level level) {
         var possibleInputs = input.getPossibleInputs();
 
-        var substitutes = new ArrayList<InputTemplate>(possibleInputs.length);
+        if (input instanceof AEProcessingPattern.Input) {
+            var stack = possibleInputs[0];
+            return List.of(new InputTemplate(stack.what(), stack.amount()));
+        }
 
+        var substitutes = new ArrayList<InputTemplate>(possibleInputs.length);
         for (var stack : possibleInputs) {
             for (var fuzz : inv.findFuzzyTemplates(stack.what())) {
                 substitutes.add(new InputTemplate(fuzz, stack.amount()));

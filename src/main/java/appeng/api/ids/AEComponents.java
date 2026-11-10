@@ -132,6 +132,20 @@ public final class AEComponents {
             builder -> builder.persistent(Codec.LONG).networkSynchronized(ByteBufCodecs.VAR_LONG));
 
     /**
+     * Exported tick rate for the Super ME Replenisher.
+     */
+    public static final DataComponentType<Integer> EXPORTED_REPLENISHER_TICK_RATE = register(
+            "exported_replenisher_tick_rate",
+            builder -> builder.persistent(Codec.INT).networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
+     * Exported threshold for the Super ME Replenisher.
+     */
+    public static final DataComponentType<Integer> EXPORTED_REPLENISHER_THRESHOLD = register(
+            "exported_replenisher_threshold",
+            builder -> builder.persistent(Codec.INT).networkSynchronized(ByteBufCodecs.VAR_INT));
+
+    /**
      * Exported patterns
      *
      * @see appeng.items.tools.MemoryCardItem
@@ -237,6 +251,12 @@ public final class AEComponents {
      * Which paint item is currently selected in a color applicator.
      */
     public static final DataComponentType<AEColor> SELECTED_COLOR = register("selected_color",
+            builder -> builder.persistent(AEColor.CODEC).networkSynchronized(AEColor.STREAM_CODEC));
+
+    /**
+     * The color of a colorable ME controller in item form.
+     */
+    public static final DataComponentType<AEColor> CONTROLLER_COLOR = register("controller_color",
             builder -> builder.persistent(AEColor.CODEC).networkSynchronized(AEColor.STREAM_CODEC));
 
     /**

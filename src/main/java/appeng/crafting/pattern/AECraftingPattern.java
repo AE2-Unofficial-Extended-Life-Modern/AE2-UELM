@@ -49,6 +49,7 @@ import net.minecraft.world.level.Level;
 import appeng.api.behaviors.ContainerItemStrategies;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsTooltip;
+import appeng.api.crafting.PatternInfo;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEFluidKey;
 import appeng.api.stacks.AEItemKey;
@@ -66,6 +67,7 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
     private final AEItemKey definition;
     public final boolean canSubstitute;
     public final boolean canSubstituteFluids;
+    private final String author;
     private final RecipeHolder<?> recipeHolder;
     private final CraftingRecipe recipe;
     private final List<GenericStack> sparseInputs;
@@ -91,6 +93,7 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
 
         this.canSubstitute = encodedPattern.canSubstitute();
         this.canSubstituteFluids = encodedPattern.canSubstituteFluids();
+        this.author = encodedPattern.author();
         this.sparseInputs = getCraftingInputs(encodedPattern.inputs());
 
         // Find recipe
@@ -156,6 +159,11 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
     @Override
     public List<GenericStack> getOutputs() {
         return outputsArray;
+    }
+
+    @Override
+    public String getAuthor() {
+        return author;
     }
 
     /**
@@ -515,9 +523,15 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
 
     public static void encode(ItemStack result, RecipeHolder<CraftingRecipe> recipe, ItemStack[] sparseInputs,
             ItemStack output, boolean allowSubstitutes, boolean allowFluidSubstitutes) {
+        encode(result, recipe, sparseInputs, output, allowSubstitutes, allowFluidSubstitutes, PatternInfo.EMPTY);
+    }
+
+    public static void encode(ItemStack result, RecipeHolder<CraftingRecipe> recipe, ItemStack[] sparseInputs,
+            ItemStack output, boolean allowSubstitutes, boolean allowFluidSubstitutes, PatternInfo info) {
         Objects.requireNonNull(recipe, "recipe");
         Objects.requireNonNull(sparseInputs, "sparseInputs");
         Objects.requireNonNull(output, "output");
+        info = info == null ? PatternInfo.EMPTY : info;
 
         result.set(
                 AEComponents.ENCODED_CRAFTING_PATTERN,
@@ -526,7 +540,8 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
                         output.copy(),
                         recipe.id(),
                         allowSubstitutes,
-                        allowFluidSubstitutes));
+                        allowFluidSubstitutes,
+                        info.author()));
     }
 
     @Override
@@ -534,13 +549,9 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
         var tooltip = new PatternDetailsTooltip(PatternDetailsTooltip.OUTPUT_TEXT_CRAFTS);
         tooltip.addInputsAndOutputs(this);
 
-        if (canSubstitute) {
-            tooltip.addProperty(GuiText.PatternTooltipSubstitutions.text());
-        }
-
-        if (canSubstituteFluids) {
-            tooltip.addProperty(GuiText.PatternTooltipFluidSubstitutions.text());
-        }
+        tooltip.addProperty(GuiText.Substitute.text(), canSubstitute ? EncodedPatternItem.YES : EncodedPatternItem.NO);
+        tooltip.addProperty(GuiText.FluidSubstitutions.text(),
+                canSubstituteFluids ? EncodedPatternItem.YES : EncodedPatternItem.NO);
 
         if (flags.isAdvanced()) {
             tooltip.addProperty(Component.literal("Recipe"), Component.literal(recipeHolder.id().toString()));
@@ -562,13 +573,10 @@ public class AECraftingPattern implements IPatternDetails, IMolecularAssemblerSu
             }
             tooltip.addOutput(AEItemKey.of(encodedPattern.result()), encodedPattern.result().getCount());
 
-            if (encodedPattern.canSubstitute()) {
-                tooltip.addProperty(GuiText.PatternTooltipSubstitutions.text());
-            }
-
-            if (encodedPattern.canSubstituteFluids()) {
-                tooltip.addProperty(GuiText.PatternTooltipFluidSubstitutions.text());
-            }
+            tooltip.addProperty(GuiText.Substitute.text(),
+                    encodedPattern.canSubstitute() ? EncodedPatternItem.YES : EncodedPatternItem.NO);
+            tooltip.addProperty(GuiText.FluidSubstitutions.text(),
+                    encodedPattern.canSubstituteFluids() ? EncodedPatternItem.YES : EncodedPatternItem.NO);
 
             if (flags.isAdvanced()) {
                 tooltip.addProperty(Component.literal("Recipe"),

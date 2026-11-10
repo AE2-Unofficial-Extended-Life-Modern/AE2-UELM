@@ -51,6 +51,8 @@ public class DataComponentTypeTagProvider extends TagsProvider<DataComponentType
         addExportedComponentCategory("Priority", AEComponents.EXPORTED_PRIORITY);
         addExportedComponentCategory("Push Direction", AEComponents.EXPORTED_PUSH_DIRECTION);
         addExportedComponentCategory("Settings", AEComponents.EXPORTED_SETTINGS);
+        addExportedComponentCategory("Replenisher Tick Rate", AEComponents.EXPORTED_REPLENISHER_TICK_RATE);
+        addExportedComponentCategory("Replenisher Threshold", AEComponents.EXPORTED_REPLENISHER_THRESHOLD);
         addExportedComponentCategory("Upgrades", AEComponents.EXPORTED_UPGRADES);
 
         tag(ConventionTags.EXPORTED_SETTINGS).add(

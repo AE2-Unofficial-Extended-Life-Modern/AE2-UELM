@@ -18,14 +18,18 @@
 
 package appeng.me.storage;
 
+import org.jetbrains.annotations.Nullable;
+
 import appeng.api.config.Actionable;
 import appeng.api.config.IncludeExclude;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.api.storage.StickyClaim;
 import appeng.util.prioritylist.DefaultPriorityList;
 import appeng.util.prioritylist.IPartitionList;
+import appeng.util.prioritylist.PrecisePriorityList;
 
 public class MEInventoryHandler extends DelegatingMEInventory {
 
@@ -36,6 +40,7 @@ public class MEInventoryHandler extends DelegatingMEInventory {
     private boolean allowExtraction = true;
     private boolean allowInsertion = true;
     private boolean voidOverflow;
+    private boolean sticky;
 
     private boolean gettingAvailableContent = false;
 
@@ -76,6 +81,10 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         this.voidOverflow = voidOverflow;
     }
 
+    public void setSticky(boolean sticky) {
+        this.sticky = sticky;
+    }
+
     @Override
     public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
         if (!this.allowInsertion || !passesBlackOrWhitelist(what)) {
@@ -114,11 +123,89 @@ public class MEInventoryHandler extends DelegatingMEInventory {
                     return;
                 }
 
+                if (this.partitionList.isEmpty()) {
+                    super.getAvailableStacks(out);
+                    return;
+                }
+
+                var whitelist = this.partitionListMode == IncludeExclude.WHITELIST;
                 for (var entry : getDelegate().getAvailableStacks()) {
-                    if (canExtract(entry.getKey())) {
+                    if (this.partitionList.isListed(entry.getKey()) == whitelist) {
                         out.add(entry.getKey(), entry.getLongValue());
                     }
                 }
+            }
+        } finally {
+            this.gettingAvailableContent = false;
+        }
+    }
+
+    public boolean wraps(MEStorage storage) {
+        return getDelegate() == storage;
+    }
+
+    public boolean wraps(Class<? extends MEStorage> type) {
+        return type.isInstance(getDelegate());
+    }
+
+    public boolean listsKey(AEKey key) {
+        if (!this.filterAvailableContents) {
+            return true;
+        }
+        if (!this.allowExtraction) {
+            return false;
+        }
+        return this.partitionList.isEmpty()
+                || this.partitionList.isListed(key) == (this.partitionListMode == IncludeExclude.WHITELIST);
+    }
+
+    @Override
+    public boolean reportsExactChanges() {
+        return getClass() == MEInventoryHandler.class && filtersKeepChangesExact();
+    }
+
+    protected final boolean filtersKeepChangesExact() {
+        if (this.voidOverflow) {
+            return false;
+        }
+        if (this.filterAvailableContents && (!this.allowExtraction || !this.filterOnExtraction)) {
+            return false;
+        }
+        return getDelegate().reportsExactChanges();
+    }
+
+    @Override
+    public boolean reportsAllChanges() {
+        return getDelegate().reportsAllChanges();
+    }
+
+    @Override
+    public KeyCounter getAvailableStacks() {
+        var result = new KeyCounter(getEstimatedStackCount());
+        getAvailableStacks(result);
+        return result;
+    }
+
+    @Override
+    public int getEstimatedStackCount() {
+        if (this.gettingAvailableContent) {
+            // Prevent recursion in case the internal inventory somehow calls this when the available items are queried.
+            // This is handled by the NetworkInventoryHandler when the initial query is coming from the network.
+            // However, this function might be called from the storage bus code directly,
+            // so we have to do this check manually.
+            return 0;
+        }
+
+        this.gettingAvailableContent = true;
+        try {
+            if (!this.filterAvailableContents) {
+                return super.getEstimatedStackCount();
+            } else {
+                if (!this.allowExtraction) {
+                    return 0;
+                }
+
+                return super.getEstimatedStackCount();
             }
         } finally {
             this.gettingAvailableContent = false;
@@ -140,6 +227,23 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         }
 
         return super.isPreferredStorageFor(input, source);
+    }
+
+    @Nullable
+    @Override
+    public StickyClaim getStickyClaim() {
+        if (!this.sticky || !this.allowInsertion) {
+            return null;
+        }
+        return this.partitionListMode == IncludeExclude.WHITELIST
+                && this.partitionList instanceof PrecisePriorityList precisePriorityList
+                        ? new StickyClaim(precisePriorityList.getItems())
+                        : StickyClaim.UNINDEXED;
+    }
+
+    @Override
+    public boolean acceptsSticky(AEKey what) {
+        return this.sticky && this.allowInsertion && passesBlackOrWhitelist(what);
     }
 
     protected boolean canExtract(AEKey request) {

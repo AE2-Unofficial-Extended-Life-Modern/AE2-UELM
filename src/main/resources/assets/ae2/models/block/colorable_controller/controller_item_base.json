@@ -1,0 +1,20 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "all": "ae2:block/colorable_controller/controller"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 16, 16],
+      "faces": {
+        "down": { "texture": "#all", "tintindex": 2 },
+        "up": { "texture": "#all", "tintindex": 2 },
+        "north": { "texture": "#all", "tintindex": 2 },
+        "south": { "texture": "#all", "tintindex": 2 },
+        "west": { "texture": "#all", "tintindex": 2 },
+        "east": { "texture": "#all", "tintindex": 2 }
+      }
+    }
+  ]
+}

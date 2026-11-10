@@ -114,8 +114,8 @@ public class SettingToggleButton<T extends Enum<T>> extends IconButton {
 
             registerApp(Icon.POWER_UNIT_AE, Settings.POWER_UNITS, PowerUnit.AE, ButtonToolTips.PowerUnits,
                     PowerUnit.AE.textComponent());
-            // registerApp(Icon.POWER_UNIT_EU, Settings.POWER_UNITS, PowerUnits.EU, ButtonToolTips.PowerUnits,
-            // PowerUnits.EU.textComponent());
+            registerApp(Icon.POWER_UNIT_EU, Settings.POWER_UNITS, PowerUnit.EU, ButtonToolTips.PowerUnits,
+                    PowerUnit.EU.textComponent());
             registerApp(Icon.POWER_UNIT_RF, Settings.POWER_UNITS, PowerUnit.FE, ButtonToolTips.PowerUnits,
                     PowerUnit.FE.textComponent());
 
@@ -256,15 +256,15 @@ public class SettingToggleButton<T extends Enum<T>> extends IconButton {
                     ButtonToolTips.CpuSelectionMode, ButtonToolTips.CpuSelectionModeAutomationOnly.text());
 
             registerApp(Icon.PATTERN_TERMINAL_ALL, Settings.TERMINAL_SHOW_PATTERN_PROVIDERS, ShowPatternProviders.ALL,
-                    ButtonToolTips.InterfaceTerminalDisplayMode,
+                    ButtonToolTips.PatternProviderDisplayMode,
                     ButtonToolTips.ShowAllProviders);
             registerApp(Icon.PATTERN_TERMINAL_VISIBLE, Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
                     ShowPatternProviders.VISIBLE,
-                    ButtonToolTips.InterfaceTerminalDisplayMode,
+                    ButtonToolTips.PatternProviderDisplayMode,
                     ButtonToolTips.ShowVisibleProviders);
             registerApp(Icon.PATTERN_TERMINAL_NOT_FULL, Settings.TERMINAL_SHOW_PATTERN_PROVIDERS,
                     ShowPatternProviders.NOT_FULL,
-                    ButtonToolTips.InterfaceTerminalDisplayMode,
+                    ButtonToolTips.PatternProviderDisplayMode,
                     ButtonToolTips.ShowNonFullProviders);
 
             registerApp(Icon.UNLOCKED, Settings.LOCK_CRAFTING_MODE, LockCraftingMode.NONE,

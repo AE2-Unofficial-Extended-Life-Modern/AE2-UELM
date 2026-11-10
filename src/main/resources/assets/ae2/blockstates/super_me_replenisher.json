@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "activity=idle": {
+      "model": "ae2:block/super_me_replenisher_idle"
+    },
+    "activity=inserting": {
+      "model": "ae2:block/super_me_replenisher_inserting"
+    },
+    "activity=extracting": {
+      "model": "ae2:block/super_me_replenisher_extracting"
+    }
+  }
+}

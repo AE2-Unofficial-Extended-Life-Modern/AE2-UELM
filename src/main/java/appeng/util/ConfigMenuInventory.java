@@ -108,7 +108,7 @@ public class ConfigMenuInventory implements InternalInventory {
         if (inv.isSupportedType(AEKeyType.items())) {
             var what = AEItemKey.of(stack);
             if (what != null) {
-                return new GenericStack(what, stack.getCount());
+                return new GenericStack(what, unwrapped != null ? unwrapped.amount() : stack.getCount());
             }
         }
 

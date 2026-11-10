@@ -19,7 +19,13 @@ public record EncodedCraftingPattern(
         ItemStack result,
         ResourceLocation recipeId,
         boolean canSubstitute,
-        boolean canSubstituteFluids) {
+        boolean canSubstituteFluids,
+        String author) {
+
+    public EncodedCraftingPattern(List<ItemStack> inputs, ItemStack result, ResourceLocation recipeId,
+            boolean canSubstitute, boolean canSubstituteFluids) {
+        this(inputs, result, recipeId, canSubstitute, canSubstituteFluids, "");
+    }
 
     public static final Codec<EncodedCraftingPattern> CODEC = RecordCodecBuilder.create(builder -> builder.group(
             AECodecs.FAULT_TOLERANT_OPTIONAL_ITEMSTACK_CODEC.listOf().fieldOf("inputs")
@@ -27,7 +33,8 @@ public record EncodedCraftingPattern(
             AECodecs.FAULT_TOLERANT_ITEMSTACK_CODEC.fieldOf("result").forGetter(EncodedCraftingPattern::result),
             ResourceLocation.CODEC.fieldOf("recipeId").forGetter(EncodedCraftingPattern::recipeId),
             Codec.BOOL.fieldOf("canSubstitute").forGetter(EncodedCraftingPattern::canSubstitute),
-            Codec.BOOL.fieldOf("canSubstituteFluids").forGetter(EncodedCraftingPattern::canSubstituteFluids))
+            Codec.BOOL.fieldOf("canSubstituteFluids").forGetter(EncodedCraftingPattern::canSubstituteFluids),
+            Codec.STRING.optionalFieldOf("author", "").forGetter(EncodedCraftingPattern::author))
             .apply(builder, EncodedCraftingPattern::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, EncodedCraftingPattern> STREAM_CODEC = StreamCodec
@@ -42,6 +49,8 @@ public record EncodedCraftingPattern(
                     EncodedCraftingPattern::canSubstitute,
                     ByteBufCodecs.BOOL,
                     EncodedCraftingPattern::canSubstituteFluids,
+                    ByteBufCodecs.STRING_UTF8,
+                    EncodedCraftingPattern::author,
                     EncodedCraftingPattern::new);
 
     public boolean containsMissingContent() {
@@ -60,7 +69,8 @@ public record EncodedCraftingPattern(
                 && canSubstituteFluids == that.canSubstituteFluids
                 && ItemStack.matches(result, that.result)
                 && ItemStack.listMatches(inputs, that.inputs)
-                && recipeId.equals(that.recipeId);
+                && recipeId.equals(that.recipeId)
+                && author.equals(that.author);
     }
 
     @Override
@@ -70,6 +80,7 @@ public record EncodedCraftingPattern(
         result1 = 31 * result1 + recipeId.hashCode();
         result1 = 31 * result1 + Boolean.hashCode(canSubstitute);
         result1 = 31 * result1 + Boolean.hashCode(canSubstituteFluids);
+        result1 = 31 * result1 + author.hashCode();
         return result1;
     }
 }

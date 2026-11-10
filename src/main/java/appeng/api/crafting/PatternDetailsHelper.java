@@ -116,13 +116,25 @@ public final class PatternDetailsHelper {
      * using some process external to the ME system.
      *
      * @param sparseOutputs The first element is considered the primary output and must be present
+     * @param info          Optional pattern info
      * @return A new encoded pattern.
      * @throws IllegalArgumentException If either in or out contain only empty ItemStacks, or no primary output
      */
-    public static ItemStack encodeProcessingPattern(List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs) {
+    public static ItemStack encodeProcessingPattern(List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs,
+            PatternInfo info) {
         var stack = AEItems.PROCESSING_PATTERN.stack();
-        AEProcessingPattern.encode(stack, sparseInputs, sparseOutputs);
+        AEProcessingPattern.encode(stack, sparseInputs, sparseOutputs, info);
         return stack;
+    }
+
+    public static ItemStack encodeProcessingPattern(List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs,
+            String author) {
+        return encodeProcessingPattern(sparseInputs, sparseOutputs, PatternInfo.ofAuthor(author));
+    }
+
+    @Deprecated
+    public static ItemStack encodeProcessingPattern(List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs) {
+        return encodeProcessingPattern(sparseInputs, sparseOutputs, PatternInfo.EMPTY);
     }
 
     /**
@@ -135,14 +147,27 @@ public final class PatternDetailsHelper {
      * @param allowSubstitutes      Controls whether the ME system will allow the use of equivalent items to craft this
      *                              recipe.
      * @param allowFluidSubstitutes Controls whether the ME system will allow the use of equivalent fluids.
+     * @param info                  Optional pattern info.
      * @throws IllegalArgumentException If either in or out contain only empty ItemStacks.
      */
     public static ItemStack encodeCraftingPattern(RecipeHolder<CraftingRecipe> recipe, ItemStack[] in,
-            ItemStack out, boolean allowSubstitutes, boolean allowFluidSubstitutes) {
+            ItemStack out, boolean allowSubstitutes, boolean allowFluidSubstitutes, PatternInfo info) {
         var stack = AEItems.CRAFTING_PATTERN.stack();
         AECraftingPattern.encode(stack, recipe, in, out, allowSubstitutes,
-                allowFluidSubstitutes);
+                allowFluidSubstitutes, info);
         return stack;
+    }
+
+    public static ItemStack encodeCraftingPattern(RecipeHolder<CraftingRecipe> recipe, ItemStack[] in,
+            ItemStack out, boolean allowSubstitutes, boolean allowFluidSubstitutes, String author) {
+        return encodeCraftingPattern(recipe, in, out, allowSubstitutes, allowFluidSubstitutes,
+                PatternInfo.ofAuthor(author));
+    }
+
+    @Deprecated
+    public static ItemStack encodeCraftingPattern(RecipeHolder<CraftingRecipe> recipe, ItemStack[] in,
+            ItemStack out, boolean allowSubstitutes, boolean allowFluidSubstitutes) {
+        return encodeCraftingPattern(recipe, in, out, allowSubstitutes, allowFluidSubstitutes, PatternInfo.EMPTY);
     }
 
     /**
@@ -155,13 +180,29 @@ public final class PatternDetailsHelper {
      *                         renamed later.
      * @param allowSubstitutes Controls whether the ME system will allow the use of equivalent items to craft this
      *                         recipe.
+     * @param info             Optional pattern info.
      */
     public static ItemStack encodeStonecuttingPattern(RecipeHolder<StonecutterRecipe> recipe, AEItemKey in,
             AEItemKey out,
-            boolean allowSubstitutes) {
+            boolean allowSubstitutes,
+            PatternInfo info) {
         var stack = AEItems.STONECUTTING_PATTERN.stack();
-        AEStonecuttingPattern.encode(stack, recipe, in, out, allowSubstitutes);
+        AEStonecuttingPattern.encode(stack, recipe, in, out, allowSubstitutes, info);
         return stack;
+    }
+
+    public static ItemStack encodeStonecuttingPattern(RecipeHolder<StonecutterRecipe> recipe, AEItemKey in,
+            AEItemKey out,
+            boolean allowSubstitutes,
+            String author) {
+        return encodeStonecuttingPattern(recipe, in, out, allowSubstitutes, PatternInfo.ofAuthor(author));
+    }
+
+    @Deprecated
+    public static ItemStack encodeStonecuttingPattern(RecipeHolder<StonecutterRecipe> recipe, AEItemKey in,
+            AEItemKey out,
+            boolean allowSubstitutes) {
+        return encodeStonecuttingPattern(recipe, in, out, allowSubstitutes, PatternInfo.EMPTY);
     }
 
     /**
@@ -177,15 +218,38 @@ public final class PatternDetailsHelper {
      *                         is renamed later.
      * @param allowSubstitutes Controls whether the ME system will allow the use of equivalent items to craft this
      *                         recipe.
+     * @param info             Optional pattern info.
      */
     public static ItemStack encodeSmithingTablePattern(RecipeHolder<SmithingRecipe> recipe,
             AEItemKey template,
             AEItemKey base,
             AEItemKey addition,
             AEItemKey out,
-            boolean allowSubstitutes) {
+            boolean allowSubstitutes,
+            PatternInfo info) {
         var stack = AEItems.SMITHING_TABLE_PATTERN.stack();
-        AESmithingTablePattern.encode(stack, recipe, template, base, addition, out, allowSubstitutes);
+        AESmithingTablePattern.encode(stack, recipe, template, base, addition, out, allowSubstitutes, info);
         return stack;
+    }
+
+    public static ItemStack encodeSmithingTablePattern(RecipeHolder<SmithingRecipe> recipe,
+            AEItemKey template,
+            AEItemKey base,
+            AEItemKey addition,
+            AEItemKey out,
+            boolean allowSubstitutes,
+            String author) {
+        return encodeSmithingTablePattern(recipe, template, base, addition, out, allowSubstitutes,
+                PatternInfo.ofAuthor(author));
+    }
+
+    @Deprecated
+    public static ItemStack encodeSmithingTablePattern(RecipeHolder<SmithingRecipe> recipe,
+            AEItemKey template,
+            AEItemKey base,
+            AEItemKey addition,
+            AEItemKey out,
+            boolean allowSubstitutes) {
+        return encodeSmithingTablePattern(recipe, template, base, addition, out, allowSubstitutes, PatternInfo.EMPTY);
     }
 }

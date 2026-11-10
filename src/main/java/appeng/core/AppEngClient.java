@@ -59,6 +59,7 @@ import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterDimensionSpecialEffectsEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
+import net.neoforged.neoforge.client.event.RegisterSpriteSourceTypesEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.settings.KeyConflictContext;
@@ -73,14 +74,18 @@ import guideme.scene.ImplicitAnnotationStrategy;
 
 import appeng.api.parts.CableRenderMode;
 import appeng.blockentity.networking.CableBusTESR;
+import appeng.client.ControllerAnimationClient;
 import appeng.client.EffectType;
 import appeng.client.Hotkeys;
 import appeng.client.commands.ClientCommands;
 import appeng.client.gui.me.common.PendingCraftingJobs;
 import appeng.client.gui.me.common.PinnedKeys;
+import appeng.client.gui.me.common.TerminalFavorites;
 import appeng.client.gui.style.StyleManager;
 import appeng.client.guidebook.ConfigValueTagExtension;
 import appeng.client.guidebook.PartAnnotationStrategy;
+import appeng.client.render.HighlightManager;
+import appeng.client.render.PatternClientTooltipComponent;
 import appeng.client.render.StorageCellClientTooltipComponent;
 import appeng.client.render.crafting.CraftingMonitorRenderer;
 import appeng.client.render.crafting.MolecularAssemblerRenderer;
@@ -92,6 +97,7 @@ import appeng.client.render.effects.LightningFX;
 import appeng.client.render.effects.MatterCannonFX;
 import appeng.client.render.effects.ParticleTypes;
 import appeng.client.render.effects.VibrantFX;
+import appeng.client.render.model.ControllerLightTextureLoader;
 import appeng.client.render.model.GlassBakedModel;
 import appeng.client.render.overlay.OverlayManager;
 import appeng.client.render.tesr.ChargerBlockEntityRenderer;
@@ -108,6 +114,7 @@ import appeng.core.definitions.AEEntities;
 import appeng.core.network.ServerboundPacket;
 import appeng.core.network.serverbound.MouseWheelPacket;
 import appeng.core.network.serverbound.UpdateHoldingCtrlPacket;
+import appeng.crafting.pattern.PatternTooltipComponent;
 import appeng.entity.TinyTNTPrimedRenderer;
 import appeng.helpers.IMouseWheelItem;
 import appeng.hooks.BlockAttackHook;
@@ -121,6 +128,7 @@ import appeng.init.client.InitItemModelsProperties;
 import appeng.init.client.InitScreens;
 import appeng.init.client.InitStackRenderHandlers;
 import appeng.items.storage.StorageCellTooltipComponent;
+import appeng.recipes.transform.TransformLogic;
 import appeng.siteexport.AESiteExporter;
 import appeng.spatial.SpatialStorageDimensionIds;
 import appeng.spatial.SpatialStorageSkyProperties;
@@ -157,6 +165,7 @@ public class AppEngClient extends AppEngBase {
     public AppEngClient(IEventBus modEventBus, ModContainer container) {
         super(modEventBus, container);
         InitBuiltInModels.init();
+        Hotkeys.registerClientHotkey(ControllerAnimationClient.HOTKEY_ID, ControllerAnimationClient::cycle);
 
         this.registerClientCommands();
 
@@ -170,6 +179,7 @@ public class AppEngClient extends AppEngBase {
         modEventBus.addListener(this::registerEntityLayerDefinitions);
         modEventBus.addListener(this::registerHotkeys);
         modEventBus.addListener(this::registerDimensionSpecialEffects);
+        modEventBus.addListener(this::registerSpriteSourceTypes);
         modEventBus.addListener(InitScreens::init);
         modEventBus.addListener(this::enqueueImcMessages);
 
@@ -187,8 +197,16 @@ public class AppEngClient extends AppEngBase {
 
         NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingIn evt) -> {
             PendingCraftingJobs.clearPendingJobs();
-            PinnedKeys.clearPinnedKeys();
+            PinnedKeys.loadPinnedKeys(Minecraft.getInstance());
+            TerminalFavorites.load(Minecraft.getInstance());
         });
+
+        NeoForge.EVENT_BUS.addListener((ClientPlayerNetworkEvent.LoggingOut evt) -> {
+            PinnedKeys.disconnect();
+            TerminalFavorites.disconnect();
+        });
+
+        NeoForge.EVENT_BUS.addListener(TransformLogic::onClientRecipesUpdated);
 
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post e) -> {
             tickPinnedKeys(Minecraft.getInstance());
@@ -203,6 +221,10 @@ public class AppEngClient extends AppEngBase {
         // Our new light-mode UI doesn't play nice with darkmodeeverywhere
         InterModComms.sendTo("darkmodeeverywhere", "dme-shaderblacklist", () -> "appeng.");
         InterModComms.sendTo("framedblocks", "add_ct_property", () -> GlassBakedModel.GLASS_STATE);
+    }
+
+    private void registerSpriteSourceTypes(RegisterSpriteSourceTypesEvent event) {
+        event.register(AppEng.makeId("controller_light"), ControllerLightTextureLoader.TYPE);
     }
 
     private void registerDimensionSpecialEffects(RegisterDimensionSpecialEffectsEvent event) {
@@ -280,6 +302,7 @@ public class AppEngClient extends AppEngBase {
 
     private void registerClientTooltipComponents(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(StorageCellTooltipComponent.class, StorageCellClientTooltipComponent::new);
+        event.register(PatternTooltipComponent.class, PatternClientTooltipComponent::new);
     }
 
     private void clientSetup(FMLClientSetupEvent event) {
@@ -296,6 +319,7 @@ public class AppEngClient extends AppEngBase {
         NeoForge.EVENT_BUS.addListener(this::wheelEvent);
         NeoForge.EVENT_BUS.addListener(this::ctrlEvent);
         NeoForge.EVENT_BUS.register(OverlayManager.getInstance());
+        NeoForge.EVENT_BUS.register(HighlightManager.INSTANCE);
     }
 
     private void registerEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {

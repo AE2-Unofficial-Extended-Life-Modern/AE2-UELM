@@ -16,17 +16,23 @@ import appeng.core.definitions.AEItems;
 
 public record EncodedProcessingPattern(
         List<GenericStack> sparseInputs,
-        List<GenericStack> sparseOutputs) {
+        List<GenericStack> sparseOutputs,
+        String author) {
     public EncodedProcessingPattern {
         sparseInputs = Collections.unmodifiableList(sparseInputs);
         sparseOutputs = Collections.unmodifiableList(sparseOutputs);
+    }
+
+    public EncodedProcessingPattern(List<GenericStack> sparseInputs, List<GenericStack> sparseOutputs) {
+        this(sparseInputs, sparseOutputs, "");
     }
 
     public static final Codec<EncodedProcessingPattern> CODEC = RecordCodecBuilder.create(builder -> builder.group(
             GenericStack.FAULT_TOLERANT_NULLABLE_LIST_CODEC.fieldOf("sparseInputs")
                     .forGetter(EncodedProcessingPattern::sparseInputs),
             GenericStack.FAULT_TOLERANT_NULLABLE_LIST_CODEC.fieldOf("sparseOutputs")
-                    .forGetter(EncodedProcessingPattern::sparseOutputs))
+                    .forGetter(EncodedProcessingPattern::sparseOutputs),
+            Codec.STRING.optionalFieldOf("author", "").forGetter(EncodedProcessingPattern::author))
             .apply(builder, EncodedProcessingPattern::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, EncodedProcessingPattern> STREAM_CODEC = StreamCodec
@@ -35,6 +41,8 @@ public record EncodedProcessingPattern(
                     EncodedProcessingPattern::sparseInputs,
                     GenericStack.STREAM_CODEC.apply(ByteBufCodecs.list()),
                     EncodedProcessingPattern::sparseOutputs,
+                    ByteBufCodecs.STRING_UTF8,
+                    EncodedProcessingPattern::author,
                     EncodedProcessingPattern::new);
 
     public boolean containsMissingContent() {

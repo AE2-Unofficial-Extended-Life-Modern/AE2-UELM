@@ -34,7 +34,17 @@ public class NullInventory implements MEStorage {
     }
 
     @Override
+    public boolean reportsAllChanges() {
+        return true;
+    }
+
+    @Override
     public void getAvailableStacks(KeyCounter out) {
+    }
+
+    @Override
+    public int getEstimatedStackCount() {
+        return 0;
     }
 
     @Override

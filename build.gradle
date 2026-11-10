@@ -139,6 +139,9 @@ neoForge {
             // systemProperty('mixin.debug.export', 'true')
             logLevel = org.slf4j.event.Level.INFO
             systemProperty('guideme.ae2.guide.sources', file('guidebook').absolutePath)
+            if (System.getProperty("java.vendor", "").contains("JetBrains")) {
+                jvmArguments.add("-XX:+AllowEnhancedClassRedefinition")
+            }
         }
         client {
             client()
@@ -358,4 +361,31 @@ signing {
         useInMemoryPgpKeys(signingKey, signingPassword)
         sign publishing.publications.maven
     }
+}
+
+/////////////
+// JMH benchmarks (see JmhPlugin)
+// The benchmarks bootstrap Minecraft in the benchmark JVM the same way the unit tests do (BootstrapMinecraftExtension)
+apply plugin: JmhPlugin
+
+sourceSets {
+    jmh {
+        compileClasspath += sourceSets.test.output
+        runtimeClasspath += sourceSets.test.output
+    }
+}
+
+configurations {
+    jmhImplementation.extendsFrom testImplementation
+    jmhCompileOnly.extendsFrom testCompileOnly
+    jmhRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+neoForge {
+    addModdingDependenciesTo(sourceSets.jmh)
+}
+
+tasks.named('jmh', RunJmh) {
+    javaLauncher.set(javaToolchains.launcherFor(java.toolchain))
+    // Pass additional JMH arguments with -Pjmh.args, i.e. -Pjmh.args="fullCell -prof gc"
 }

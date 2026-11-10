@@ -29,6 +29,8 @@ import appeng.menu.implementations.CellWorkbenchMenu;
 import appeng.menu.implementations.CondenserMenu;
 import appeng.menu.implementations.DriveMenu;
 import appeng.menu.implementations.EnergyLevelEmitterMenu;
+import appeng.menu.implementations.FilterTerminalMenu;
+import appeng.menu.implementations.FilterTerminalSetAmountMenu;
 import appeng.menu.implementations.FormationPlaneMenu;
 import appeng.menu.implementations.IOBusMenu;
 import appeng.menu.implementations.IOPortMenu;
@@ -47,6 +49,7 @@ import appeng.menu.implementations.SpatialAnchorMenu;
 import appeng.menu.implementations.SpatialIOPortMenu;
 import appeng.menu.implementations.StorageBusMenu;
 import appeng.menu.implementations.StorageLevelEmitterMenu;
+import appeng.menu.implementations.SuperMEReplenisherMenu;
 import appeng.menu.implementations.VibrationChamberMenu;
 import appeng.menu.implementations.WirelessAccessPointMenu;
 import appeng.menu.me.common.MEStorageMenu;
@@ -86,6 +89,8 @@ public final class InitMenuTypes {
                 IOPortMenu.TYPE,
                 InscriberMenu.TYPE,
                 InterfaceMenu.TYPE,
+                FilterTerminalMenu.TYPE,
+                FilterTerminalSetAmountMenu.TYPE,
                 MEStorageMenu.TYPE,
                 MEStorageMenu.PORTABLE_FLUID_CELL_TYPE,
                 MEStorageMenu.PORTABLE_ITEM_CELL_TYPE,
@@ -106,6 +111,7 @@ public final class InitMenuTypes {
                 SpatialIOPortMenu.TYPE,
                 StorageBusMenu.TYPE,
                 StorageLevelEmitterMenu.TYPE,
+                SuperMEReplenisherMenu.TYPE,
                 VibrationChamberMenu.TYPE,
                 WirelessCraftingTermMenu.TYPE,
                 WirelessAccessPointMenu.TYPE);

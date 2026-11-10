@@ -23,12 +23,9 @@ jobs:
           fetch-depth: 50
       - run: git fetch origin --tags
         shell: bash
-      - uses: AppliedEnergistics/Applied-Energistics-2/.github/actions/gradle-setup@main
+      - uses: ./.github/actions/gradle-setup
       - name: Build with Gradle
         run: ./gradlew printProjectVersion build publish -x check --max-workers 1
-        env:
-          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_KEY }}
-          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_KEY_PASSWORD }}
       - name: Prepare artifact metadata. Note that VERSION is set by the gradle script.
         id: prepare_artifact_metadata
         run: |
@@ -89,12 +86,10 @@ jobs:
           asset_name: ${{ needs.build.outputs.API_NAME }}
           asset_content_type: application/zip
 
-  deploy-github-packages:
-    name: Deploy to Github Packages
+  deploy-maven:
+    name: Deploy to Expandium Maven
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -104,16 +99,16 @@ jobs:
         run: tar axf build.tar.zst
       - name: Validate artifacts exist
         run: test -d ./build
-      - name: Publish to Github Packages
+      - name: Publish to Expandium Maven
         uses: AppliedEnergistics/maven-publish-action@main
         with:
           local-repository-path: build/repo
-          remote-repository-url: https://maven.pkg.github.com/AppliedEnergistics/Applied-Energistics-2/
-          remote-repository-username: ${{ github.actor }}
-          remote-repository-password: ${{ github.token }}
+          remote-repository-url: https://repo.expandium.net/releases/
+          remote-repository-username: ${{ secrets.MAVEN_USERNAME }}
+          remote-repository-password: ${{ secrets.MAVEN_PASSWORD }}
 
-  deploy-maven-central:
-    name: Deploy to Maven Central
+  publish-curseforge:
+    name: Publish to CurseForge
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -123,34 +118,16 @@ jobs:
           name: build-artifacts
       - name: Unpack build artifact
         run: tar axf build.tar.zst
-      - name: Validate artifacts exist
-        run: test -d ./build
-      - name: Publish to Maven Central
-        uses: AppliedEnergistics/maven-central-publish-action@main
+      - name: Publish to CurseForge
+        uses: Kir-Antipov/mc-publish@v3.3
         with:
-          local-repository-path: build/repo
-          username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-          password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-
-  deploy-curseforge:
-    name: Deploy to Curseforge
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-      - name: Unpack build artifact
-        run: tar axf build.tar.zst
-      - name: Validate artifacts exist
-        run: test -d ./build
-      - name: Upload to Curseforge
-        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075
-        with:
-          name: AE2 ${{ needs.build.outputs.VERSION }} [NEOFORGE]
-          version: ${{ needs.build.outputs.VERSION }}
+          curseforge-id: 1624366
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
           files: ${{ needs.build.outputs.ARTIFACT_PATH }}
+          name: AE2 ${{ needs.build.outputs.VERSION }}
+          version: ${{ needs.build.outputs.VERSION }}
+          version-type: release
+          changelog: ${{ github.event.release.body }}
           dependencies: |
             guideme(required){modrinth:Ck4E7v7R}{curseforge:1173950}
             jade(optional){modrinth:nvQzSEkH}{curseforge:324717}
@@ -159,39 +136,6 @@ jobs:
             emi(optional){modrinth:fRiHVvU7}{curseforge:580555}
             optifine(incompatible)
             theoneprobe(optional){modrinth:Eyw0UxEx}{curseforge:245211}
-          curseforge-id: 223794
-          curseforge-token: ${{ secrets.CURSEFORGE }}
           loaders: neoforge
-          environment: all
-
-  deploy-modrinth:
-    name: Deploy to Modrinth
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-      - name: Unpack build artifact
-        run: tar axf build.tar.zst
-      - name: Validate artifacts exist
-        run: test -d ./build
-      - name: Upload to Modrinth
-        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075
-        with:
-          name: AE2 ${{ needs.build.outputs.VERSION }} [NEOFORGE]
-          version: ${{ needs.build.outputs.VERSION }}
-          files: ${{ needs.build.outputs.ARTIFACT_PATH }}
-          dependencies: |
-            guideme(required){modrinth:Ck4E7v7R}{curseforge:1173950}
-            jade(optional){modrinth:nvQzSEkH}{curseforge:324717}
-            wthit(optional){modrinth:6AQIaxuO}{curseforge:440979}
-            rei(optional){modrinth:nfn13YXA}{curseforge:310111}
-            emi(optional){modrinth:fRiHVvU7}{curseforge:580555}
-            optifine(incompatible)
-            theoneprobe(optional){modrinth:Eyw0UxEx}{curseforge:245211}
-          modrinth-id: XxWD5pD3
-          modrinth-token: ${{ secrets.MODRINTH }}
-          loaders: neoforge
-          environment: all
+          game-versions: 1.21.1
+          java: 21

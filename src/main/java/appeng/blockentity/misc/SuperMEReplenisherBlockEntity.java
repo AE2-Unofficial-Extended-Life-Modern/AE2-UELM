@@ -1,0 +1,668 @@
+package appeng.blockentity.misc;
+
+import java.util.List;
+import java.util.Objects;
+
+import org.jetbrains.annotations.Nullable;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponentMap;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+
+import it.unimi.dsi.fastutil.objects.Reference2LongMaps;
+import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
+
+import appeng.api.config.Actionable;
+import appeng.api.ids.AEComponents;
+import appeng.api.inventories.ISegmentedInventory;
+import appeng.api.inventories.InternalInventory;
+import appeng.api.networking.GridFlags;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.stacks.AEKey;
+import appeng.api.stacks.AEKeyType;
+import appeng.api.stacks.GenericStack;
+import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.MEStorage;
+import appeng.api.storage.StorageCells;
+import appeng.block.misc.SuperMEReplenisherBlock;
+import appeng.block.misc.SuperMEReplenisherBlock.Activity;
+import appeng.blockentity.grid.AENetworkedBlockEntity;
+import appeng.core.definitions.AEBlocks;
+import appeng.core.localization.GuiText;
+import appeng.helpers.IStockAmountHost;
+import appeng.helpers.externalstorage.GenericStackInv;
+import appeng.items.storage.BasicStorageCell;
+import appeng.items.storage.CreativeCellItem;
+import appeng.me.helpers.MachineSource;
+import appeng.menu.ISubMenu;
+import appeng.menu.MenuOpener;
+import appeng.menu.implementations.SuperMEReplenisherMenu;
+import appeng.util.SettingsFrom;
+import appeng.util.inv.AppEngInternalInventory;
+import appeng.util.inv.InternalInventoryHost;
+import appeng.util.inv.filter.IAEItemFilter;
+
+public class SuperMEReplenisherBlockEntity extends AENetworkedBlockEntity
+        implements IGridTickable, InternalInventoryHost, IStockAmountHost {
+    public static final int CONFIG_SLOT_COUNT = 27;
+    // maybe move these to aeconfig later?
+    public static final int DEFAULT_TICK_RATE = 120;
+    public static final int DEFAULT_THRESHOLD = 50;
+    public static final int MAX_TICK_RATE = 10_000;
+    private static final int ACTIVITY_UPDATE_INTERVAL = 20;
+
+    private static final String TAG_CELLS = "cells";
+    private static final String TAG_CONFIG = "config";
+    private static final String TAG_STOCK = "stock";
+    private static final String TAG_PENDING_INPUT = "pendingInput";
+    private static final String TAG_TICK_RATE = "tickRate";
+    private static final String TAG_THRESHOLD = "threshold";
+
+    private final AppEngInternalInventory cells = new AppEngInternalInventory(this, 6);
+    private final TargetInventory config = new TargetInventory();
+    private final KeyCounter stock = new KeyCounter();
+    private final KeyCounter pendingInput = new KeyCounter();
+    private final Reference2LongOpenHashMap<AEKeyType> amountsByType = new Reference2LongOpenHashMap<>();
+    private final IActionSource actionSource = new MachineSource(this);
+    private final MEStorage exposedStorage = new ReplenisherStorage();
+
+    private long totalBytes;
+    private long usedBytes;
+    private int tickRate = DEFAULT_TICK_RATE;
+    private int threshold = DEFAULT_THRESHOLD;
+    private int ticksUntilWork = DEFAULT_TICK_RATE;
+    private int ticksUntilActivityUpdate = ACTIVITY_UPDATE_INTERVAL;
+    private boolean insertedRecently;
+    private boolean extractedRecently;
+
+    public SuperMEReplenisherBlockEntity(BlockEntityType<?> blockEntityType, BlockPos pos, BlockState blockState) {
+        super(blockEntityType, pos, blockState);
+
+        getMainNode()
+                .setFlags(GridFlags.REQUIRE_CHANNEL)
+                .setIdlePowerUsage(4)
+                .addService(IGridTickable.class, this);
+
+        cells.setFilter(new IAEItemFilter() {
+            @Override
+            public boolean allowInsert(InternalInventory inv, int slot, ItemStack stack) {
+                return isValidCell(stack);
+            }
+        });
+        for (int i = 0; i < cells.size(); i++) {
+            cells.setMaxStackSize(i, 1);
+        }
+        cells.setEnableClientEvents(true);
+    }
+
+    /**
+     * will allow addon cells to work that are of type {@link BasicStorageCell} or {@link CreativeCellItem} <br>
+     * Tho in the future we might want to add an interface like ICellInfo that any addon cell can implement
+     */
+    public boolean isValidCell(ItemStack stack) {
+        return !stack.isEmpty()
+                && (stack.getItem() instanceof BasicStorageCell
+                        || stack.getItem() instanceof CreativeCellItem);
+    }
+
+    public boolean canReplaceCell(int slot, ItemStack replacement, long usedBytes) {
+        long capacity = 0;
+        for (int i = 0; i < cells.size(); i++) {
+            if (i != slot) {
+                capacity = addCapacity(capacity, getCellBytes(cells.getStackInSlot(i)));
+            }
+        }
+        capacity = addCapacity(capacity, getCellBytes(replacement));
+        return capacity >= usedBytes;
+    }
+
+    private long addCapacity(long current, long additional) {
+        if (current == Long.MAX_VALUE || additional == Long.MAX_VALUE) {
+            return Long.MAX_VALUE;
+        }
+        if (Long.MAX_VALUE - current < additional) {
+            return Long.MAX_VALUE;
+        }
+        return current + additional;
+    }
+
+    private long getCellBytes(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return 0;
+        }
+        if (stack.getItem() instanceof CreativeCellItem) {
+            return Long.MAX_VALUE;
+        }
+        if (stack.getItem() instanceof BasicStorageCell cell) {
+            return cell.getBytes(stack);
+        }
+        return 0;
+    }
+
+    @Override
+    public GenericStackInv getConfig() {
+        return config;
+    }
+
+    public InternalInventory getCellInventory() {
+        return cells;
+    }
+
+    public MEStorage getMEStorage() {
+        return exposedStorage;
+    }
+
+    @Nullable
+    @Override
+    public InternalInventory getSubInventory(ResourceLocation id) {
+        if (id.equals(ISegmentedInventory.CELLS)) {
+            return cells;
+        }
+        return super.getSubInventory(id);
+    }
+
+    @Override
+    public void saveChangedInventory(AppEngInternalInventory inv) {
+        saveChanges();
+    }
+
+    @Override
+    public void onChangeInventory(AppEngInternalInventory inv, int slot) {
+        if (inv == cells) {
+            updateCapacity();
+            saveChanges();
+        }
+    }
+
+    private void updateCapacity() {
+        totalBytes = 0;
+        for (var cell : cells) {
+            totalBytes = addCapacity(totalBytes, getCellBytes(cell));
+        }
+
+        var powerDraw = totalBytes == Long.MAX_VALUE
+                ? 1
+                : Math.max(1, Math.sqrt(Math.pow(totalBytes, 0.576D)));
+        getMainNode().setIdlePowerUsage(powerDraw);
+    }
+
+    private void recalculateAmountsByType() {
+        amountsByType.clear();
+        addAmountsByType(stock);
+        addAmountsByType(pendingInput);
+        updateUsedBytes();
+    }
+
+    private void addAmountsByType(KeyCounter counter) {
+        for (var entry : counter) {
+            if (entry.getLongValue() > 0) {
+                var type = entry.getKey().getType();
+                amountsByType.put(type, saturatingAdd(amountsByType.getLong(type), entry.getLongValue()));
+            }
+        }
+    }
+
+    private void updateUsedBytes() {
+        long result = 0;
+        for (var entry : Reference2LongMaps.fastIterable(amountsByType)) {
+            var amountPerByte = Math.max(1, entry.getKey().getAmountPerByte());
+            var amount = entry.getLongValue();
+            var bytes = amount / amountPerByte + (amount % amountPerByte == 0 ? 0 : 1);
+            result = saturatingAdd(result, bytes);
+        }
+        usedBytes = result;
+    }
+
+    private static long saturatingAdd(long left, long right) {
+        if (right > 0 && left > Long.MAX_VALUE - right) {
+            return Long.MAX_VALUE;
+        }
+        return left + right;
+    }
+
+    private long getInsertableAmount(AEKey what, long requested) {
+        if (requested <= 0) {
+            return 0;
+        }
+
+        var typeAmount = amountsByType.getLong(what.getType());
+        var available = Long.MAX_VALUE - typeAmount;
+        if (totalBytes != Long.MAX_VALUE) {
+            var freeBytes = Math.max(0, totalBytes - usedBytes);
+            var amountPerByte = Math.max(1, what.getType().getAmountPerByte());
+            var remainder = typeAmount % amountPerByte;
+            var unusedInPartialByte = remainder == 0 ? 0 : amountPerByte - remainder;
+            if (freeBytes <= Long.MAX_VALUE / amountPerByte) {
+                available = Math.min(available, saturatingAdd(freeBytes * amountPerByte, unusedInPartialByte));
+            }
+        }
+        return Math.max(0, Math.min(requested, available));
+    }
+
+    private long insert(KeyCounter target, AEKey what, long amount, Actionable mode) {
+        var inserted = getInsertableAmount(what, amount);
+        if (inserted > 0 && mode == Actionable.MODULATE) {
+            changeAmount(target, what, inserted);
+        }
+        return inserted;
+    }
+
+    private long extract(KeyCounter target, AEKey what, long amount, Actionable mode) {
+        var extracted = Math.min(amount, Math.max(0, target.get(what)));
+        if (extracted > 0 && mode == Actionable.MODULATE) {
+            changeAmount(target, what, -extracted);
+        }
+        return extracted;
+    }
+
+    private void changeAmount(KeyCounter counter, AEKey what, long delta) {
+        var newAmount = counter.get(what) + delta;
+        if (newAmount > 0) {
+            counter.set(what, newAmount);
+        } else {
+            counter.remove(what);
+        }
+
+        var type = what.getType();
+        var typeAmount = amountsByType.getLong(type);
+        if (typeAmount == Long.MAX_VALUE) {
+            recalculateAmountsByType();
+        } else {
+            amountsByType.put(type, typeAmount + delta);
+            updateUsedBytes();
+        }
+
+        if (level != null) {
+            level.blockEntityChanged(worldPosition);
+        }
+    }
+
+    public long getStoredAmount(AEKey what) {
+        return Math.max(0, stock.get(what));
+    }
+
+    public long getTotalBytes() {
+        return totalBytes;
+    }
+
+    public long getUsedBytes() {
+        return usedBytes;
+    }
+
+    public int getTickRate() {
+        return tickRate;
+    }
+
+    public void setTickRate(int tickRate) {
+        var newTickRate = Mth.clamp(tickRate, 1, MAX_TICK_RATE);
+        if (this.tickRate == newTickRate) {
+            return;
+        }
+        this.tickRate = newTickRate;
+        this.ticksUntilWork = Math.min(this.ticksUntilWork, this.tickRate);
+        saveChanges();
+    }
+
+    public int getThreshold() {
+        return threshold;
+    }
+
+    public void setThreshold(int threshold) {
+        var newThreshold = Mth.clamp(threshold, 1, 100);
+        if (this.threshold == newThreshold) {
+            return;
+        }
+        this.threshold = newThreshold;
+        saveChanges();
+    }
+
+    private void updateActivity() {
+        var state = getBlockState();
+        if (level == null || !state.hasProperty(SuperMEReplenisherBlock.ACTIVITY)) {
+            return;
+        }
+
+        var current = state.getValue(SuperMEReplenisherBlock.ACTIVITY);
+        Activity next;
+        if (insertedRecently && extractedRecently) {
+            next = current == Activity.IDLE ? Activity.EXTRACTING : current;
+        } else if (extractedRecently) {
+            next = Activity.EXTRACTING;
+        } else if (insertedRecently) {
+            next = Activity.INSERTING;
+        } else {
+            next = Activity.IDLE;
+        }
+        insertedRecently = false;
+        extractedRecently = false;
+
+        if (next != current) {
+            level.setBlock(worldPosition, state.setValue(SuperMEReplenisherBlock.ACTIVITY, next),
+                    Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        }
+    }
+
+    @Override
+    public TickingRequest getTickingRequest(IGridNode node) {
+        return new TickingRequest(1, 1, false);
+    }
+
+    @Override
+    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+        if (--ticksUntilActivityUpdate <= 0) {
+            ticksUntilActivityUpdate = ACTIVITY_UPDATE_INTERVAL;
+            updateActivity();
+        }
+
+        if (--ticksUntilWork > 0) {
+            return TickRateModulation.SAME;
+        }
+        ticksUntilWork = tickRate;
+
+        var grid = node.getGrid();
+        if (grid == null || !getMainNode().isOnline()) {
+            return TickRateModulation.SAME;
+        }
+
+        var networkStorage = grid.getStorageService().getInventory();
+        var configuredStockTypes = 0;
+        for (int i = 0; i < config.size(); i++) {
+            var target = config.getStack(i);
+            if (target == null) {
+                continue;
+            }
+
+            var what = target.what();
+            if (target.amount() > 0) {
+                var stored = getStoredAmount(what);
+                if (stored > target.amount()) {
+                    returnToNetwork(networkStorage, stock, what, stored - target.amount());
+                } else if (stored * 100.0D / target.amount() < threshold) {
+                    requestFromNetwork(networkStorage, what, target.amount() - stored);
+                }
+            }
+            if (stock.get(what) > 0) {
+                configuredStockTypes++;
+            }
+        }
+
+        if (stock.size() > configuredStockTypes) {
+            returnUnconfiguredStock(networkStorage);
+        }
+        if (!pendingInput.isEmpty()) {
+            flushPendingInput(networkStorage);
+        }
+        return TickRateModulation.SAME;
+    }
+
+    void returnUnconfiguredStock(MEStorage networkStorage) {
+        for (var what : List.copyOf(stock.keySet())) {
+            if (!isConfigured(what)) {
+                returnToNetwork(networkStorage, stock, what, stock.get(what));
+            }
+        }
+    }
+
+    private boolean isConfigured(AEKey what) {
+        for (int i = 0; i < config.size(); i++) {
+            if (Objects.equals(config.getKey(i), what)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void requestFromNetwork(MEStorage networkStorage, AEKey what, long amount) {
+        var insertable = getInsertableAmount(what, amount);
+        if (insertable <= 0) {
+            return;
+        }
+        var extracted = networkStorage.extract(what, insertable, Actionable.MODULATE, actionSource);
+        if (extracted > 0) {
+            insert(stock, what, extracted, Actionable.MODULATE);
+        }
+    }
+
+    private void flushPendingInput(MEStorage networkStorage) {
+        var keys = List.copyOf(pendingInput.keySet());
+        for (var what : keys) {
+            returnToNetwork(networkStorage, pendingInput, what, pendingInput.get(what));
+        }
+    }
+
+    private long returnToNetwork(MEStorage networkStorage, KeyCounter source, AEKey what, long amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+        var inserted = networkStorage.insert(what, amount, Actionable.MODULATE, actionSource);
+        if (inserted > 0) {
+            extract(source, what, inserted, Actionable.MODULATE);
+        }
+        return inserted;
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
+        super.saveAdditional(data, registries);
+        cells.writeToNBT(data, TAG_CELLS, registries);
+        config.writeToChildTag(data, TAG_CONFIG, registries);
+        data.put(TAG_STOCK, writeCounter(stock, registries));
+        data.put(TAG_PENDING_INPUT, writeCounter(pendingInput, registries));
+        data.putInt(TAG_TICK_RATE, tickRate);
+        data.putInt(TAG_THRESHOLD, threshold);
+    }
+
+    @Override
+    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        super.loadTag(data, registries);
+        cells.readFromNBT(data, TAG_CELLS, registries);
+        config.readFromChildTag(data, TAG_CONFIG, registries);
+        readCounter(data.getList(TAG_STOCK, Tag.TAG_COMPOUND), stock, registries);
+        readCounter(data.getList(TAG_PENDING_INPUT, Tag.TAG_COMPOUND), pendingInput, registries);
+        tickRate = Mth.clamp(data.contains(TAG_TICK_RATE) ? data.getInt(TAG_TICK_RATE) : DEFAULT_TICK_RATE,
+                1, MAX_TICK_RATE);
+        threshold = Mth.clamp(data.contains(TAG_THRESHOLD) ? data.getInt(TAG_THRESHOLD) : DEFAULT_THRESHOLD,
+                1, 100);
+        ticksUntilWork = tickRate;
+        recalculateAmountsByType();
+        updateCapacity();
+    }
+
+    private static ListTag writeCounter(KeyCounter counter, HolderLookup.Provider registries) {
+        var result = new ListTag();
+        for (var entry : counter) {
+            if (entry.getLongValue() > 0) {
+                result.add(GenericStack.writeTag(registries, new GenericStack(entry.getKey(), entry.getLongValue())));
+            }
+        }
+        return result;
+    }
+
+    private static void readCounter(ListTag data, KeyCounter counter, HolderLookup.Provider registries) {
+        counter.clear();
+        for (var rawTag : data) {
+            var stack = GenericStack.readTag(registries, (CompoundTag) rawTag);
+            if (stack != null && stack.amount() > 0) {
+                counter.add(stack.what(), stack.amount());
+            }
+        }
+        counter.removeZeros();
+    }
+
+    @Override
+    public void addAdditionalDrops(Level level, BlockPos pos, List<ItemStack> drops) {
+        super.addAdditionalDrops(level, pos, drops);
+
+        long toInsert = 0;
+        long inserted = 0;
+        var grid = getMainNode().getGrid();
+        if (grid != null) {
+            var networkStorage = grid.getStorageService().getInventory();
+            for (var what : List.copyOf(stock.keySet())) {
+                var amount = stock.get(what);
+                toInsert += amount;
+                inserted += returnToNetwork(networkStorage, stock, what, amount);
+            }
+            for (var what : List.copyOf(pendingInput.keySet())) {
+                var amount = pendingInput.get(what);
+                toInsert += amount;
+                inserted += returnToNetwork(networkStorage, pendingInput, what, amount);
+            }
+        }
+        // we try to fill the cells with the keys before discarding them if not grid is available
+        if (inserted < toInsert) {
+            for (var cell : cells) {
+                var cellInventory = StorageCells.getCellInventory(cell, null);
+                if (cellInventory != null) {
+                    for (var what : List.copyOf(stock.keySet())) {
+                        returnToNetwork(cellInventory, stock, what, stock.get(what));
+                    }
+                    for (var what : List.copyOf(pendingInput.keySet())) {
+                        returnToNetwork(cellInventory, pendingInput, what, pendingInput.get(what));
+                    }
+                }
+            }
+        }
+
+        for (var cell : cells) {
+            if (!cell.isEmpty()) {
+                drops.add(cell.copy());
+            }
+        }
+    }
+
+    @Override
+    public void clearContent() {
+        super.clearContent();
+        cells.clear();
+        config.clear();
+        stock.clear();
+        pendingInput.clear();
+        recalculateAmountsByType();
+        updateCapacity();
+    }
+
+    @Override
+    public void returnToMainMenu(Player player, ISubMenu subMenu) {
+        MenuOpener.returnTo(SuperMEReplenisherMenu.TYPE, player, subMenu.getLocator());
+    }
+
+    @Override
+    public ItemStack getMainMenuIcon() {
+        return AEBlocks.SUPER_ME_REPLENISHER.stack();
+    }
+
+    @Override
+    public void importSettings(SettingsFrom mode, DataComponentMap input, @Nullable Player player) {
+        super.importSettings(mode, input, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            var tickRate = input.get(AEComponents.EXPORTED_REPLENISHER_TICK_RATE);
+            if (tickRate != null) {
+                this.setTickRate(tickRate);
+            }
+            var threshold = input.get(AEComponents.EXPORTED_REPLENISHER_THRESHOLD);
+            if (threshold != null) {
+                this.setThreshold(threshold);
+            }
+        }
+    }
+
+    @Override
+    public void exportSettings(SettingsFrom mode, DataComponentMap.Builder builder, @Nullable Player player) {
+        super.exportSettings(mode, builder, player);
+
+        if (mode == SettingsFrom.MEMORY_CARD) {
+            builder.set(AEComponents.EXPORTED_REPLENISHER_TICK_RATE, this.getTickRate());
+            builder.set(AEComponents.EXPORTED_REPLENISHER_THRESHOLD, this.getThreshold());
+        }
+    }
+
+    private boolean isOwnAction(IActionSource source) {
+        return source.machine().orElse(null) == this;
+    }
+
+    private final class ReplenisherStorage implements MEStorage {
+        @Override
+        public boolean isPreferredStorageFor(AEKey what, IActionSource source) {
+            return !isOwnAction(source) && pendingInput.get(what) > 0;
+        }
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            MEStorage.checkPreconditions(what, amount, mode, source);
+            if (isOwnAction(source)) {
+                return 0;
+            }
+
+            var inserted = SuperMEReplenisherBlockEntity.this.insert(pendingInput, what, amount, mode);
+            if (inserted > 0 && mode == Actionable.MODULATE) {
+                insertedRecently = true;
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            MEStorage.checkPreconditions(what, amount, mode, source);
+            if (isOwnAction(source)) {
+                return 0;
+            }
+
+            var extracted = SuperMEReplenisherBlockEntity.this.extract(stock, what, amount, mode);
+            if (extracted > 0 && mode == Actionable.MODULATE) {
+                extractedRecently = true;
+            }
+            return extracted;
+        }
+
+        @Override
+        public void getAvailableStacks(KeyCounter out) {
+            out.addAll(stock);
+        }
+
+        @Override
+        public Component getDescription() {
+            return GuiText.SuperMEReplenisher.text();
+        }
+    }
+
+    private final class TargetInventory extends GenericStackInv {
+        private TargetInventory() {
+            super(SuperMEReplenisherBlockEntity.this::saveChanges, Mode.CONFIG_STACKS, CONFIG_SLOT_COUNT);
+        }
+
+        @Override
+        public long getMaxAmount(AEKey key) {
+            return Long.MAX_VALUE;
+        }
+
+        @Override
+        public void setStack(int slot, @Nullable GenericStack stack) {
+            if (stack != null && (level == null || !level.isClientSide())) {
+                for (int i = 0; i < size(); i++) {
+                    if (i != slot && Objects.equals(getKey(i), stack.what())) {
+                        return;
+                    }
+                }
+            }
+            super.setStack(slot, stack);
+        }
+    }
+}

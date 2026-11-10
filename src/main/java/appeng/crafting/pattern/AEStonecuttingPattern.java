@@ -42,6 +42,7 @@ import net.minecraft.world.level.Level;
 
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.PatternDetailsTooltip;
+import appeng.api.crafting.PatternInfo;
 import appeng.api.ids.AEComponents;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -59,6 +60,7 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
 
     private final AEItemKey definition;
     public final boolean canSubstitute;
+    private final String author;
     private final ResourceLocation recipeId;
     private final StonecutterRecipe recipe;
     private final AEItemKey input;
@@ -83,6 +85,7 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
 
         this.input = Objects.requireNonNull(AEItemKey.of(encodedPattern.input()));
         this.canSubstitute = encodedPattern.canSubstitute();
+        this.author = encodedPattern.author();
 
         // Find recipe
         this.recipeId = encodedPattern.recipeId();
@@ -140,9 +143,15 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
     }
 
     @Override
+    public String getAuthor() {
+        return author;
+    }
+
+    @Override
     public PatternDetailsTooltip getTooltip(Level level, TooltipFlag flags) {
         var tooltip = new PatternDetailsTooltip(PatternDetailsTooltip.OUTPUT_TEXT_CRAFTS);
         tooltip.addInputsAndOutputs(this);
+        tooltip.addProperty(GuiText.Substitute.text(), canSubstitute ? EncodedPatternItem.YES : EncodedPatternItem.NO);
         if (flags.isAdvanced()) {
             tooltip.addProperty(Component.literal("Recipe"), Component.literal(recipeId.toString()));
         }
@@ -155,9 +164,8 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
         var tooltip = new PatternDetailsTooltip(PatternDetailsTooltip.OUTPUT_TEXT_CRAFTS);
         var encodedPattern = stack.get(AEComponents.ENCODED_STONECUTTING_PATTERN);
         if (encodedPattern != null) {
-            if (encodedPattern.canSubstitute()) {
-                tooltip.addProperty(GuiText.PatternTooltipSubstitutions.text());
-            }
+            tooltip.addProperty(GuiText.Substitute.text(),
+                    encodedPattern.canSubstitute() ? EncodedPatternItem.YES : EncodedPatternItem.NO);
             if (flags.isAdvanced()) {
                 tooltip.addProperty(Component.literal("Recipe"),
                         Component.literal(encodedPattern.recipeId().toString()));
@@ -263,15 +271,24 @@ public class AEStonecuttingPattern implements IPatternDetails, IMolecularAssembl
     public static void encode(ItemStack stack, RecipeHolder<StonecutterRecipe> recipe, AEItemKey input,
             AEItemKey output,
             boolean allowSubstitution) {
+        encode(stack, recipe, input, output, allowSubstitution, PatternInfo.EMPTY);
+    }
+
+    public static void encode(ItemStack stack, RecipeHolder<StonecutterRecipe> recipe, AEItemKey input,
+            AEItemKey output,
+            boolean allowSubstitution,
+            PatternInfo info) {
         Preconditions.checkNotNull(recipe, "recipe");
         Preconditions.checkNotNull(input, "input");
         Preconditions.checkNotNull(output, "output");
+        info = info == null ? PatternInfo.EMPTY : info;
 
         stack.set(AEComponents.ENCODED_STONECUTTING_PATTERN, new EncodedStonecuttingPattern(
                 input.toStack(),
                 output.toStack(),
                 allowSubstitution,
-                recipe.id()));
+                recipe.id(),
+                info.author()));
     }
 
     private class Input implements IInput {

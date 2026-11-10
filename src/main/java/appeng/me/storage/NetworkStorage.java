@@ -20,9 +20,14 @@ package appeng.me.storage;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
 
@@ -35,6 +40,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.api.storage.StickyClaim;
 import appeng.core.localization.GuiText;
 
 /**
@@ -46,8 +52,12 @@ public class NetworkStorage implements MEStorage {
     // This flag prevents both concurrent modifications of the mounted storage while
     // they're being iterated, and recursive extract/insert/list operations.
     private boolean mountsInUse;
+    private ChangeListener changeListener = ChangeListener.NONE;
 
     private final NavigableMap<Integer, List<MEStorage>> priorityInventory;
+    private final Map<AEKey, List<MEStorage>> stickyClaims = new HashMap<>();
+    private final Map<MEStorage, List<AEKey>> stickyClaimsByInventory = new IdentityHashMap<>();
+    private final List<MEStorage> unindexedStickyInventories = new ArrayList<>();
     private final List<MEStorage> secondPassInventories = new ArrayList<>();
 
     // Queued mount/unmount operations that occurred while an insert/extract was ongoing
@@ -59,6 +69,29 @@ public class NetworkStorage implements MEStorage {
         this.priorityInventory = new TreeMap<>(PRIORITY_SORTER);
     }
 
+    public void forEachMount(Consumer<MEStorage> consumer) {
+        for (var list : this.priorityInventory.values()) {
+            for (var inv : list) {
+                consumer.accept(inv);
+            }
+        }
+    }
+
+    public boolean isInUse() {
+        return mountsInUse;
+    }
+
+    public boolean allMountsReportAllChanges() {
+        for (var list : this.priorityInventory.values()) {
+            for (var inv : list) {
+                if (!inv.reportsAllChanges()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     public void mount(int priority, MEStorage inventory) {
         if (mountsInUse) {
             if (queuedOperations == null) {
@@ -68,6 +101,10 @@ public class NetworkStorage implements MEStorage {
         } else {
             this.priorityInventory.computeIfAbsent(priority, k -> new ArrayList<>())
                     .add(inventory);
+            var stickyClaim = inventory.getStickyClaim();
+            if (stickyClaim != null) {
+                addStickyClaims(inventory, stickyClaim);
+            }
         }
     }
 
@@ -87,6 +124,36 @@ public class NetworkStorage implements MEStorage {
                     prioIt.remove();
                 }
             }
+            removeStickyClaims(inventory);
+        }
+    }
+
+    private void addStickyClaims(MEStorage inventory, StickyClaim stickyClaim) {
+        var stickyKeys = stickyClaim.keys();
+        if (stickyKeys == null) {
+            this.unindexedStickyInventories.add(inventory);
+            return;
+        }
+
+        var keys = List.copyOf(stickyKeys);
+        this.stickyClaimsByInventory.put(inventory, keys);
+        for (var key : keys) {
+            this.stickyClaims.computeIfAbsent(key, k -> new ArrayList<>(1)).add(inventory);
+        }
+    }
+
+    private void removeStickyClaims(MEStorage inventory) {
+        var keys = this.stickyClaimsByInventory.remove(inventory);
+        if (keys == null) {
+            this.unindexedStickyInventories.remove(inventory);
+            return;
+        }
+
+        for (var key : keys) {
+            var claimants = this.stickyClaims.get(key);
+            if (claimants != null && claimants.remove(inventory) && claimants.isEmpty()) {
+                this.stickyClaims.remove(key);
+            }
         }
     }
 
@@ -99,7 +166,13 @@ public class NetworkStorage implements MEStorage {
 
         mountsInUse = true;
         try {
+            var sticky = isClaimedBySticky(what);
+
             for (var invList : this.priorityInventory.values()) {
+                if (remaining <= 0) {
+                    break;
+                }
+
                 secondPassInventories.clear();
 
                 // First give every inventory a chance to accept the item if it's preferential storage for the given
@@ -108,12 +181,12 @@ public class NetworkStorage implements MEStorage {
                 while (ii.hasNext() && remaining > 0) {
                     var inv = ii.next();
 
-                    if (isQueuedForRemoval(inv)) {
+                    if (sticky && !inv.acceptsSticky(what) || isQueuedForRemoval(inv)) {
                         continue;
                     }
 
                     if (inv.isPreferredStorageFor(what, src)) {
-                        remaining -= inv.insert(what, remaining, type, src);
+                        remaining -= insertInto(inv, what, remaining, type, src);
                     } else {
                         secondPassInventories.add(inv);
                     }
@@ -129,7 +202,7 @@ public class NetworkStorage implements MEStorage {
                         continue;
                     }
 
-                    remaining -= inv.insert(what, remaining, type, src);
+                    remaining -= insertInto(inv, what, remaining, type, src);
                 }
             }
 
@@ -140,6 +213,80 @@ public class NetworkStorage implements MEStorage {
         flushQueuedOperations();
 
         return amount - remaining;
+    }
+
+    private long insertInto(MEStorage inv, AEKey what, long amount, Actionable type, IActionSource src) {
+        var inserted = inv.insert(what, amount, type, src);
+        if (inserted > 0 && type == Actionable.MODULATE) {
+            reportChange(inv, what, inserted);
+        }
+        return inserted;
+    }
+
+    private long extractFrom(MEStorage inv, AEKey what, long amount, Actionable mode, IActionSource src) {
+        var extracted = inv.extract(what, amount, mode, src);
+        if (extracted > 0 && mode == Actionable.MODULATE) {
+            reportChange(inv, what, -extracted);
+        }
+        return extracted;
+    }
+
+    private void reportChange(MEStorage inv, AEKey what, long delta) {
+        if (changeListener.ignoresChangesOf(inv)) {
+            return;
+        }
+        if (inv.reportsExactChanges()) {
+            changeListener.onExactChange(what, delta);
+        } else {
+            changeListener.onOtherChange();
+        }
+    }
+
+    public interface ChangeListener {
+        ChangeListener NONE = new ChangeListener() {
+            @Override
+            public boolean ignoresChangesOf(MEStorage inv) {
+                return false;
+            }
+
+            @Override
+            public void onExactChange(AEKey what, long delta) {
+            }
+
+            @Override
+            public void onOtherChange() {
+            }
+        };
+
+        boolean ignoresChangesOf(MEStorage inv);
+
+        void onExactChange(AEKey what, long delta);
+
+        void onOtherChange();
+    }
+
+    public void setChangeListener(ChangeListener changeListener) {
+        this.changeListener = Objects.requireNonNull(changeListener);
+    }
+
+    private boolean isClaimedBySticky(AEKey what) {
+        if (!this.stickyClaims.isEmpty()) {
+            var claimants = this.stickyClaims.get(what);
+            if (claimants != null && anyClaims(claimants, what)) {
+                return true;
+            }
+        }
+        return !this.unindexedStickyInventories.isEmpty() && anyClaims(this.unindexedStickyInventories, what);
+    }
+
+    private boolean anyClaims(List<MEStorage> claimants, AEKey what) {
+        for (int i = 0, size = claimants.size(); i < size; i++) {
+            var inv = claimants.get(i);
+            if (inv.acceptsSticky(what) && !isQueuedForRemoval(inv)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void flushQueuedOperations() {
@@ -188,7 +335,7 @@ public class NetworkStorage implements MEStorage {
                         continue;
                     }
 
-                    extracted += inv.extract(what, amount - extracted, mode, source);
+                    extracted += extractFrom(inv, what, amount - extracted, mode, source);
                 }
             }
         } finally {
@@ -216,6 +363,26 @@ public class NetworkStorage implements MEStorage {
         } finally {
             mountsInUse = false;
         }
+    }
+
+    @Override
+    public int getEstimatedStackCount() {
+        if (mountsInUse) {
+            return 0; // Prevent recursive use
+        }
+
+        mountsInUse = true;
+        int total = 0;
+        try {
+            for (var i : this.priorityInventory.values()) {
+                for (var j : i) {
+                    total += j.getEstimatedStackCount();
+                }
+            }
+        } finally {
+            mountsInUse = false;
+        }
+        return total;
     }
 
     @Override

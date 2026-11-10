@@ -3,9 +3,16 @@ package appeng.client.gui.me.common;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.time.DurationFormatUtils;
+
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -14,8 +21,11 @@ import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEKey;
 import appeng.core.AEConfig;
 import appeng.core.AELog;
+import appeng.core.localization.GuiText;
+import appeng.core.localization.PlayerMessages;
 import appeng.core.network.clientbound.CraftingJobStatusPacket;
 import appeng.items.tools.powered.WirelessTerminalItem;
+import appeng.util.NumberUtil;
 import appeng.util.SearchInventoryEvent;
 
 /**
@@ -40,6 +50,7 @@ public final class PendingCraftingJobs {
             AEKey what,
             long requestedAmount,
             long remainingAmount,
+            long elapsedTime,
             CraftingJobStatusPacket.Status status) {
 
         AELog.debug("Crafting job " + id + " for " + requestedAmount
@@ -55,13 +66,34 @@ public final class PendingCraftingJobs {
             case CANCELLED -> jobs.remove(id);
             case FINISHED -> {
                 jobs.remove(id);
-                // Only toast if no terminal is open (i.e. REI/JEI or no screen at all)
-                // and a wireless terminal is in the player inv
+                // Only notify if a wireless terminal is in the player inv
                 var minecraft = Minecraft.getInstance();
                 if (AEConfig.instance().isNotifyForFinishedCraftingJobs()
-                        && !(minecraft.screen instanceof MEStorageScreen<?>)
                         && minecraft.player != null && hasNotificationEnablingItem(minecraft.player)) {
-                    minecraft.getToasts().addToast(new FinishedJobToast(what, requestedAmount));
+                    var amount = Component.literal(NumberUtil.formatNumber(requestedAmount))
+                            .withStyle(ChatFormatting.GREEN)
+                            .withStyle(style -> style.withHoverEvent(
+                                    new HoverEvent(
+                                            HoverEvent.Action.SHOW_TEXT,
+                                            GuiText.HoverAmount.text(requestedAmount))));
+                    var displayName = AEKeyRendering.getDisplayName(what).copy()
+                            .withStyle(ChatFormatting.AQUA)
+                            .withStyle(style -> style.withHoverEvent(
+                                    new HoverEvent(
+                                            HoverEvent.Action.SHOW_ITEM,
+                                            new HoverEvent.ItemStackInfo(what.wrapForDisplayOrFilter()))));
+                    var duration = Component.literal(DurationFormatUtils.formatDuration(
+                            TimeUnit.NANOSECONDS.toMillis(elapsedTime),
+                            "HH:mm:ss"))
+                            .withStyle(ChatFormatting.GREEN);
+                    minecraft.player.sendSystemMessage(PlayerMessages.CraftJobFinished.text(
+                            amount,
+                            displayName,
+                            duration));
+                    minecraft.player.playSound(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
+                    if (!(minecraft.screen instanceof MEStorageScreen<?>)) {
+                        minecraft.getToasts().addToast(new FinishedJobToast(what, requestedAmount));
+                    }
                 }
             }
         }

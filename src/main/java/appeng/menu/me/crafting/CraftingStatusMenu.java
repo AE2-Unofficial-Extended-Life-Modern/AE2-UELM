@@ -108,6 +108,7 @@ public class CraftingStatusMenu extends CraftingCPUMenu implements ISubMenu {
                     || ++lastUpdate >= 20) {
                 lastCpuSet = network.getCraftingService().getCpus();
                 cpuList = createCpuList();
+                lastUpdate = 0;
             }
         } else {
             lastUpdate = 20;

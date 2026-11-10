@@ -18,11 +18,13 @@
 
 package appeng.core;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.DoubleSupplier;
 
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
@@ -32,6 +34,7 @@ import net.neoforged.neoforge.common.ModConfigSpec.EnumValue;
 import net.neoforged.neoforge.common.ModConfigSpec.IntValue;
 
 import appeng.api.config.CondenserOutput;
+import appeng.api.config.ControllerAnimation;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnit;
 import appeng.api.config.Settings;
@@ -48,6 +51,7 @@ public final class AEConfig {
 
     // Default Energy Conversion Rates
     private static final double DEFAULT_FE_EXCHANGE = 0.5;
+    private static final double DEFAULT_EU_EXCHANGE = 2;
 
     private static AEConfig instance;
 
@@ -190,9 +194,19 @@ public final class AEConfig {
         return this.client.selectedPowerUnit.get();
     }
 
+    public ControllerAnimation getControllerAnimation() {
+        return client.controllerAnimation.get();
+    }
+
+    public void setControllerAnimation(ControllerAnimation animation) {
+        client.controllerAnimation.set(animation);
+        client.spec.save();
+    }
+
     public void nextEnergyUnit(boolean backwards) {
-        var selected = EnumCycler.rotateEnum(getSelectedEnergyUnit(), backwards,
-                Settings.POWER_UNITS.getValues());
+        var availablePowerUnits = EnumSet.copyOf(Settings.POWER_UNITS.getValues());
+        availablePowerUnits.removeIf(pu -> pu.modId != null && !ModList.get().isLoaded(pu.modId));
+        var selected = EnumCycler.rotateEnum(getSelectedEnergyUnit(), backwards, availablePowerUnits);
         client.selectedPowerUnit.set(selected);
         client.spec.save();
     }
@@ -362,6 +376,10 @@ public final class AEConfig {
         return client.tooltipMaxCellContentShown.get();
     }
 
+    public boolean isFancyTooltipsEnabled() {
+        return client.enableFancyTooltips.get();
+    }
+
     public boolean isPinAutoCraftedItems() {
         return client.pinAutoCraftedItems.get();
     }
@@ -416,6 +434,10 @@ public final class AEConfig {
         client.spec.save();
     }
 
+    public int getMaxPinnedRows() {
+        return client.maxPinnedRows.get();
+    }
+
     private static class ClientConfig {
         private final ModConfigSpec spec;
 
@@ -433,10 +455,12 @@ public final class AEConfig {
         public final BooleanValue notifyForFinishedCraftingJobs;
 
         // Terminal Settings
+        public final EnumValue<ControllerAnimation> controllerAnimation;
         public final EnumValue<TerminalStyle> terminalStyle;
         public final BooleanValue pinAutoCraftedItems;
         public final BooleanValue clearGridOnClose;
         public final IntValue terminalMargin;
+        public final IntValue maxPinnedRows;
 
         // Search Settings
         public final BooleanValue searchModNameInTooltips;
@@ -450,6 +474,7 @@ public final class AEConfig {
         public final BooleanValue tooltipShowCellUpgrades;
         public final BooleanValue tooltipShowCellContent;
         public final IntValue tooltipMaxCellContentShown;
+        public final BooleanValue enableFancyTooltips;
 
         public ClientConfig() {
             var builder = new ModConfigSpec.Builder();
@@ -470,6 +495,8 @@ public final class AEConfig {
             this.useLargeFonts = define(builder, "useTerminalUseLargeFont", false);
             this.useColoredCraftingStatus = define(builder, "useColoredCraftingStatus", true);
             this.selectedPowerUnit = defineEnum(builder, "powerUnit", PowerUnit.AE, "Unit of power shown in AE UIs");
+            this.controllerAnimation = defineEnum(builder, "controllerAnimation", ControllerAnimation.RAINBOW,
+                    "Controls the animation displayed by ME Controllers.");
             this.debugGuiOverlays = define(builder, "showDebugGuiOverlays", false, "Show debugging GUI overlays");
             this.showPlacementPreview = define(builder, "showPlacementPreview", true,
                     "Show a preview of part and facade placement");
@@ -485,6 +512,8 @@ public final class AEConfig {
                     "Automatically clear the crafting/encoding grid when closing the terminal");
             this.terminalMargin = define(builder, "terminalMargin", 25,
                     "The vertical margin to apply when sizing terminals. Used to make room for centered item mod search bars");
+            this.maxPinnedRows = define(builder, "maxPinnedRows", 3,
+                    "The maximum number of pinned rows to display, crafting and manual.");
             builder.pop();
 
             // Search Settings
@@ -510,6 +539,8 @@ public final class AEConfig {
                     "Show a preview of the content in the tooltips of storage cells, color applicators and matter cannons");
             this.tooltipMaxCellContentShown = define(builder, "maxCellContentShown", 5, 1, 32,
                     "The maximum number of content entries to show in the tooltip of storage cells, color applicators and matter cannons");
+            this.enableFancyTooltips = define(builder, "enableFancyTooltips", true,
+                    "Enables fancy tooltips for encoded patterns");
             builder.pop();
 
             this.spec = builder.build();
@@ -567,6 +598,7 @@ public final class AEConfig {
 
         // Power Ratios
         public final DoubleValue powerRatioForgeEnergy;
+        public final DoubleValue powerRatioEnergyUnit;
         public final DoubleValue powerUsageMultiplier;
         public final DoubleValue gridEnergyStoragePerNode;
         public final DoubleValue crystalResonanceGeneratorRate;
@@ -658,6 +690,7 @@ public final class AEConfig {
 
             builder.push("powerRatios");
             powerRatioForgeEnergy = define(builder, "forgeEnergy", DEFAULT_FE_EXCHANGE);
+            powerRatioEnergyUnit = define(builder, "energyUnit", DEFAULT_EU_EXCHANGE);
             powerUsageMultiplier = define(builder, "usageMultiplier", 1.0, 0.01, Double.MAX_VALUE);
             gridEnergyStoragePerNode = define(builder, "gridEnergyStoragePerNode", 25.0, 1.0, 1000000.0,
                     "How much energy can the internal grid buffer storage per node attached to the grid.");
@@ -698,6 +731,7 @@ public final class AEConfig {
 
         public void sync() {
             PowerUnit.FE.conversionRatio = powerRatioForgeEnergy.get();
+            PowerUnit.EU.conversionRatio = powerRatioEnergyUnit.get();
             PowerMultiplier.CONFIG.multiplier = powerUsageMultiplier.get();
 
             CondenserOutput.MATTER_BALLS.requiredPower = condenserMatterBallsPower.get();

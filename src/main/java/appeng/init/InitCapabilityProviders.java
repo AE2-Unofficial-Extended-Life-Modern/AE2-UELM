@@ -174,6 +174,10 @@ public final class InitCapabilityProviders {
                 AEBlockEntities.DEBUG_ITEM_GEN.get(),
                 (object, context) -> object.getItemHandler());
         event.registerBlockEntity(
+                AECapabilities.ME_STORAGE,
+                AEBlockEntities.SUPER_ME_REPLENISHER.get(),
+                (object, context) -> object.getMEStorage());
+        event.registerBlockEntity(
                 Capabilities.EnergyStorage.BLOCK,
                 AEBlockEntities.DEBUG_ENERGY_GEN.get(),
                 (object, context) -> object);

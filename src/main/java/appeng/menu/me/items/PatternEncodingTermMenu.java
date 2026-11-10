@@ -44,6 +44,7 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
 
 import appeng.api.crafting.PatternDetailsHelper;
+import appeng.api.crafting.PatternInfo;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.GenericStack;
 import appeng.client.gui.Icon;
@@ -347,7 +348,7 @@ public class PatternEncodingTermMenu extends MEStorageMenu {
         }
 
         return PatternDetailsHelper.encodeCraftingPattern(this.currentRecipe, ingredients, result, isSubstitute(),
-                isSubstituteFluids());
+                isSubstituteFluids(), getPatternInfo());
     }
 
     @Nullable
@@ -374,7 +375,8 @@ public class PatternEncodingTermMenu extends MEStorageMenu {
             return null;
         }
 
-        return PatternDetailsHelper.encodeProcessingPattern(Arrays.asList(inputs), Arrays.asList(outputs));
+        return PatternDetailsHelper.encodeProcessingPattern(Arrays.asList(inputs), Arrays.asList(outputs),
+                getPatternInfo());
     }
 
     @Nullable
@@ -401,7 +403,7 @@ public class PatternEncodingTermMenu extends MEStorageMenu {
         var output = AEItemKey.of(recipe.value().assemble(input, level.registryAccess()));
 
         return PatternDetailsHelper.encodeSmithingTablePattern(recipe, template, base, addition, output,
-                encodingLogic.isSubstitution());
+                encodingLogic.isSubstitution(), getPatternInfo());
     }
 
     @Nullable
@@ -427,7 +429,12 @@ public class PatternEncodingTermMenu extends MEStorageMenu {
 
         var output = AEItemKey.of(recipe.value().getResultItem(level.registryAccess()));
 
-        return PatternDetailsHelper.encodeStonecuttingPattern(recipe, input, output, encodingLogic.isSubstitution());
+        return PatternDetailsHelper.encodeStonecuttingPattern(recipe, input, output, encodingLogic.isSubstitution(),
+                getPatternInfo());
+    }
+
+    private PatternInfo getPatternInfo() {
+        return PatternInfo.ofAuthor(getPlayer().getGameProfile().getName());
     }
 
     /**

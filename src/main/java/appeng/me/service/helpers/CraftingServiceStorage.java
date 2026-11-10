@@ -38,7 +38,14 @@ import appeng.me.service.CraftingService;
  */
 public class CraftingServiceStorage implements IStorageProvider {
     private final CraftingService craftingService;
-    private final MEStorage inventory = new MEStorage() {
+    private final MEStorage inventory = new Inventory();
+
+    public final class Inventory implements MEStorage {
+        @Override
+        public boolean reportsAllChanges() {
+            return true;
+        }
+
         @Override
         public boolean isPreferredStorageFor(AEKey key, IActionSource source) {
             return true;
@@ -51,10 +58,15 @@ public class CraftingServiceStorage implements IStorageProvider {
         }
 
         @Override
+        public boolean acceptsSticky(AEKey what) {
+            return true;
+        }
+
+        @Override
         public Component getDescription() {
             return GuiText.AutoCrafting.text();
         }
-    };
+    }
 
     public CraftingServiceStorage(CraftingService craftingService) {
         this.craftingService = craftingService;

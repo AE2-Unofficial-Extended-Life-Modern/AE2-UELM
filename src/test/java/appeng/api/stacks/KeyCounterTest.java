@@ -36,11 +36,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.Unbreakable;
 
 import appeng.api.config.FuzzyMode;
 import appeng.util.BootstrapMinecraft;
@@ -177,6 +180,33 @@ public class KeyCounterTest {
         assertEquals(1, itemList.getFirstEntry().getLongValue());
     }
 
+    /**
+     * Removing through the iterator must work regardless of how many variants of an item are stored.
+     */
+    @Test
+    public void testIteratorRemoveWithSingleVariant() {
+        itemList.add(diamondSword(100), 1);
+
+        var it = itemList.iterator();
+        it.next();
+        it.remove();
+        assertThrows(IllegalStateException.class, it::remove);
+
+        assertListContent();
+    }
+
+    @Test
+    public void testIteratorRemoveWithMultipleVariants() {
+        itemList.add(diamondSword(100), 1);
+        itemList.add(diamondSword(50), 1);
+
+        var it = itemList.iterator();
+        var removed = it.next().getKey();
+        it.remove();
+
+        assertThat(itemList.keySet()).hasSize(1).doesNotContain(removed);
+    }
+
     @Nested
     class FindFuzzyDamageableItems {
 
@@ -273,6 +303,106 @@ public class KeyCounterTest {
             } else {
                 return 100;
             }
+        }
+    }
+
+    /**
+     * Same expectations as {@link FindFuzzyDamageableItems}, but with only a single variant of the item stored.
+     */
+    @Nested
+    class FindFuzzySingleDamageableItem {
+        @ParameterizedTest
+        @CsvSource({
+                "100, IGNORE_ALL, 0, 100",
+                "0, IGNORE_ALL, 0, 100",
+                "100, PERCENT_99, 100, 100",
+                "0, PERCENT_99, 0, 99",
+                "100, PERCENT_75, 75, 100",
+                "0, PERCENT_75, 0, 74",
+                "100, PERCENT_50, 50, 100",
+                "0, PERCENT_50, 0, 49",
+                "100, PERCENT_25, 25, 100",
+                "0, PERCENT_25, 0, 24",
+        })
+        void testFindFuzzy(int filterDurability, FuzzyMode fuzzyMode, int minDurabilityInclusive,
+                int maxDurabilityInclusive) {
+            var filter = diamondSword(filterDurability);
+            for (var i = 0; i <= 100; i++) {
+                var sword = diamondSword(i);
+                var list = new KeyCounter();
+                list.add(sword, 1);
+
+                var expected = i >= minDurabilityInclusive && i <= maxDurabilityInclusive
+                        ? List.of(sword)
+                        : List.of();
+                assertThat(list.findFuzzy(filter, fuzzyMode))
+                        .as("durability %d", i)
+                        .extracting(Map.Entry::getKey)
+                        .isEqualTo(expected);
+            }
+        }
+    }
+
+    /**
+     * Fuzzy search must match {@link AEKey#fuzzyEquals} for each variant, regardless of which variants are stored and
+     * in which order they were added.
+     */
+    @Nested
+    class FindFuzzyMixedDurability {
+        @Test
+        void testSwords() {
+            var unbreakable = new ItemStack(Items.DIAMOND_SWORD);
+            unbreakable.setDamageValue(unbreakable.getMaxDamage() / 2);
+            unbreakable.set(DataComponents.UNBREAKABLE, new Unbreakable(true));
+
+            assertFindFuzzyMatchesFuzzyEquals(List.of(
+                    diamondSword(100),
+                    diamondSword(50),
+                    diamondSword(0),
+                    diamondSword(50, "named"),
+                    AEItemKey.of(unbreakable)));
+        }
+
+        private void assertFindFuzzyMatchesFuzzyEquals(List<AEItemKey> variants) {
+            for (var order : permutations(variants)) {
+                for (var count = 1; count <= order.size(); count++) {
+                    var stored = order.subList(0, count);
+                    var list = new KeyCounter();
+                    for (var key : stored) {
+                        list.add(key, 1);
+                    }
+
+                    for (var filter : variants) {
+                        for (var fuzzyMode : FuzzyMode.values()) {
+                            var expected = stored.stream()
+                                    .filter(key -> key.fuzzyEquals(filter, fuzzyMode))
+                                    .toList();
+                            assertThat(list.findFuzzy(filter, fuzzyMode))
+                                    .as("stored=%s, filter=%s, mode=%s", stored, filter, fuzzyMode)
+                                    .extracting(Map.Entry::getKey)
+                                    .containsExactlyInAnyOrderElementsOf(expected);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static <T> List<List<T>> permutations(List<T> items) {
+            if (items.isEmpty()) {
+                return List.of(List.of());
+            }
+            var result = new ArrayList<List<T>>();
+            for (var i = 0; i < items.size(); i++) {
+                var rest = new ArrayList<>(items);
+                var first = rest.remove(i);
+                for (var permutation : permutations(rest)) {
+                    var list = new ArrayList<T>();
+                    list.add(first);
+                    list.addAll(permutation);
+                    result.add(list);
+                }
+            }
+            return result;
         }
     }
 

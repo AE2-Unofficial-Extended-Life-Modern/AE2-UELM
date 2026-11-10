@@ -1,0 +1,9 @@
+{
+  "animation": {
+    "interpolate": true,
+    "frametime": 25
+  },
+  "forge": {
+    "loader": "ae2:controller_light"
+  }
+}

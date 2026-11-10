@@ -18,9 +18,11 @@
 
 package appeng.crafting.pattern;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
@@ -32,6 +34,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
@@ -46,6 +49,7 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.AmountFormat;
 import appeng.api.stacks.GenericStack;
+import appeng.core.AEConfig;
 import appeng.core.AppEng;
 import appeng.core.definitions.AEItems;
 import appeng.core.localization.GuiText;
@@ -62,6 +66,9 @@ import appeng.util.InteractionUtil;
 public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
     // rather simple client side caching.
     private static final Map<ItemStack, ItemStack> SIMPLE_CACHE = new WeakHashMap<>();
+
+    static final Component YES = GuiText.Yes.text().withStyle(ChatFormatting.GREEN);
+    static final Component NO = GuiText.No.text().withStyle(ChatFormatting.RED);
 
     private final EncodedPatternDecoder<T> decoder;
 
@@ -134,10 +141,14 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
         }
 
         PatternDetailsTooltip tooltip;
+        var author = "";
+        var valid = true;
         try {
             var details = Objects.requireNonNull(decoder.decode(what, clientLevel), "decoder returned null");
             tooltip = details.getTooltip(clientLevel, flags);
+            author = details.getAuthor();
         } catch (Exception e) {
+            valid = false;
             lines.add(GuiText.InvalidPattern.text().copy().withStyle(ChatFormatting.RED));
             if (invalidPatternTooltip != null) {
                 tooltip = invalidPatternTooltip.getTooltip(stack, clientLevel, e, flags);
@@ -146,23 +157,34 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
             }
         }
 
-        if (tooltip != null) {
-            var label = Component.empty().append(tooltip.getOutputMethod())
-                    .append(": ").withStyle(ChatFormatting.GRAY);
-            var and = Component.literal(" ").append(GuiText.And.text())
-                    .append(" ").withStyle(ChatFormatting.GRAY);
-            var with = GuiText.With.text().copy().append(": ").withStyle(ChatFormatting.GRAY);
+        // Invalid patterns have no tooltip image, so their lines are always shown here.
+        if (!valid || !AEConfig.instance().isFancyTooltipsEnabled()) {
+            lines.addAll(patternTooltip(tooltip, author, valid ? "   " : "  "));
+        }
+    }
 
-            boolean first = true;
+    public static List<Component> patternTooltip(@Nullable PatternDetailsTooltip tooltip, String author) {
+        return patternTooltip(tooltip, author, "   ");
+    }
+
+    private static List<Component> patternTooltip(@Nullable PatternDetailsTooltip tooltip, String author,
+            String indent) {
+        var lines = new ArrayList<Component>();
+
+        if (tooltip != null) {
+            if (!tooltip.getOutputs().isEmpty()) {
+                lines.add(Component.empty().append(tooltip.getOutputMethod()).append(":")
+                        .withStyle(ChatFormatting.DARK_AQUA));
+            }
             for (var output : tooltip.getOutputs()) {
-                lines.add(Component.empty().append(first ? label : and).append(getTooltipEntryLine(output)));
-                first = false;
+                lines.add(Component.literal(indent).append(getTooltipEntryLine(output, false)));
             }
 
-            first = true;
+            if (!tooltip.getInputs().isEmpty()) {
+                lines.add(GuiText.Ingredients.text().withStyle(ChatFormatting.DARK_GREEN));
+            }
             for (var input : tooltip.getInputs()) {
-                lines.add(Component.empty().append(first ? with : and).append(getTooltipEntryLine(input)));
-                first = false;
+                lines.add(Component.literal(indent).append(getTooltipEntryLine(input, true)));
             }
 
             for (var property : tooltip.getProperties()) {
@@ -175,9 +197,20 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
                 }
             }
         }
+
+        if (!author.isEmpty()) {
+            lines.add(GuiText.EncodedBy.text(author).withStyle(ChatFormatting.LIGHT_PURPLE));
+        }
+
+        return lines;
     }
 
+    @Deprecated
     protected static Component getTooltipEntryLine(GenericStack stack) {
+        return getTooltipEntryLine(stack, false);
+    }
+
+    protected static Component getTooltipEntryLine(GenericStack stack, boolean isInput) {
         if (stack.what() instanceof AEItemKey itemKey
                 && itemKey.getReadOnlyStack().getItem() instanceof MissingContentItem missingContentItem) {
             var brokenStackInfo = missingContentItem.getBrokenStackInfo(itemKey.getReadOnlyStack());
@@ -187,7 +220,11 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
             }
         }
 
-        return getTooltipEntryLine(stack.what().getDisplayName(), stack.what().getType(), stack.amount());
+        var type = stack.what().getType();
+        var color = type == AEKeyType.items()
+                ? (isInput ? ChatFormatting.GREEN : ChatFormatting.YELLOW)
+                : (isInput ? ChatFormatting.AQUA : ChatFormatting.BLUE);
+        return getTooltipEntryLine(stack.what().getDisplayName().copy().withStyle(color), type, stack.amount());
     }
 
     protected static Component getTooltipEntryLine(Component displayName, @Nullable AEKeyType amountType, long amount) {
@@ -257,6 +294,29 @@ public class EncodedPatternItem<T extends IPatternDetails> extends AEBaseItem {
             return decoder.decode(what, level);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    @Override
+    public Optional<TooltipComponent> getTooltipImage(ItemStack stack) {
+        if (!AEConfig.instance().isFancyTooltipsEnabled()) {
+            return Optional.empty();
+        }
+
+        var clientLevel = AppEng.instance().getClientLevel();
+        var details = decode(stack, clientLevel);
+        if (details == null) {
+            return Optional.empty();
+        }
+
+        try {
+            var tooltip = details.getTooltip(clientLevel, TooltipFlag.NORMAL);
+            return Optional.of(new PatternTooltipComponent(
+                    tooltip.getInputs().stream().map(GenericStack::what).toList(),
+                    tooltip.getOutputs().stream().map(GenericStack::what).toList(),
+                    patternTooltip(tooltip, details.getAuthor())));
+        } catch (Exception e) {
+            return Optional.empty();
         }
     }
 }

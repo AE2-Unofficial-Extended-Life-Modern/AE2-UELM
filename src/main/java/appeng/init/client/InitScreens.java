@@ -27,6 +27,7 @@ import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.MenuAccess;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
@@ -53,6 +54,7 @@ import appeng.client.gui.implementations.SpatialAnchorScreen;
 import appeng.client.gui.implementations.SpatialIOPortScreen;
 import appeng.client.gui.implementations.StorageBusScreen;
 import appeng.client.gui.implementations.StorageLevelEmitterScreen;
+import appeng.client.gui.implementations.SuperMEReplenisherScreen;
 import appeng.client.gui.implementations.VibrationChamberScreen;
 import appeng.client.gui.implementations.WirelessAccessPointScreen;
 import appeng.client.gui.me.common.MEStorageScreen;
@@ -61,6 +63,8 @@ import appeng.client.gui.me.crafting.CraftConfirmScreen;
 import appeng.client.gui.me.crafting.CraftingCPUScreen;
 import appeng.client.gui.me.crafting.CraftingStatusScreen;
 import appeng.client.gui.me.crafting.SetStockAmountScreen;
+import appeng.client.gui.me.filterterminal.FilterTerminalScreen;
+import appeng.client.gui.me.filterterminal.FilterTerminalSetAmountScreen;
 import appeng.client.gui.me.items.CraftingTermScreen;
 import appeng.client.gui.me.items.PatternEncodingTermScreen;
 import appeng.client.gui.me.networktool.NetworkStatusScreen;
@@ -73,6 +77,8 @@ import appeng.menu.implementations.CellWorkbenchMenu;
 import appeng.menu.implementations.CondenserMenu;
 import appeng.menu.implementations.DriveMenu;
 import appeng.menu.implementations.EnergyLevelEmitterMenu;
+import appeng.menu.implementations.FilterTerminalMenu;
+import appeng.menu.implementations.FilterTerminalSetAmountMenu;
 import appeng.menu.implementations.FormationPlaneMenu;
 import appeng.menu.implementations.IOBusMenu;
 import appeng.menu.implementations.IOPortMenu;
@@ -91,6 +97,7 @@ import appeng.menu.implementations.SpatialAnchorMenu;
 import appeng.menu.implementations.SpatialIOPortMenu;
 import appeng.menu.implementations.StorageBusMenu;
 import appeng.menu.implementations.StorageLevelEmitterMenu;
+import appeng.menu.implementations.SuperMEReplenisherMenu;
 import appeng.menu.implementations.VibrationChamberMenu;
 import appeng.menu.implementations.WirelessAccessPointMenu;
 import appeng.menu.me.common.MEStorageMenu;
@@ -137,6 +144,8 @@ public final class InitScreens {
         register(event, IOPortMenu.TYPE, IOPortScreen::new, "/screens/io_port.json");
         register(event, StorageBusMenu.TYPE, StorageBusScreen::new, "/screens/storage_bus.json");
         register(event, SetStockAmountMenu.TYPE, SetStockAmountScreen::new, "/screens/set_stock_amount.json");
+        register(event, FilterTerminalSetAmountMenu.TYPE, FilterTerminalSetAmountScreen::new,
+                "/screens/set_stock_amount.json");
         register(event, FormationPlaneMenu.TYPE, FormationPlaneScreen::new, "/screens/formation_plane.json");
         register(event, PriorityMenu.TYPE, PriorityScreen::new, "/screens/priority.json");
         register(event, StorageLevelEmitterMenu.TYPE, StorageLevelEmitterScreen::new, "/screens/level_emitter.json");
@@ -150,6 +159,7 @@ public final class InitScreens {
         register(event, CraftConfirmMenu.TYPE, CraftConfirmScreen::new, "/screens/craft_confirm.json");
         register(event, CraftingStatusMenu.TYPE, CraftingStatusScreen::new, "/screens/crafting_status.json");
         register(event, SpatialAnchorMenu.TYPE, SpatialAnchorScreen::new, "/screens/spatial_anchor.json");
+        register(event, SuperMEReplenisherMenu.TYPE, SuperMEReplenisherScreen::new, "/screens/super_me_replenisher.json");
 
         // Terminals
         InitScreens.<MEStorageMenu, MEStorageScreen<MEStorageMenu>>register(event,
@@ -187,6 +197,8 @@ public final class InitScreens {
         InitScreens.<PatternAccessTermMenu, PatternAccessTermScreen<PatternAccessTermMenu>>register(event,
                 PatternAccessTermMenu.TYPE, PatternAccessTermScreen::new,
                 "/screens/terminals/pattern_access_terminal.json");
+        register(event, FilterTerminalMenu.TYPE, FilterTerminalScreen<FilterTerminalMenu>::new,
+                "/screens/terminals/filter_terminal.json");
         // spotless:on
     }
 
@@ -203,6 +215,18 @@ public final class InitScreens {
 
             return factory.create(menu, playerInv, title, style);
         });
+    }
+
+    /**
+     * Registers an additional style document to be merged into the style for an existing screen.
+     * <p>
+     * The {@code original} path must use the same format as the style path passed to {@link #register}, for example
+     * {@code "/screens/terminals/terminal.json"}. The {@code additional} resource can be in any namespace and may
+     * define extra or overriding entries such as {@code widgets}, {@code text}, {@code images}, {@code tooltips}, or
+     * {@code slots}.
+     */
+    public static void registerAdditionalStyle(String original, ResourceLocation additional) {
+        StyleManager.registerAdditionalStyle(original, additional);
     }
 
     /**

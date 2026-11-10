@@ -29,11 +29,18 @@ import appeng.api.stacks.AmountFormat;
 import appeng.client.gui.AEBaseScreen;
 import appeng.core.localization.GuiText;
 import appeng.menu.me.crafting.CraftingPlanSummaryEntry;
+import appeng.util.NumberUtil;
 
 public class CraftConfirmTableRenderer extends AbstractTableRenderer<CraftingPlanSummaryEntry> {
 
+    private static final int DEFAULT_ROWS = 5;
+
     public CraftConfirmTableRenderer(AEBaseScreen<?> screen, int x, int y) {
-        super(screen, x, y, 5);
+        super(screen, x, y, DEFAULT_ROWS);
+    }
+
+    public CraftConfirmTableRenderer(AEBaseScreen<?> screen, int x, int y, int rows) {
+        super(screen, x, y, rows);
     }
 
     @Override
@@ -52,6 +59,17 @@ public class CraftConfirmTableRenderer extends AbstractTableRenderer<CraftingPla
         if (entry.getCraftAmount() > 0) {
             String amount = entry.getWhat().formatAmount(entry.getCraftAmount(), AmountFormat.SLOT);
             lines.add(GuiText.ToCraft.text(amount));
+        }
+        // same check as we want percentage to be the last element
+        if (entry.getStoredAmount() > 0) {
+            var hasMissing = entry.getMissingAmount() > 0;
+            var percentage = NumberUtil.coloredPercentage(
+                    hasMissing ? entry.getMissingAmount() : entry.getStoredAmount(),
+                    entry.getAvailableAmount(),
+                    hasMissing);
+            lines.add(GuiText.UsedAmount.text(percentage).withStyle(percentage.getStyle())); // style the entire
+                                                                                             // component instead of
+                                                                                             // only the number
         }
         return lines;
     }
@@ -78,7 +96,17 @@ public class CraftConfirmTableRenderer extends AbstractTableRenderer<CraftingPla
             lines.add(GuiText.ToCraft
                     .text(entry.getWhat().formatAmount(entry.getCraftAmount(), AmountFormat.FULL)));
         }
-
+        // same check as we want percentage to be the last element
+        if (entry.getStoredAmount() > 0) {
+            var hasMissing = entry.getMissingAmount() > 0;
+            var percentage = NumberUtil.coloredPercentage(
+                    hasMissing ? entry.getMissingAmount() : entry.getStoredAmount(),
+                    entry.getAvailableAmount(),
+                    hasMissing);
+            lines.add(GuiText.UsedAmount.text(percentage).withStyle(percentage.getStyle())); // style the entire
+                                                                                             // component instead of
+                                                                                             // only the number
+        }
         return lines;
 
     }

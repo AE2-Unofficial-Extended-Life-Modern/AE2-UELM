@@ -721,7 +721,7 @@ public abstract class AEBaseMenu extends AbstractContainerMenu {
         }
     }
 
-    private void handleFakeSlotAction(FakeSlot fakeSlot, InventoryAction action) {
+    protected final void handleFakeSlotAction(FakeSlot fakeSlot, InventoryAction action) {
         var hand = getCarried();
 
         switch (action) {

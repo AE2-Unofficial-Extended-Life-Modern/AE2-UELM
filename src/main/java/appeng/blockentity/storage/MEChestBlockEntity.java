@@ -521,6 +521,10 @@ public class MEChestBlockEntity extends AENetworkedPoweredBlockEntity
 
     private void blinkCell(int slot) {
         this.recalculateDisplay();
+        var grid = getMainNode().getGrid();
+        if (grid != null) {
+            grid.getStorageService().markContentsChanged();
+        }
     }
 
     @Override
@@ -581,6 +585,16 @@ public class MEChestBlockEntity extends AENetworkedPoweredBlockEntity
         public ChestMonitorHandler(StorageCell cellInventory) {
             super(cellInventory);
             this.cellInventory = cellInventory;
+        }
+
+        @Override
+        public boolean reportsExactChanges() {
+            return cellInventory.reportsExactChanges();
+        }
+
+        @Override
+        public boolean reportsAllChanges() {
+            return cellInventory.reportsAllChanges();
         }
 
         @Override

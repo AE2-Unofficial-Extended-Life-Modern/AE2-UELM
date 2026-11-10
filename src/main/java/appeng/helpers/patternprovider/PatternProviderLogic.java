@@ -44,6 +44,8 @@ import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+
 import appeng.api.config.Actionable;
 import appeng.api.config.LockCraftingMode;
 import appeng.api.config.Setting;
@@ -73,6 +75,7 @@ import appeng.core.definitions.AEItems;
 import appeng.core.localization.GuiText;
 import appeng.core.localization.PlayerMessages;
 import appeng.core.settings.TickRates;
+import appeng.crafting.pattern.AEProcessingPattern;
 import appeng.helpers.InterfaceLogicHost;
 import appeng.me.helpers.MachineSource;
 import appeng.util.inv.AppEngInternalInventory;
@@ -357,6 +360,21 @@ public class PatternProviderLogic implements InternalInventoryHost, ICraftingPro
                 continue;
             }
 
+            var singleInput = patternDetails instanceof AEProcessingPattern ? getSingleInput(inputHolder) : null;
+            if (singleInput != null) {
+                var amount = singleInput.getLongValue();
+                var inserted = adapter.insert(singleInput.getKey(), amount, Actionable.MODULATE);
+                if (inserted == 0) {
+                    continue;
+                }
+                this.addToSendList(singleInput.getKey(), amount - inserted);
+                onPushPatternSuccess(patternDetails);
+                this.sendDirection = direction;
+                this.sendStacksOut();
+                roundRobinIndex += i + 1;
+                return true;
+            }
+
             if (this.adapterAcceptsAll(adapter, inputHolder)) {
                 patternDetails.pushInputsToExternalInventory(inputHolder, (what, amount) -> {
                     var inserted = adapter.insert(what, amount, Actionable.MODULATE);
@@ -476,6 +494,20 @@ public class PatternProviderLogic implements InternalInventoryHost, ICraftingPro
         }
 
         return targetCaches[side.get3DDataValue()].find();
+    }
+
+    @Nullable
+    private static Object2LongMap.Entry<AEKey> getSingleInput(KeyCounter[] inputHolder) {
+        Object2LongMap.Entry<AEKey> result = null;
+        for (var inputList : inputHolder) {
+            for (var input : inputList) {
+                if (result != null) {
+                    return null;
+                }
+                result = input;
+            }
+        }
+        return result;
     }
 
     private boolean adapterAcceptsAll(PatternProviderTarget target, KeyCounter[] inputHolder) {

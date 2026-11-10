@@ -24,6 +24,7 @@ public record CraftingJobStatusPacket(
         AEKey what,
         long requestedAmount,
         long remainingAmount,
+        long elapsedTime,
         Status status
 
 ) implements ClientboundPacket {
@@ -46,7 +47,8 @@ public record CraftingJobStatusPacket(
         var what = AEKey.readKey(stream);
         var requestedAmount = stream.readLong();
         var remainingAmount = stream.readLong();
-        return new CraftingJobStatusPacket(jobId, what, requestedAmount, remainingAmount, status);
+        var elapsedTime = stream.readLong();
+        return new CraftingJobStatusPacket(jobId, what, requestedAmount, remainingAmount, elapsedTime, status);
     }
 
     public void write(RegistryFriendlyByteBuf data) {
@@ -55,6 +57,7 @@ public record CraftingJobStatusPacket(
         AEKey.writeKey(data, what);
         data.writeLong(requestedAmount);
         data.writeLong(remainingAmount);
+        data.writeLong(elapsedTime);
     }
 
     @Override
@@ -66,7 +69,7 @@ public record CraftingJobStatusPacket(
             }
         }
 
-        PendingCraftingJobs.jobStatus(jobId, what, requestedAmount, remainingAmount, status);
+        PendingCraftingJobs.jobStatus(jobId, what, requestedAmount, remainingAmount, elapsedTime, status);
     }
 
     public enum Status {

@@ -57,6 +57,8 @@ import appeng.me.service.CraftingService;
  * Stores the crafting logic of a crafting CPU.
  */
 public class CraftingCpuLogic {
+    private static final int MAX_RETRY_DELAY = 2;
+
     final CraftingCPUCluster cluster;
     /**
      * Current job.
@@ -84,6 +86,14 @@ public class CraftingCpuLogic {
 
     public ICraftingSubmitResult trySubmitJob(IGrid grid, ICraftingPlan plan, IActionSource src,
             @Nullable ICraftingRequester requester) {
+        return trySubmitJob(grid, plan, src, requester, CraftingSubmitMode.NORMAL);
+    }
+
+    public ICraftingSubmitResult trySubmitJob(IGrid grid, ICraftingPlan plan, IActionSource src,
+            @Nullable ICraftingRequester requester, CraftingSubmitMode mode) {
+        if (plan.simulation() && mode != CraftingSubmitMode.ALLOW_MISSING)
+            return CraftingSubmitResult.INCOMPLETE_PLAN;
+
         // Already have a job.
         if (this.job != null)
             return CraftingSubmitResult.CPU_BUSY;
@@ -98,9 +108,16 @@ public class CraftingCpuLogic {
             AELog.warn("Crafting CPU inventory is not empty yet a job was submitted.");
 
         // Try to extract required items.
-        var missingIngredient = CraftingCpuHelper.tryExtractInitialItems(plan, grid, inventory, src);
-        if (missingIngredient != null)
-            return CraftingSubmitResult.missingIngredient(missingIngredient);
+        // Forced submissions will retain the resources they can acquire
+        // and remember the remainder for later.
+        var missingItems = new KeyCounter();
+        if (plan.simulation()) {
+            missingItems = CraftingCpuHelper.extractInitialItemsAllowMissing(plan, grid, inventory, src);
+        } else {
+            var missingIngredient = CraftingCpuHelper.tryExtractInitialItems(plan, grid, inventory, src);
+            if (missingIngredient != null)
+                return CraftingSubmitResult.missingIngredient(missingIngredient);
+        }
 
         // Set CPU link and job.
         var playerId = src.player()
@@ -108,7 +125,7 @@ public class CraftingCpuLogic {
                 .orElse(null);
         var craftId = UUID.randomUUID();
         var linkCpu = new CraftingLink(CraftingCpuHelper.generateLinkData(craftId, requester == null, false), cluster);
-        this.job = new ExecutingCraftingJob(plan, this::postChange, linkCpu, playerId);
+        this.job = new ExecutingCraftingJob(plan, this::postChange, linkCpu, playerId, missingItems);
         cluster.updateOutput(plan.finalOutput());
         cluster.markDirty();
 
@@ -154,6 +171,8 @@ public class CraftingCpuLogic {
             return;
         }
 
+        this.tryExtractPendingExternalInputs();
+
         var remainingOperations = cluster.getCoProcessors() + 1 - (this.usedOps[0] + this.usedOps[1] + this.usedOps[2]);
         final var started = remainingOperations;
 
@@ -185,12 +204,17 @@ public class CraftingCpuLogic {
             return 0;
 
         var pushedPatterns = 0;
+        var currentTick = TickHandler.instance().getCurrentTick();
 
         var it = job.tasks.entrySet().iterator();
         taskLoop: while (it.hasNext()) {
             var task = it.next();
-            if (task.getValue().value <= 0) {
+            var progress = task.getValue();
+            if (progress.value <= 0) {
                 it.remove();
+                continue;
+            }
+            if (progress.nextAttemptTick > currentTick) {
                 continue;
             }
 
@@ -199,17 +223,25 @@ public class CraftingCpuLogic {
             var expectedContainerItems = new KeyCounter();
             // Contains the inputs for the pattern.
             @Nullable
-            var craftingContainer = CraftingCpuHelper.extractPatternInputs(
-                    details, inventory, level, expectedOutputs, expectedContainerItems);
+            KeyCounter[] craftingContainer = null;
+            double patternPower = 0;
+            var pushedThisTask = false;
+            var rejected = false;
 
             // Try to push to each provider.
             for (var provider : craftingService.getProviders(details)) {
-                if (craftingContainer == null)
-                    break;
                 if (provider.isBusy())
                     continue;
 
-                var patternPower = CraftingCpuHelper.calculatePatternPower(craftingContainer);
+                if (craftingContainer == null) {
+                    expectedOutputs.reset();
+                    expectedContainerItems.reset();
+                    craftingContainer = CraftingCpuHelper.extractPatternInputs(details, inventory,
+                            level, expectedOutputs, expectedContainerItems);
+                    if (craftingContainer == null)
+                        break;
+                    patternPower = CraftingCpuHelper.calculatePatternPower(craftingContainer);
+                }
 
                 if (energyService.extractAEPower(patternPower, Actionable.SIMULATE,
                         PowerMultiplier.CONFIG) < patternPower - 0.01)
@@ -218,6 +250,8 @@ public class CraftingCpuLogic {
                 if (provider.pushPattern(details, craftingContainer)) {
                     energyService.extractAEPower(patternPower, Actionable.MODULATE, PowerMultiplier.CONFIG);
                     pushedPatterns++;
+                    pushedThisTask = true;
+                    progress.retryDelay = 0;
 
                     for (var expectedOutput : expectedOutputs) {
                         job.waitingFor.insert(expectedOutput.getKey(), expectedOutput.getLongValue(),
@@ -232,8 +266,8 @@ public class CraftingCpuLogic {
 
                     cluster.markDirty();
 
-                    task.getValue().value--;
-                    if (task.getValue().value <= 0) {
+                    progress.value--;
+                    if (progress.value <= 0) {
                         it.remove();
                         continue taskLoop;
                     }
@@ -242,17 +276,20 @@ public class CraftingCpuLogic {
                         break taskLoop;
                     }
 
-                    // Prepare next inputs.
-                    expectedOutputs.reset();
-                    expectedContainerItems.reset();
-                    craftingContainer = CraftingCpuHelper.extractPatternInputs(details, inventory,
-                            level, expectedOutputs, expectedContainerItems);
+                    craftingContainer = null;
+                } else {
+                    rejected = true;
                 }
             }
 
             // Failed to push this pattern, reinject the inputs.
             if (craftingContainer != null) {
                 CraftingCpuHelper.reinjectPatternInputs(inventory, craftingContainer);
+            }
+
+            if (rejected && !pushedThisTask) {
+                progress.nextAttemptTick = currentTick + Math.max(1, progress.retryDelay);
+                progress.retryDelay = Math.min(MAX_RETRY_DELAY, Math.max(1, progress.retryDelay * 2));
             }
         }
 
@@ -324,6 +361,62 @@ public class CraftingCpuLogic {
     }
 
     /**
+     * Accepts an ingredient that was unavailable when a force-submitted job started.
+     *
+     * @return Consumed amount.
+     */
+    public long insertExternalInput(AEKey what, long amount, Actionable type) {
+        if (what == null || job == null || amount <= 0) {
+            return 0;
+        }
+
+        var accepted = job.pendingExternalInputs.extract(what, amount, Actionable.SIMULATE);
+        if (accepted <= 0) {
+            return 0;
+        }
+
+        if (type == Actionable.MODULATE) {
+            job.pendingExternalInputs.extract(what, accepted, Actionable.MODULATE);
+            inventory.insert(what, accepted, Actionable.MODULATE);
+            cluster.markDirty();
+        }
+
+        return accepted;
+    }
+
+    private void tryExtractPendingExternalInputs() {
+        if (!hasPendingExternalInputs()) {
+            return;
+        }
+
+        var grid = cluster.getGrid();
+        if (grid == null) {
+            return;
+        }
+
+        var pending = new KeyCounter();
+        pending.addAll(job.pendingExternalInputs.list);
+
+        var storage = grid.getStorageService().getInventory();
+        var extractedAny = false;
+        for (var entry : pending) {
+            var extracted = storage.extract(entry.getKey(), entry.getLongValue(), Actionable.MODULATE,
+                    cluster.getSrc());
+            if (extracted <= 0) {
+                continue;
+            }
+
+            job.pendingExternalInputs.extract(entry.getKey(), extracted, Actionable.MODULATE);
+            inventory.insert(entry.getKey(), extracted, Actionable.MODULATE);
+            extractedAny = true;
+        }
+
+        if (extractedAny) {
+            cluster.markDirty();
+        }
+    }
+
+    /**
      * Finish the current job.
      *
      * @param success True if the job is complete, false if it was cancelled.
@@ -339,6 +432,8 @@ public class CraftingCpuLogic {
 
         // Clear waitingFor list and post all the relevant changes.
         job.waitingFor.clear();
+        // These resources were never acquired by the CPU and must not be refunded on cancellation.
+        job.pendingExternalInputs.clear();
         // Notify opened menus of cancelled scheduled tasks.
         for (var entry : job.tasks.entrySet()) {
             for (var output : entry.getKey().getOutputs()) {
@@ -481,6 +576,23 @@ public class CraftingCpuLogic {
         return 0;
     }
 
+    public boolean hasPendingExternalInputs() {
+        return this.job != null && !this.job.pendingExternalInputs.list.isEmpty();
+    }
+
+    public long getPendingExternalInput(AEKey template) {
+        if (this.job != null) {
+            return this.job.pendingExternalInputs.extract(template, Long.MAX_VALUE, Actionable.SIMULATE);
+        }
+        return 0;
+    }
+
+    public void getAllPendingExternalInputs(KeyCounter out) {
+        if (this.job != null) {
+            out.addAll(this.job.pendingExternalInputs.list);
+        }
+    }
+
     public void getAllWaitingFor(Set<AEKey> waitingFor) {
         if (this.job != null) {
             for (var entry : this.job.waitingFor.list) {
@@ -510,6 +622,7 @@ public class CraftingCpuLogic {
         out.addAll(this.inventory.list);
         if (this.job != null) {
             out.addAll(job.waitingFor.list);
+            out.addAll(job.pendingExternalInputs.list);
             for (var t : job.tasks.entrySet()) {
                 for (var output : t.getKey().getOutputs()) {
                     out.add(output.what(), output.amount() * t.getValue().value);
@@ -549,6 +662,7 @@ public class CraftingCpuLogic {
                     job.finalOutput.what(),
                     job.finalOutput.amount(),
                     job.remainingAmount,
+                    job.timeTracker.getElapsedTime(),
                     status);
             connectedPlayer.connection.send(message);
         }

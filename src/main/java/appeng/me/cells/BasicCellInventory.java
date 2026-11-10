@@ -41,6 +41,7 @@ import appeng.api.stacks.AEKey;
 import appeng.api.stacks.AEKeyType;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.StickyClaim;
 import appeng.api.storage.StorageCells;
 import appeng.api.storage.cells.CellState;
 import appeng.api.storage.cells.IBasicCellItem;
@@ -51,6 +52,7 @@ import appeng.core.definitions.AEItems;
 import appeng.util.ConfigInventory;
 import appeng.util.prioritylist.FuzzyPriorityList;
 import appeng.util.prioritylist.IPartitionList;
+import appeng.util.prioritylist.PrecisePriorityList;
 
 public class BasicCellInventory implements StorageCell {
     private static final int MAX_ITEM_TYPES = 63;
@@ -68,6 +70,7 @@ public class BasicCellInventory implements StorageCell {
     private final IBasicCellItem cellType;
     private final long maxItemsPerType; // max items per type, basically infinite unless there is a distribution card.
     private final boolean hasVoidUpgrade;
+    private final boolean sticky;
     private boolean isPersisted = true;
 
     private BasicCellInventory(IBasicCellItem cellType, ItemStack o, @Nullable ISaveProvider container) {
@@ -123,6 +126,7 @@ public class BasicCellInventory implements StorageCell {
         }
 
         this.hasVoidUpgrade = upgrades.isInstalled(AEItems.VOID_CARD);
+        this.sticky = upgrades.isInstalled(AEItems.STICKY_CARD) && !partitionList.isEmpty();
     }
 
     private List<GenericStack> getStoredStacks() {
@@ -246,6 +250,11 @@ public class BasicCellInventory implements StorageCell {
     }
 
     @Override
+    public int getEstimatedStackCount() {
+        return this.getCellItems().size();
+    }
+
+    @Override
     public double getIdleDrain() {
         return this.cellType.getIdleDrain();
     }
@@ -359,6 +368,16 @@ public class BasicCellInventory implements StorageCell {
         return hasVoidUpgrade ? amount : inserted;
     }
 
+    @Override
+    public boolean reportsExactChanges() {
+        return !hasVoidUpgrade;
+    }
+
+    @Override
+    public boolean reportsAllChanges() {
+        return true;
+    }
+
     // Inner insert for items that pass the filter.
     private long innerInsert(AEKey what, long amount, Actionable mode) {
         // Prevent non-empty storage cells from being recursively stored inside this cell
@@ -429,5 +448,24 @@ public class BasicCellInventory implements StorageCell {
     @Override
     public Component getDescription() {
         return i.getHoverName();
+    }
+
+    @Override
+    public boolean acceptsSticky(AEKey what) {
+        return this.sticky && this.keyType.contains(what)
+                && this.partitionList.matchesFilter(what, this.partitionListMode)
+                && !this.cellType.isBlackListed(this.i, what);
+    }
+
+    @Nullable
+    @Override
+    public StickyClaim getStickyClaim() {
+        if (!this.sticky) {
+            return null;
+        }
+        return this.partitionListMode == IncludeExclude.WHITELIST
+                && this.partitionList instanceof PrecisePriorityList precisePriorityList
+                        ? new StickyClaim(precisePriorityList.getItems())
+                        : StickyClaim.UNINDEXED;
     }
 }

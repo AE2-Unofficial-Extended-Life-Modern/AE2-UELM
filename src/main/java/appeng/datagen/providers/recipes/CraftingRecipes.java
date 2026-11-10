@@ -107,6 +107,11 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .requires(AEItems.CALCULATION_PROCESSOR)
                 .unlockedBy("has_advanced_card", has(AEItems.ADVANCED_CARD))
                 .save(consumer, AppEng.makeId("materials/carddistribution"));
+        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEItems.STICKY_CARD)
+                .requires(AEItems.ADVANCED_CARD)
+                .requires(ConventionTags.SLIMEBALL)
+                .unlockedBy("has_advanced_card", has(AEItems.ADVANCED_CARD))
+                .save(consumer, AppEng.makeId("materials/cardsticky"));
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AEItems.ENERGY_CARD)
                 .pattern("ab")
                 .define('a', AEBlocks.DENSE_ENERGY_CELL)
@@ -301,6 +306,10 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .unlockedBy("has_purified_fluix_crystal", has(AEItems.FLUIX_CRYSTAL))
                 .unlockedBy("has_engineering_processor", has(AEItems.ENGINEERING_PROCESSOR))
                 .save(consumer, AppEng.makeId("network/blocks/controller"));
+        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEBlocks.COLORABLE_CONTROLLER)
+                .requires(AEBlocks.CONTROLLER)
+                .unlockedBy("has_controller", has(AEBlocks.CONTROLLER))
+                .save(consumer, AppEng.makeId("network/blocks/colorable_controller"));
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AEBlocks.CHARGER)
                 .pattern("aba")
                 .pattern("a  ")
@@ -440,6 +449,19 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .requires(AEBlocks.INTERFACE)
                 .unlockedBy("has_interface", has(AEBlocks.INTERFACE))
                 .save(consumer, AppEng.makeId("network/blocks/interfaces_interface_part"));
+        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AEBlocks.SUPER_ME_REPLENISHER)
+                .pattern("aba")
+                .pattern("ced")
+                .pattern("aba")
+                .define('a', ConventionTags.IRON_INGOT)
+                .define('b', ConventionTags.GLASS)
+                .define('c', AEItems.ANNIHILATION_CORE)
+                .define('d', AEItems.FORMATION_CORE)
+                .define('e', AEItems.ENGINEERING_PROCESSOR)
+                .unlockedBy("has_annihilation_core", has(AEItems.ANNIHILATION_CORE))
+                .unlockedBy("has_formation_core", has(AEItems.FORMATION_CORE))
+                .unlockedBy("has_engineering_processor", has(AEItems.ENGINEERING_PROCESSOR))
+                .save(consumer, AppEng.makeId("network/blocks/super_me_replenisher"));
         ShapedRecipeBuilder.shaped(RecipeCategory.MISC, AEBlocks.QUANTUM_LINK)
                 .pattern("aba")
                 .pattern("b b")
@@ -781,6 +803,13 @@ public class CraftingRecipes extends AE2RecipeProvider {
                 .requires(ConventionTags.PATTERN_PROVIDER)
                 .unlockedBy("has_pattern_provider", has(ConventionTags.PATTERN_PROVIDER))
                 .save(consumer, AppEng.makeId("network/parts/terminals_pattern_access"));
+        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEParts.FILTER_TERMINAL)
+                .requires(ConventionTags.ILLUMINATED_PANEL)
+                .requires(AEItems.ENGINEERING_PROCESSOR)
+                .requires(ConventionTags.QUARTZ_WRENCH)
+                .unlockedBy("has_engineering_processor", has(AEItems.ENGINEERING_PROCESSOR))
+                .unlockedBy("has_quartz_wrench", has(ConventionTags.QUARTZ_WRENCH))
+                .save(consumer, AppEng.makeId("network/parts/terminals_interface"));
         ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, AEParts.PATTERN_ENCODING_TERMINAL)
                 .requires(AEItems.ENGINEERING_PROCESSOR)
                 .requires(AEParts.CRAFTING_TERMINAL)
