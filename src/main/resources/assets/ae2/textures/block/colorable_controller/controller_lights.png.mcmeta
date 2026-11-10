@@ -1,19 +1,9 @@
 {
   "animation": {
-    "frametime": 3,
-    "frames": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11
-    ]
+    "interpolate": true,
+    "frametime": 25
+  },
+  "forge": {
+    "loader": "ae2:controller_light"
   }
 }

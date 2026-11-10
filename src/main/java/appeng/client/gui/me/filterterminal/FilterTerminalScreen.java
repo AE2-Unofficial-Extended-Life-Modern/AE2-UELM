@@ -164,15 +164,17 @@ public class FilterTerminalScreen<C extends FilterTerminalMenu> extends AEBaseSc
             }
 
             if (rows.get(rowIndex) instanceof GroupHeaderRow headerRow) {
-                var buttonY = topPos + GUI_HEADER_HEIGHT + visibleRow * ROW_HEIGHT + 1;
+                var buttonY = topPos + GUI_HEADER_HEIGHT + visibleRow * ROW_HEIGHT + (rowIndex == 0 ? 1 : 0);
                 var button = highlightButtons.get(visibleRow);
                 button.setTarget(headerRow.container);
                 button.setPosition(leftPos + HIGHLIGHT_BUTTON_X, buttonY);
+                button.setDisableBackground(true);
                 button.setVisibility(true);
 
                 var favorite = favoriteButtons.get(visibleRow);
                 favorite.setFavoriteKey(getFavoriteKey(headerRow.container));
                 favorite.setPosition(leftPos + FAVORITE_BUTTON_X, buttonY);
+                favorite.setDisableBackground(true);
                 favorite.setVisibility(true);
             }
         }
