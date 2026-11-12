@@ -25,7 +25,9 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 import com.google.common.base.Preconditions;
 
@@ -50,6 +52,7 @@ public class NetworkStorage implements MEStorage {
     // This flag prevents both concurrent modifications of the mounted storage while
     // they're being iterated, and recursive extract/insert/list operations.
     private boolean mountsInUse;
+    private ChangeListener changeListener = ChangeListener.NONE;
 
     private final NavigableMap<Integer, List<MEStorage>> priorityInventory;
     private final Map<AEKey, List<MEStorage>> stickyClaims = new HashMap<>();
@@ -64,6 +67,29 @@ public class NetworkStorage implements MEStorage {
 
     public NetworkStorage() {
         this.priorityInventory = new TreeMap<>(PRIORITY_SORTER);
+    }
+
+    public void forEachMount(Consumer<MEStorage> consumer) {
+        for (var list : this.priorityInventory.values()) {
+            for (var inv : list) {
+                consumer.accept(inv);
+            }
+        }
+    }
+
+    public boolean isInUse() {
+        return mountsInUse;
+    }
+
+    public boolean allMountsReportAllChanges() {
+        for (var list : this.priorityInventory.values()) {
+            for (var inv : list) {
+                if (!inv.reportsAllChanges()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public void mount(int priority, MEStorage inventory) {
@@ -160,7 +186,7 @@ public class NetworkStorage implements MEStorage {
                     }
 
                     if (inv.isPreferredStorageFor(what, src)) {
-                        remaining -= inv.insert(what, remaining, type, src);
+                        remaining -= insertInto(inv, what, remaining, type, src);
                     } else {
                         secondPassInventories.add(inv);
                     }
@@ -176,7 +202,7 @@ public class NetworkStorage implements MEStorage {
                         continue;
                     }
 
-                    remaining -= inv.insert(what, remaining, type, src);
+                    remaining -= insertInto(inv, what, remaining, type, src);
                 }
             }
 
@@ -187,6 +213,60 @@ public class NetworkStorage implements MEStorage {
         flushQueuedOperations();
 
         return amount - remaining;
+    }
+
+    private long insertInto(MEStorage inv, AEKey what, long amount, Actionable type, IActionSource src) {
+        var inserted = inv.insert(what, amount, type, src);
+        if (inserted > 0 && type == Actionable.MODULATE) {
+            reportChange(inv, what, inserted);
+        }
+        return inserted;
+    }
+
+    private long extractFrom(MEStorage inv, AEKey what, long amount, Actionable mode, IActionSource src) {
+        var extracted = inv.extract(what, amount, mode, src);
+        if (extracted > 0 && mode == Actionable.MODULATE) {
+            reportChange(inv, what, -extracted);
+        }
+        return extracted;
+    }
+
+    private void reportChange(MEStorage inv, AEKey what, long delta) {
+        if (changeListener.ignoresChangesOf(inv)) {
+            return;
+        }
+        if (inv.reportsExactChanges()) {
+            changeListener.onExactChange(what, delta);
+        } else {
+            changeListener.onOtherChange();
+        }
+    }
+
+    public interface ChangeListener {
+        ChangeListener NONE = new ChangeListener() {
+            @Override
+            public boolean ignoresChangesOf(MEStorage inv) {
+                return false;
+            }
+
+            @Override
+            public void onExactChange(AEKey what, long delta) {
+            }
+
+            @Override
+            public void onOtherChange() {
+            }
+        };
+
+        boolean ignoresChangesOf(MEStorage inv);
+
+        void onExactChange(AEKey what, long delta);
+
+        void onOtherChange();
+    }
+
+    public void setChangeListener(ChangeListener changeListener) {
+        this.changeListener = Objects.requireNonNull(changeListener);
     }
 
     private boolean isClaimedBySticky(AEKey what) {
@@ -255,7 +335,7 @@ public class NetworkStorage implements MEStorage {
                         continue;
                     }
 
-                    extracted += inv.extract(what, amount - extracted, mode, source);
+                    extracted += extractFrom(inv, what, amount - extracted, mode, source);
                 }
             }
         } finally {

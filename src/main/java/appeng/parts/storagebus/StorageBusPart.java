@@ -261,7 +261,11 @@ public class StorageBusPart extends UpgradeablePart
         }
 
         if (this.monitor != null) {
-            return this.monitor.onTick();
+            var result = this.monitor.onTick();
+            if (result == TickRateModulation.URGENT) {
+                node.getGrid().getStorageService().markContentsChanged();
+            }
+            return result;
         }
 
         return this.updateStatus == PendingUpdateStatus.SLOW_UPDATE ? TickRateModulation.IDLE
@@ -384,6 +388,8 @@ public class StorageBusPart extends UpgradeablePart
                 || forceFullUpdate && isSticky) {
             remountStorage();
         }
+
+        getMainNode().ifPresent((grid, node) -> grid.getStorageService().markContentsChanged());
     }
 
     private boolean isExtractableOnly() {
@@ -480,6 +486,11 @@ public class StorageBusPart extends UpgradeablePart
         public void setAccessRestriction(AccessRestriction setting) {
             setAllowExtraction(setting.isAllowExtraction());
             setAllowInsertion(setting.isAllowInsertion());
+        }
+
+        @Override
+        public boolean reportsAllChanges() {
+            return getDelegate() instanceof CompositeStorage || super.reportsAllChanges();
         }
 
         @Override

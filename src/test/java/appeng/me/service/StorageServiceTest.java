@@ -14,8 +14,10 @@ import org.junit.jupiter.api.Test;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Items;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IStackWatcher;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageWatcherNode;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
@@ -39,6 +41,14 @@ class StorageServiceTest {
     void setUp() {
         service = new StorageService();
         ((NetworkStorage) service.getInventory()).mount(0, new MEStorage() {
+            @Override
+            public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+                if (mode == Actionable.MODULATE) {
+                    contents.add(what, amount);
+                }
+                return amount;
+            }
+
             @Override
             public void getAvailableStacks(KeyCounter out) {
                 out.addAll(contents);
@@ -84,6 +94,7 @@ class StorageServiceTest {
         contents.add(stone, 4);
         contents.add(diamond, 1);
         contents.add(stick, 7);
+        service.markContentsChanged();
 
         assertThat(tick()).containsExactlyElementsOf(inCachedOrder(List.of(stone, diamond, stick)));
         assertThat(tick()).isEmpty();
@@ -101,12 +112,48 @@ class StorageServiceTest {
         contents.removeZeros();
         contents.add(dirt, 1);
         contents.add(stick, 5);
+        service.markContentsChanged();
 
         var reported = tick();
         assertThat(reported).hasSize(4);
         assertThat(reported.subList(0, 2)).containsExactlyElementsOf(inCachedOrder(List.of(dirt, stick)));
         assertThat(reported.subList(2, 4)).containsExactlyInAnyOrder(Map.entry(stone, 0L), Map.entry(diamond, 0L));
         assertThat(tick()).isEmpty();
+    }
+
+    @Test
+    void testInsertThroughNetworkIsReportedNextTick() {
+        tick();
+
+        service.getInventory().insert(stone, 5, Actionable.MODULATE, IActionSource.empty());
+
+        assertThat(tick()).containsExactly(Map.entry(stone, 5L));
+    }
+
+    @Test
+    void testSimulatedInsertIsNotAChange() {
+        tick();
+
+        service.getInventory().insert(stone, 5, Actionable.SIMULATE, IActionSource.empty());
+        contents.add(dirt, 1);
+
+        assertThat(tick()).isEmpty();
+    }
+
+    @Test
+    void testUnreportedChangesAreFoundByThePeriodicRebuild() {
+        tick();
+
+        contents.add(stone, 3);
+        var reported = new ArrayList<Map.Entry<AEKey, Long>>();
+        var ticks = 0;
+        while (reported.isEmpty() && ticks < 100) {
+            reported.addAll(tick());
+            ticks++;
+        }
+
+        assertThat(reported).containsExactly(Map.entry(stone, 3L));
+        assertThat(ticks).isEqualTo(20);
     }
 
     private List<Map.Entry<AEKey, Long>> tick() {
