@@ -65,6 +65,12 @@ public class TickManagerService implements ITickManager, IGridServiceProvider {
     @Override
     public void onServerStartTick() {
         this.currentTick++;
+        if (this.currentTick % 200 == 0 && !this.upcomingTicks.isEmpty()) {
+            this.upcomingTicks.values().removeIf(queue -> {
+                queue.removeIf(entry -> !entry.isCurrent());
+                return queue.isEmpty();
+            });
+        }
     }
 
     @Override

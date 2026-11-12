@@ -112,6 +112,26 @@ class StorageServiceDeltaTest {
         assertThat(exact.listings).isGreaterThan(listings);
     }
 
+    @Test
+    void testReadingTheCacheDuringAnInsertDoesNotEmptyIt() {
+        var reentrant = new ExactStorage() {
+            @Override
+            public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+                service.getCachedInventory();
+                return super.insert(what, amount, mode, source);
+            }
+        };
+        reentrant.exact = false;
+        ((NetworkStorage) service.getInventory()).mount(1, reentrant);
+        tick();
+
+        service.invalidateCache();
+        insert(dirt, 1);
+
+        assertThat(service.getCachedInventory().get(stone)).isEqualTo(10);
+        assertThat(service.getCachedInventory().get(dirt)).isEqualTo(1);
+    }
+
     private void insert(AEKey what, long amount) {
         assertThat(service.getInventory().insert(what, amount, Actionable.MODULATE, IActionSource.empty()))
                 .isEqualTo(amount);

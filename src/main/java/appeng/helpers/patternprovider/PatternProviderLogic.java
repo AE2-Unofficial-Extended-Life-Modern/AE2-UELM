@@ -354,7 +354,10 @@ public class PatternProviderLogic implements InternalInventoryHost, ICraftingPro
                 continue;
             }
 
-            var singleInput = patternDetails instanceof AEProcessingPattern ? getSingleInput(inputHolder) : null;
+            var singleInput = patternDetails.getClass() == AEProcessingPattern.class
+                    && ((AEProcessingPattern) patternDetails).getSparseInputs().length == 1
+                            ? getSingleInput(inputHolder)
+                            : null;
             if (singleInput != null) {
                 var amount = singleInput.getLongValue();
                 var inserted = adapter.insert(singleInput.getKey(), amount, Actionable.MODULATE);

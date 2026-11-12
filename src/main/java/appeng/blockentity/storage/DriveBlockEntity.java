@@ -75,6 +75,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
 
     private final AppEngCellInventory inv = new AppEngCellInventory(this, getCellCount());
     private final DriveWatcher[] invBySlot = new DriveWatcher[getCellCount()];
+    private final MEStorage[] directBySlot = new MEStorage[getCellCount()];
     private boolean isCached = false;
     private int priority = 0;
     private boolean wasOnline = false;
@@ -235,8 +236,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
 
     @Override
     public @Nullable MEStorage getCellInventory(int slot) {
-        var watcher = this.invBySlot[slot];
-        return watcher != null ? new DirectCellAccess(watcher) : null;
+        return this.directBySlot[slot];
     }
 
     @Nullable
@@ -359,6 +359,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
     // Returns idle power draw of slot
     private double updateStateForSlot(int slot) {
         this.invBySlot[slot] = null;
+        this.directBySlot[slot] = null;
         this.inv.setHandler(slot, null);
 
         var is = this.inv.getStackInSlot(slot);
@@ -370,6 +371,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
 
                 var driveWatcher = new DriveWatcher(cell, () -> blinkCell(slot));
                 this.invBySlot[slot] = driveWatcher;
+                this.directBySlot[slot] = new DirectCellAccess(driveWatcher);
 
                 return cell.getIdleDrain();
             }

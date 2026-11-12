@@ -268,6 +268,11 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     }
 
     private void updateCachedStacks() {
+        if (storage.isInUse()) {
+            cachedStacksNeedUpdate = true;
+            return;
+        }
+
         cachedStacksNeedUpdate = false;
         contentsChanged = false;
         ticksSinceRebuild = 0;

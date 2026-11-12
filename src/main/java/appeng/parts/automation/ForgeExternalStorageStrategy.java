@@ -37,6 +37,8 @@ public class ForgeExternalStorageStrategy<C, S> implements ExternalStorageStrate
     public MEStorage createWrapper(boolean extractableOnly, Runnable injectOrExtractCallback) {
         var storage = apiCache.find(fromSide);
         if (storage == null) {
+            lastHandler = null;
+            lastFacade = null;
             return null;
         }
 
