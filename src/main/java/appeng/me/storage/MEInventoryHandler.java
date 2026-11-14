@@ -31,7 +31,7 @@ import appeng.util.prioritylist.DefaultPriorityList;
 import appeng.util.prioritylist.IPartitionList;
 import appeng.util.prioritylist.PrecisePriorityList;
 
-public class MEInventoryHandler extends DelegatingMEInventory {
+public class MEInventoryHandler extends DelegatingMEInventory implements ChangeCountedStorage {
 
     private IPartitionList partitionList = DefaultPriorityList.INSTANCE;
     private IncludeExclude partitionListMode = IncludeExclude.WHITELIST;
@@ -176,7 +176,12 @@ public class MEInventoryHandler extends DelegatingMEInventory {
 
     @Override
     public boolean reportsAllChanges() {
-        return getDelegate().reportsAllChanges();
+        return getDelegate().reportsAllChanges() || getChangeCount() != NOT_COUNTED;
+    }
+
+    @Override
+    public long getChangeCount() {
+        return getDelegate() instanceof ChangeCountedStorage counted ? counted.getChangeCount() : NOT_COUNTED;
     }
 
     @Override

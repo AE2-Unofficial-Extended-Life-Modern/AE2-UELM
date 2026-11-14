@@ -65,6 +65,7 @@ import appeng.core.definitions.AEItems;
 import appeng.core.settings.TickRates;
 import appeng.me.helpers.MachineSource;
 import appeng.me.service.StorageService;
+import appeng.me.storage.ChangeCountedStorage;
 import appeng.me.storage.DelegatingMEInventory;
 import appeng.util.ConfigInventory;
 import appeng.util.ConfigManager;
@@ -100,6 +101,7 @@ public class InterfaceLogic implements ICraftingRequester, IUpgradeableObject, I
      * True if the interface is configured to stock certain types of resources.
      */
     private boolean hasConfig = false;
+    private long storageChangeCount;
     private final ConfigInventory storage;
 
     public InterfaceLogic(IManagedGridNode gridNode, InterfaceLogicHost host, Item is) {
@@ -524,6 +526,7 @@ public class InterfaceLogic implements ICraftingRequester, IUpgradeableObject, I
     }
 
     private void onStorageChanged() {
+        this.storageChangeCount++;
         this.host.saveChanges();
         this.updatePlan();
     }
@@ -562,9 +565,14 @@ public class InterfaceLogic implements ICraftingRequester, IUpgradeableObject, I
      * An adapter that wraps access to the interface's local storage behind an action source check, to respect interface
      * priorities when they are attached to a storage bus.
      */
-    private class InterfaceInventory extends DelegatingMEInventory {
+    private class InterfaceInventory extends DelegatingMEInventory implements ChangeCountedStorage {
         InterfaceInventory() {
             super(storage);
+        }
+
+        @Override
+        public long getChangeCount() {
+            return storageChangeCount;
         }
 
         @Override

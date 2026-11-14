@@ -617,7 +617,7 @@ public class ChestBlockEntity extends AENetworkPowerBlockEntity
 
         @Override
         public boolean reportsAllChanges() {
-            return getDelegate().reportsAllChanges();
+            return true;
         }
 
         @Override
