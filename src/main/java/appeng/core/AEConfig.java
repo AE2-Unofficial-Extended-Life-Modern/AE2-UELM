@@ -33,6 +33,7 @@ import appeng.api.config.CondenserOutput;
 import appeng.api.config.ControllerAnimation;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnits;
+import appeng.api.config.RecipeTransferMode;
 import appeng.api.config.Settings;
 import appeng.api.config.TerminalStyle;
 import appeng.api.networking.pathing.ChannelMode;
@@ -533,6 +534,10 @@ public final class AEConfig {
         return CLIENT.notifyForFinishedCraftingJobs.get();
     }
 
+    public RecipeTransferMode getRecipeTransferMode() {
+        return CLIENT.recipeTransferMode.get();
+    }
+
     public void setNotifyForFinishedCraftingJobs(boolean enabled) {
         CLIENT.notifyForFinishedCraftingJobs.set(enabled);
     }
@@ -582,6 +587,7 @@ public final class AEConfig {
         public final BooleanOption debugGuiOverlays;
         public final BooleanOption showPlacementPreview;
         public final BooleanOption notifyForFinishedCraftingJobs;
+        public final EnumOption<RecipeTransferMode> recipeTransferMode;
 
         // Terminal Settings
         public final EnumOption<TerminalStyle> terminalStyle;
@@ -625,6 +631,8 @@ public final class AEConfig {
                     "Show a preview of part and facade placement");
             this.notifyForFinishedCraftingJobs = client.addBoolean("notifyForFinishedCraftingJobs", true,
                     "Show toast when long-running crafting jobs finish.");
+            this.recipeTransferMode = client.addEnum("recipeTransferMode", RecipeTransferMode.ADD,
+                    "How to handle doing a recipe transfer into a GUI that already has filters set. Available options: [do_nothing, add, overwrite]");
 
             var terminals = root.subsection("terminals");
             this.terminalStyle = terminals.addEnum("terminalStyle", TerminalStyle.SMALL);

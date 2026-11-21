@@ -9,8 +9,10 @@ import com.google.common.math.LongMath;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import appeng.api.config.RecipeTransferMode;
 import appeng.api.stacks.GenericStack;
 import appeng.api.upgrades.IUpgradeableObject;
+import appeng.core.AEConfig;
 import appeng.menu.implementations.UpgradeableMenu;
 import appeng.menu.slot.FakeSlot;
 
@@ -45,6 +47,33 @@ public class FilterTransferHelper<T extends UpgradeableMenu<? extends IUpgradeab
         return slots;
     }
 
+    void overwriteFilters(List<FakeSlot> interfaceConfig, List<GenericStack> inputsToSet) {
+        int slotIdx = 0;
+        for (FakeSlot slot : interfaceConfig) {
+            var filter = (slotIdx < inputsToSet.size())
+                    ? GenericStack.wrapInItemStack(inputsToSet.get(slotIdx))
+                    : ItemStack.EMPTY;
+
+            slot.setFilterTo(filter);
+            slotIdx++;
+        }
+    }
+
+    void addFilters(List<FakeSlot> interfaceConfig, List<GenericStack> inputsToSet) {
+        int slotIdx = 0;
+        for (FakeSlot slot : interfaceConfig) {
+            if (slotIdx >= inputsToSet.size()) {
+                break;
+            }
+            var filter = GenericStack.wrapInItemStack(inputsToSet.get(slotIdx));
+            if (!slot.getItem().isEmpty()) {
+                continue;
+            }
+            slot.setFilterTo(filter);
+            slotIdx++;
+        }
+    }
+
     public void transfer(T menu, List<List<GenericStack>> recipeInputs) {
         ArrayList<GenericStack> inputsToSet = new ArrayList<>();
         for (List<GenericStack> genericIngredient : recipeInputs) {
@@ -52,18 +81,24 @@ public class FilterTransferHelper<T extends UpgradeableMenu<? extends IUpgradeab
                 // Taking the first possible ingredient from the stack is a bit lazy, but
                 // the number of use cases for autofilling tagged recipe inputs into an interface
                 // has got to be in the single digits...
+
+                // If someone else comes along later down the line and wants to make this better, the best thing
+                // to do here would be to look at which of the candidate ingredients currently has the most stock
+                // in the ME network connected to the device this screen belongs to.
                 addOrMerge(inputsToSet, genericIngredient.get(0));
             }
         }
         List<FakeSlot> interfaceConfig = getFakeSlots(menu);
-        int i = 0;
-        for (FakeSlot slot : interfaceConfig) {
-            var filter = (i < inputsToSet.size())
-                    ? GenericStack.wrapInItemStack(inputsToSet.get(i))
-                    : ItemStack.EMPTY;
-
-            slot.setFilterTo(filter);
-            i++;
+        RecipeTransferMode transferMode = AEConfig.instance().getRecipeTransferMode();
+        switch (transferMode) {
+            case OVERWRITE -> overwriteFilters(interfaceConfig, inputsToSet);
+            case ADD -> addFilters(interfaceConfig, inputsToSet);
+            case DO_NOTHING -> {
+                if (interfaceConfig.stream().allMatch(filter -> filter.getItem().isEmpty())) {
+                    addFilters(interfaceConfig, inputsToSet);
+                }
+            }
         }
+
     }
 }
