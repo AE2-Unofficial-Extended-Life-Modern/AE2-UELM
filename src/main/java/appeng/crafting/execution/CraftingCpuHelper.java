@@ -19,6 +19,7 @@
 package appeng.crafting.execution;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import com.google.common.collect.Iterables;
@@ -37,6 +38,7 @@ import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.crafting.inv.ICraftingInventory;
 import appeng.crafting.inv.ListCraftingInventory;
+import appeng.crafting.pattern.AEProcessingPattern;
 
 /**
  * Helper functions used by the CPU.
@@ -144,6 +146,9 @@ public class CraftingCpuHelper {
             long remainingMultiplier = inputs[x].getMultiplier();
             for (var template : getValidItemTemplates(sourceInv, inputs[x], level)) {
                 long extracted = extractTemplates(sourceInv, template, remainingMultiplier);
+                if (extracted == 0) {
+                    continue;
+                }
                 list.add(template.key(), extracted * template.amount());
 
                 // Container items!
@@ -198,8 +203,12 @@ public class CraftingCpuHelper {
             IPatternDetails.IInput input, Level level) {
         var possibleInputs = input.getPossibleInputs();
 
-        var substitutes = new ArrayList<InputTemplate>(possibleInputs.length);
+        if (input instanceof AEProcessingPattern.Input) {
+            var stack = possibleInputs[0];
+            return List.of(new InputTemplate(stack.what(), stack.amount()));
+        }
 
+        var substitutes = new ArrayList<InputTemplate>(possibleInputs.length);
         for (var stack : possibleInputs) {
             for (var fuzz : inv.findFuzzyTemplates(stack.what())) {
                 substitutes.add(new InputTemplate(fuzz, stack.amount()));

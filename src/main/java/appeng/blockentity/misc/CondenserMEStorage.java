@@ -19,6 +19,7 @@
 package appeng.blockentity.misc;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.IActionSource;
@@ -26,12 +27,19 @@ import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.MEStorage;
+import appeng.me.storage.ChangeCountedStorage;
 
-class CondenserMEStorage implements MEStorage {
+class CondenserMEStorage implements ChangeCountedStorage {
     private final CondenserBlockEntity target;
 
     CondenserMEStorage(CondenserBlockEntity te) {
         this.target = te;
+    }
+
+    @Override
+    public long getChangeCount() {
+        var stack = this.target.getOutputSlot().getStackInSlot(0);
+        return stack.isEmpty() ? 0 : ((long) Item.getId(stack.getItem()) << 32) | stack.getCount();
     }
 
     @Override

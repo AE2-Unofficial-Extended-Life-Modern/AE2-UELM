@@ -56,6 +56,8 @@ import appeng.me.service.CraftingService;
  * Stores the crafting logic of a crafting CPU.
  */
 public class CraftingCpuLogic {
+    private static final int MAX_RETRY_DELAY = 2;
+
     final CraftingCPUCluster cluster;
     /**
      * Current job.
@@ -199,12 +201,17 @@ public class CraftingCpuLogic {
             return 0;
 
         var pushedPatterns = 0;
+        var currentTick = TickHandler.instance().getCurrentTick();
 
         var it = job.tasks.entrySet().iterator();
         taskLoop: while (it.hasNext()) {
             var task = it.next();
-            if (task.getValue().value <= 0) {
+            var progress = task.getValue();
+            if (progress.value <= 0) {
                 it.remove();
+                continue;
+            }
+            if (progress.nextAttemptTick > currentTick) {
                 continue;
             }
 
@@ -213,17 +220,25 @@ public class CraftingCpuLogic {
             var expectedContainerItems = new KeyCounter();
             // Contains the inputs for the pattern.
             @Nullable
-            var craftingContainer = CraftingCpuHelper.extractPatternInputs(
-                    details, inventory, level, expectedOutputs, expectedContainerItems);
+            KeyCounter[] craftingContainer = null;
+            double patternPower = 0;
+            var pushedThisTask = false;
+            var rejected = false;
 
             // Try to push to each provider.
             for (var provider : craftingService.getProviders(details)) {
-                if (craftingContainer == null)
-                    break;
                 if (provider.isBusy())
                     continue;
 
-                var patternPower = CraftingCpuHelper.calculatePatternPower(craftingContainer);
+                if (craftingContainer == null) {
+                    expectedOutputs.reset();
+                    expectedContainerItems.reset();
+                    craftingContainer = CraftingCpuHelper.extractPatternInputs(details, inventory,
+                            level, expectedOutputs, expectedContainerItems);
+                    if (craftingContainer == null)
+                        break;
+                    patternPower = CraftingCpuHelper.calculatePatternPower(craftingContainer);
+                }
 
                 if (energyService.extractAEPower(patternPower, Actionable.SIMULATE,
                         PowerMultiplier.CONFIG) < patternPower - 0.01)
@@ -232,6 +247,8 @@ public class CraftingCpuLogic {
                 if (provider.pushPattern(details, craftingContainer)) {
                     energyService.extractAEPower(patternPower, Actionable.MODULATE, PowerMultiplier.CONFIG);
                     pushedPatterns++;
+                    pushedThisTask = true;
+                    progress.retryDelay = 0;
 
                     for (var expectedOutput : expectedOutputs) {
                         job.waitingFor.insert(expectedOutput.getKey(), expectedOutput.getLongValue(),
@@ -246,8 +263,8 @@ public class CraftingCpuLogic {
 
                     cluster.markDirty();
 
-                    task.getValue().value--;
-                    if (task.getValue().value <= 0) {
+                    progress.value--;
+                    if (progress.value <= 0) {
                         it.remove();
                         continue taskLoop;
                     }
@@ -256,17 +273,20 @@ public class CraftingCpuLogic {
                         break taskLoop;
                     }
 
-                    // Prepare next inputs.
-                    expectedOutputs.reset();
-                    expectedContainerItems.reset();
-                    craftingContainer = CraftingCpuHelper.extractPatternInputs(details, inventory,
-                            level, expectedOutputs, expectedContainerItems);
+                    craftingContainer = null;
+                } else {
+                    rejected = true;
                 }
             }
 
             // Failed to push this pattern, reinject the inputs.
             if (craftingContainer != null) {
                 CraftingCpuHelper.reinjectPatternInputs(inventory, craftingContainer);
+            }
+
+            if (rejected && !pushedThisTask) {
+                progress.nextAttemptTick = currentTick + Math.max(1, progress.retryDelay);
+                progress.retryDelay = Math.min(MAX_RETRY_DELAY, Math.max(1, progress.retryDelay * 2));
             }
         }
 

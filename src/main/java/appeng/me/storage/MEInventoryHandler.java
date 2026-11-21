@@ -31,7 +31,7 @@ import appeng.util.prioritylist.DefaultPriorityList;
 import appeng.util.prioritylist.IPartitionList;
 import appeng.util.prioritylist.PrecisePriorityList;
 
-public class MEInventoryHandler extends DelegatingMEInventory {
+public class MEInventoryHandler extends DelegatingMEInventory implements ChangeCountedStorage {
 
     private IPartitionList partitionList = DefaultPriorityList.INSTANCE;
     private IncludeExclude partitionListMode = IncludeExclude.WHITELIST;
@@ -123,8 +123,14 @@ public class MEInventoryHandler extends DelegatingMEInventory {
                     return;
                 }
 
+                if (this.partitionList.isEmpty()) {
+                    super.getAvailableStacks(out);
+                    return;
+                }
+
+                var whitelist = this.partitionListMode == IncludeExclude.WHITELIST;
                 for (var entry : getDelegate().getAvailableStacks()) {
-                    if (canExtract(entry.getKey())) {
+                    if (this.partitionList.isListed(entry.getKey()) == whitelist) {
                         out.add(entry.getKey(), entry.getLongValue());
                     }
                 }
@@ -132,6 +138,57 @@ public class MEInventoryHandler extends DelegatingMEInventory {
         } finally {
             this.gettingAvailableContent = false;
         }
+    }
+
+    public boolean wraps(MEStorage storage) {
+        return getDelegate() == storage;
+    }
+
+    public boolean wraps(Class<? extends MEStorage> type) {
+        return type.isInstance(getDelegate());
+    }
+
+    public boolean listsKey(AEKey key) {
+        if (!this.filterAvailableContents) {
+            return true;
+        }
+        if (!this.allowExtraction) {
+            return false;
+        }
+        return this.partitionList.isEmpty()
+                || this.partitionList.isListed(key) == (this.partitionListMode == IncludeExclude.WHITELIST);
+    }
+
+    @Override
+    public boolean reportsExactChanges() {
+        return getClass() == MEInventoryHandler.class && filtersKeepChangesExact();
+    }
+
+    protected final boolean filtersKeepChangesExact() {
+        if (this.voidOverflow) {
+            return false;
+        }
+        if (this.filterAvailableContents && (!this.allowExtraction || !this.filterOnExtraction)) {
+            return false;
+        }
+        return getDelegate().reportsExactChanges();
+    }
+
+    @Override
+    public boolean reportsAllChanges() {
+        return getDelegate().reportsAllChanges() || getChangeCount() != NOT_COUNTED;
+    }
+
+    @Override
+    public long getChangeCount() {
+        return getDelegate() instanceof ChangeCountedStorage counted ? counted.getChangeCount() : NOT_COUNTED;
+    }
+
+    @Override
+    public KeyCounter getAvailableStacks() {
+        var result = new KeyCounter(getEstimatedStackCount());
+        getAvailableStacks(result);
+        return result;
     }
 
     @Override

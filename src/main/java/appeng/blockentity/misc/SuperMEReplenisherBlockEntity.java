@@ -51,6 +51,7 @@ import appeng.helpers.externalstorage.GenericStackInv;
 import appeng.items.storage.BasicStorageCell;
 import appeng.items.storage.CreativeCellItem;
 import appeng.me.helpers.MachineSource;
+import appeng.me.storage.ChangeCountedStorage;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
 import appeng.menu.implementations.SuperMEReplenisherMenu;
@@ -82,6 +83,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     private final Reference2LongOpenHashMap<AEKeyType> amountsByType = new Reference2LongOpenHashMap<>();
     private final IActionSource actionSource = new MachineSource(this);
     private final MEStorage exposedStorage = new ReplenisherStorage();
+    private long contentChanges;
     private LazyOptional<MEStorage> exposedStorageCapability = LazyOptional.of(() -> exposedStorage);
 
     private long totalBytes;
@@ -265,6 +267,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
     }
 
     private void changeAmount(KeyCounter counter, AEKey what, long delta) {
+        contentChanges++;
         var newAmount = counter.get(what) + delta;
         if (newAmount > 0) {
             counter.set(what, newAmount);
@@ -467,6 +470,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         cells.readFromNBT(data, TAG_CELLS);
         config.readFromChildTag(data, TAG_CONFIG);
         readCounter(data.getList(TAG_STOCK, Tag.TAG_COMPOUND), stock);
+        contentChanges++;
         readCounter(data.getList(TAG_PENDING_INPUT, Tag.TAG_COMPOUND), pendingInput);
         tickRate = Mth.clamp(data.contains(TAG_TICK_RATE) ? data.getInt(TAG_TICK_RATE) : DEFAULT_TICK_RATE,
                 1, MAX_TICK_RATE);
@@ -547,6 +551,7 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         config.clear();
         stock.clear();
         pendingInput.clear();
+        contentChanges++;
         recalculateAmountsByType();
         updateCapacity();
     }
@@ -605,7 +610,12 @@ public class SuperMEReplenisherBlockEntity extends AENetworkBlockEntity
         return source.machine().orElse(null) == this;
     }
 
-    private final class ReplenisherStorage implements MEStorage {
+    private final class ReplenisherStorage implements ChangeCountedStorage {
+        @Override
+        public long getChangeCount() {
+            return contentChanges;
+        }
+
         @Override
         public boolean isPreferredStorageFor(AEKey what, IActionSource source) {
             return !isOwnAction(source) && pendingInput.get(what) > 0;

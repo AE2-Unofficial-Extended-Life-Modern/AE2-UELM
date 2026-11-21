@@ -36,6 +36,42 @@ public class TickTracker implements Comparable<TickTracker> {
 
     private long lastTick;
     private int currentRate;
+    private int queueVersion;
+    private boolean queued;
+
+    public record QueueEntry(TickTracker tracker, long nextTick, long lastTick, int rate,
+            int version) implements Comparable<QueueEntry> {
+        public boolean isCurrent() {
+            return tracker.queued && tracker.queueVersion == version;
+        }
+
+        @Override
+        public int compareTo(QueueEntry o) {
+            int next = Long.compare(nextTick, o.nextTick);
+            if (next != 0) {
+                return next;
+            }
+            int last = Long.compare(lastTick, o.lastTick);
+            if (last != 0) {
+                return last;
+            }
+            return Integer.compare(rate, o.rate);
+        }
+    }
+
+    public QueueEntry enqueue() {
+        queued = true;
+        return new QueueEntry(this, getNextTick(), lastTick, currentRate, ++queueVersion);
+    }
+
+    public void dequeue() {
+        queued = false;
+        queueVersion++;
+    }
+
+    public boolean isQueued() {
+        return queued;
+    }
 
     public TickTracker(TickingRequest req, IGridNode node, IGridTickable gt, long currentTick) {
         this.request = req;
