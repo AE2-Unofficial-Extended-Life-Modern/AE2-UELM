@@ -290,8 +290,11 @@ public class IOPortBlockEntity extends AENetworkInvBlockEntity
                 continue;
             }
 
+            var didWork = false;
             if (itemsToMove > 0) {
-                itemsToMove = transferContents(grid, cellInv, itemsToMove);
+                var itemsLeft = transferContents(grid, cellInv, itemsToMove);
+                didWork = itemsToMove != itemsLeft;
+                itemsToMove = itemsLeft;
 
                 if (itemsToMove > 0) {
                     ret = TickRateModulation.IDLE;
@@ -300,12 +303,22 @@ public class IOPortBlockEntity extends AENetworkInvBlockEntity
                 }
             }
 
-            if (itemsToMove > 0 && matchesFullnessMode(cellInv) && this.moveSlot(x)) {
+            if (itemsToMove > 0 && shouldMoveCell(cellInv, didWork) && this.moveSlot(x)) {
                 ret = TickRateModulation.URGENT;
             }
         }
 
         return ret;
+    }
+
+    public boolean shouldMoveCell(StorageCell inv, boolean didWork) {
+        return switch (manager.getSetting(Settings.FULLNESS_MODE)) {
+            // In this mode, work completes as soon as no more items are moved within one operation,
+            // independent of the actual inventory state
+            case HALF -> didWork;
+            case EMPTY -> inv.getStatus() == CellState.EMPTY;
+            case FULL -> inv.getStatus() == CellState.FULL;
+        };
     }
 
     /**
