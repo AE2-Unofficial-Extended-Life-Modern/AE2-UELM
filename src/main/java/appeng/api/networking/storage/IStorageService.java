@@ -89,4 +89,8 @@ public interface IStorageService extends IGridService {
      * <strong>THIS IS A PERFORMANCE INTENSIVE OPERATION AND SHOULD BE USED WITH CARE.</strong>
      */
     void invalidateCache();
+
+    default void markContentsChanged() {
+        invalidateCache();
+    }
 }

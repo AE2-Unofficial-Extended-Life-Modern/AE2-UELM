@@ -18,14 +18,19 @@
 
 package appeng.me.service;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
@@ -35,6 +40,8 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.nbt.CompoundTag;
 
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
@@ -49,6 +56,10 @@ import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.me.helpers.InterestManager;
 import appeng.me.helpers.StackWatcher;
+import appeng.me.service.helpers.CraftingServiceStorage;
+import appeng.me.storage.ChangeCountedStorage;
+import appeng.me.storage.DelegatingMEInventory;
+import appeng.me.storage.MEInventoryHandler;
 import appeng.me.storage.NetworkStorage;
 
 public class StorageService implements IStorageService, IGridServiceProvider {
@@ -69,48 +80,392 @@ public class StorageService implements IStorageService, IGridServiceProvider {
      * Publicly exposed cached available stacks.
      */
     private final KeyCounter cachedAvailableStacks = new KeyCounter();
+    private static final int REPORTED_REBUILD_INTERVAL = 200;
     /**
      * Private cached amounts, to ensure that we send correct change notifications even if
      * {@link #cachedAvailableStacks} is modified by mistake.
      */
     private Object2LongMap<AEKey> cachedAvailableAmounts = new Object2LongOpenHashMap<>();
     private boolean cachedStacksNeedUpdate = true;
+    private boolean contentsChanged = true;
+    private int ticksSinceRebuild;
+    private boolean allChangesReported;
     /**
      * Tracks the stack watcher associated with a given grid node. Needed to clean up watchers when the node leaves the
      * grid.
      */
     private final Map<IGridNode, StackWatcher<IStorageWatcherNode>> watchers = new IdentityHashMap<>();
 
+    private static final Deque<StorageService> BUILDING = new ArrayDeque<>();
+    private final Set<StorageService> includedServices = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Set<StorageService> dependents = Collections.newSetFromMap(new WeakHashMap<>());
+    private final MEStorage cachedView;
+    private boolean partialBuild;
+    private boolean checkingReports;
+
+    private KeyCounter pendingDeltas = new KeyCounter();
+    private KeyCounter spareDeltas = new KeyCounter();
+
+    private Object2LongLinkedOpenHashMap<AEKey> queuedNotifications = new Object2LongLinkedOpenHashMap<>();
+    private Object2LongLinkedOpenHashMap<AEKey> spareNotifications = new Object2LongLinkedOpenHashMap<>();
+
+    private final List<ChangeCountedStorage> countedMounts = new ArrayList<>();
+    private final LongArrayList countedMountChanges = new LongArrayList();
+
+    private static final StorageService[] NO_SERVICES = new StorageService[0];
+    private static int settleRound;
+    private static int settleDepth;
+    private int settledInRound;
+
     public StorageService() {
-        this.storage = new NetworkStorage();
+        this.storage = new NetworkStorage() {
+            @Override
+            public KeyCounter getAvailableStacks() {
+                if (!BUILDING.isEmpty() || isInUse()) {
+                    return super.getAvailableStacks();
+                }
+                var result = new KeyCounter();
+                result.addAll(getUpToDateCache());
+                return result;
+            }
+        };
+        this.storage.setChangeListener(new NetworkStorage.ChangeListener() {
+            @Override
+            public boolean ignoresChangesOf(MEStorage inv) {
+                return inv instanceof CraftingServiceStorage.Inventory || inv instanceof CachedView
+                        || inv instanceof MEInventoryHandler handler && handler.wraps(CachedView.class);
+            }
+
+            @Override
+            public void onExactChange(AEKey what, long delta) {
+                pendingDeltas.add(what, delta);
+            }
+
+            @Override
+            public void onOtherChange() {
+                markContentsChanged();
+            }
+        });
+        this.cachedView = new CachedView();
     }
 
     @Override
     public void onServerEndTick() {
-        if (interestManager.isEmpty()) {
-            // lazily rebuild cache list
+        ticksSinceRebuild++;
+        checkCountedMounts();
+        settleIncluded();
+
+        // Storages that don't report their changes have to be listed again every tick
+        if (contentsChanged || !allChangesReported || ticksSinceRebuild >= REPORTED_REBUILD_INTERVAL) {
             cachedStacksNeedUpdate = true;
-        } else {
-            // we need to rebuild the cache every tick to notify listeners
-            updateCachedStacks();
+            contentsChanged = false;
+            discardPendingDeltas();
+        } else if (!pendingDeltas.isEmpty()) {
+            flushPendingDeltas();
+        }
+
+        if (!interestManager.isEmpty()) {
+            // rebuild the cache now to notify listeners, otherwise it is rebuilt lazily
+            if (cachedStacksNeedUpdate) {
+                updateCachedStacks();
+            }
+            sendQueuedNotifications();
+        } else if (!queuedNotifications.isEmpty()) {
+            queuedNotifications.clear();
         }
     }
 
+    private void settleIncluded() {
+        if (includedServices.isEmpty()) {
+            return;
+        }
+        if (settleDepth == 0) {
+            settleRound++;
+        }
+        settledInRound = settleRound;
+        settleDepth++;
+        try {
+            for (var included : includedServices.toArray(NO_SERVICES)) {
+                if (included.settledInRound != settleRound && !included.isBuilding()) {
+                    included.settledInRound = settleRound;
+                    included.checkCountedMounts();
+                    included.settleIncluded();
+                    included.flushPendingDeltas();
+                }
+            }
+        } finally {
+            settleDepth--;
+        }
+    }
+
+    private void checkCountedMounts() {
+        for (int i = 0, size = countedMounts.size(); i < size; i++) {
+            if (countedMounts.get(i).getChangeCount() != countedMountChanges.getLong(i)) {
+                markContentsChanged();
+                return;
+            }
+        }
+    }
+
+    private void flushPendingDeltas() {
+        if (pendingDeltas.isEmpty()) {
+            return;
+        }
+        if (cachedStacksNeedUpdate || contentsChanged) {
+            discardPendingDeltas();
+        } else {
+            applyPendingDeltas();
+        }
+    }
+
+    private void discardPendingDeltas() {
+        if (!pendingDeltas.isEmpty()) {
+            pendingDeltas.clear();
+            markDependentsChanged();
+        }
+    }
+
+    private void applyPendingDeltas() {
+        for (var entry : pendingDeltas) {
+            if (cachedAvailableAmounts.getLong(entry.getKey()) + entry.getLongValue() < 0) {
+                cachedStacksNeedUpdate = true;
+                discardPendingDeltas();
+                return;
+            }
+        }
+
+        var deltas = pendingDeltas;
+        pendingDeltas = spareDeltas;
+        spareDeltas = deltas;
+        for (var entry : deltas) {
+            var delta = entry.getLongValue();
+            if (delta == 0) {
+                continue;
+            }
+            var what = entry.getKey();
+            var amount = cachedAvailableAmounts.getLong(what) + delta;
+            if (amount == 0) {
+                cachedAvailableStacks.remove(what);
+                cachedAvailableAmounts.removeLong(what);
+            } else {
+                cachedAvailableStacks.set(what, amount);
+                cachedAvailableAmounts.put(what, amount);
+            }
+            postWatcherUpdate(what, amount);
+        }
+
+        for (var dependent : dependents) {
+            if (includedServices.contains(dependent)) {
+                dependent.markContentsChanged();
+            } else {
+                dependent.onIncludedDeltas(this, deltas);
+            }
+        }
+        deltas.clear();
+    }
+
+    private void onIncludedDeltas(StorageService source, KeyCounter deltas) {
+        if (isBuilding() || contentsChanged || cachedStacksNeedUpdate) {
+            return;
+        }
+        var view = source.cachedView;
+        var mounts = new ArrayList<MEStorage>();
+        storage.forEachMount(mounts::add);
+        var found = false;
+        for (var mount : mounts) {
+            if (mount == view) {
+                found = true;
+                pendingDeltas.addAll(deltas);
+            } else if (mount instanceof MEInventoryHandler handler && handler.wraps(view)) {
+                found = true;
+                for (var entry : deltas) {
+                    if (handler.listsKey(entry.getKey())) {
+                        pendingDeltas.add(entry.getKey(), entry.getLongValue());
+                    }
+                }
+            }
+        }
+        if (!found) {
+            markContentsChanged();
+        }
+    }
+
+    private void markDependentsChanged() {
+        for (var dependent : dependents) {
+            dependent.markContentsChanged();
+        }
+    }
+
+    @Override
+    public void markContentsChanged() {
+        if (contentsChanged) {
+            return;
+        }
+        contentsChanged = true;
+        markDependentsChanged();
+    }
+
+    public MEStorage getCachedView() {
+        return cachedView;
+    }
+
     private void updateCachedStacks() {
+        if (storage.isInUse()) {
+            cachedStacksNeedUpdate = true;
+            return;
+        }
+
         cachedStacksNeedUpdate = false;
+        contentsChanged = false;
+        ticksSinceRebuild = 0;
+        pendingDeltas.clear();
+
+        for (var included : includedServices) {
+            included.dependents.remove(this);
+        }
+        includedServices.clear();
+
+        countedMounts.clear();
+        countedMountChanges.clear();
+        storage.forEachMount(mount -> {
+            if (mount instanceof ChangeCountedStorage counted) {
+                var changes = counted.getChangeCount();
+                if (changes != ChangeCountedStorage.NOT_COUNTED) {
+                    countedMounts.add(counted);
+                    countedMountChanges.add(changes);
+                }
+            }
+        });
 
         // Update cachedAvailableStacks to have the latest inventory contents
         cachedAvailableStacks.clear();
-        storage.getAvailableStacks(cachedAvailableStacks);
+        partialBuild = false;
+        BUILDING.push(this);
+        try {
+            storage.getAvailableStacks(cachedAvailableStacks);
+        } finally {
+            BUILDING.pop();
+        }
         // clear() only clears the inner maps,
         // so ensure that the outer map gets cleaned up too
         cachedAvailableStacks.removeEmptySubmaps();
+
+        var wasReported = allChangesReported;
+        allChangesReported = allMountsReportAllChanges();
+
+        if (partialBuild) {
+            cachedStacksNeedUpdate = true;
+            if (wasReported != allChangesReported) {
+                markDependentsChanged();
+            }
+            return;
+        }
 
         // Process the contents of cachedAvailableStacks, send notifications, and compute a new cachedAvailableAmounts
         InventoryListener listener = new InventoryListener(cachedAvailableAmounts, cachedAvailableStacks.size());
         cachedAvailableStacks.forEach(listener);
         listener.sendRemovedStacksToWatchers();
         cachedAvailableAmounts = listener.currentContents();
+
+        if (listener.changed || wasReported != allChangesReported) {
+            markDependentsChanged();
+        }
+    }
+
+    private boolean allMountsReportAllChanges() {
+        if (checkingReports) {
+            return false;
+        }
+        checkingReports = true;
+        try {
+            return storage.allMountsReportAllChanges();
+        } finally {
+            checkingReports = false;
+        }
+    }
+
+    private KeyCounter getUpToDateCache() {
+        checkCountedMounts();
+        settleIncluded();
+        if (contentsChanged || !allChangesReported) {
+            cachedStacksNeedUpdate = true;
+        }
+        return getCachedInventory();
+    }
+
+    private boolean isBuilding() {
+        return BUILDING.contains(this);
+    }
+
+    private class CachedView extends DelegatingMEInventory {
+        CachedView() {
+            super(storage);
+        }
+
+        @Override
+        public void getAvailableStacks(KeyCounter out) {
+            var reader = BUILDING.peek();
+            if (isBuilding()) {
+                for (var building : BUILDING) {
+                    if (building == StorageService.this) {
+                        break;
+                    }
+                    building.partialBuild = true;
+                }
+                super.getAvailableStacks(out);
+                return;
+            }
+            var cached = getUpToDateCache();
+            if (cachedStacksNeedUpdate && storage.isInUse()) {
+                // Couldn't be listed right now, so whoever reads this has to come back for it
+                for (var building : BUILDING) {
+                    building.partialBuild = true;
+                }
+            }
+            if (reader != null) {
+                reader.includedServices.add(StorageService.this);
+                dependents.add(reader);
+            }
+            if (reader != null && includedServices.contains(reader)) {
+                super.getAvailableStacks(out);
+                return;
+            }
+
+            out.addAll(cached);
+            if (reader != null) {
+                reader.includedServices.addAll(includedServices);
+            }
+        }
+
+        @Override
+        public KeyCounter getAvailableStacks() {
+            var result = new KeyCounter();
+            getAvailableStacks(result);
+            return result;
+        }
+
+        @Override
+        public boolean reportsAllChanges() {
+            return allMountsReportAllChanges();
+        }
+
+        @Override
+        public boolean anyAvailable(Predicate<AEKey> predicate) {
+            if (!BUILDING.isEmpty()) {
+                return super.anyAvailable(predicate);
+            }
+            for (var entry : getUpToDateCache()) {
+                if (predicate.test(entry.getKey())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public int getEstimatedStackCount() {
+            return isBuilding() ? super.getEstimatedStackCount() : cachedAvailableStacks.size();
+        }
     }
 
     /**
@@ -121,6 +476,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
         private final Object2LongMap<AEKey> previous;
         private final Object2LongMap<AEKey> next;
+        private boolean changed;
 
         /**
          * @param previous The last known contents of this storage
@@ -140,6 +496,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
             // Remove the key from the previous state, to indicate that we've checked it and sent notifications
             if (newAmount != previous.removeLong(what)) {
                 postWatcherUpdate(what, newAmount);
+                changed = true;
             }
         }
 
@@ -152,6 +509,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
                 var newAmount = next.getOrDefault(what, 0);
                 if (newAmount == 0) {
                     postWatcherUpdate(what, newAmount);
+                    changed = true;
                 }
             }
         }
@@ -162,11 +520,31 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     }
 
     private void postWatcherUpdate(AEKey what, long newAmount) {
-        for (var watcher : interestManager.get(what)) {
-            watcher.getHost().onStackChange(what, newAmount);
+        if (!interestManager.isEmpty()) {
+            queuedNotifications.put(what, newAmount);
         }
-        for (var watcher : interestManager.getAllStacksWatchers()) {
-            watcher.getHost().onStackChange(what, newAmount);
+    }
+
+    private void sendQueuedNotifications() {
+        if (queuedNotifications.isEmpty()) {
+            return;
+        }
+        var notifications = queuedNotifications;
+        queuedNotifications = spareNotifications;
+        spareNotifications = notifications;
+        try {
+            for (var entry : notifications.object2LongEntrySet()) {
+                var what = entry.getKey();
+                var newAmount = entry.getLongValue();
+                for (var watcher : interestManager.get(what)) {
+                    watcher.getHost().onStackChange(what, newAmount);
+                }
+                for (var watcher : interestManager.getAllStacksWatchers()) {
+                    watcher.getHost().onStackChange(what, newAmount);
+                }
+            }
+        } finally {
+            notifications.clear();
         }
     }
 
@@ -215,6 +593,9 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
     @Override
     public KeyCounter getCachedInventory() {
+        if (!cachedStacksNeedUpdate && !pendingDeltas.isEmpty()) {
+            applyPendingDeltas();
+        }
         if (cachedStacksNeedUpdate) {
             updateCachedStacks();
         }
@@ -264,6 +645,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
     @Override
     public void invalidateCache() {
         cachedStacksNeedUpdate = true;
+        markContentsChanged();
     }
 
     /**
@@ -300,6 +682,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
             // Mount this inventory into the network storage
             storage.mount(priority, inventory);
+            markContentsChanged();
         }
 
         public void update() {
@@ -321,6 +704,7 @@ public class StorageService implements IStorageService, IGridServiceProvider {
 
         private void unmount(MEStorage inventory) {
             storage.unmount(inventory);
+            markContentsChanged();
         }
     }
 }

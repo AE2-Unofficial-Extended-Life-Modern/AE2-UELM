@@ -40,12 +40,15 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.model.data.ModelData;
 
+import appeng.api.config.Actionable;
 import appeng.api.implementations.blockentities.IChestOrDrive;
 import appeng.api.inventories.InternalInventory;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNodeListener;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.orientation.BlockOrientation;
 import appeng.api.orientation.RelativeSide;
+import appeng.api.stacks.AEKey;
 import appeng.api.storage.IStorageMounts;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
@@ -59,6 +62,7 @@ import appeng.client.render.model.DriveModelData;
 import appeng.core.AELog;
 import appeng.core.definitions.AEBlocks;
 import appeng.helpers.IPriorityHost;
+import appeng.me.storage.DelegatingMEInventory;
 import appeng.me.storage.DriveWatcher;
 import appeng.menu.ISubMenu;
 import appeng.menu.MenuOpener;
@@ -71,7 +75,9 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
 
     private final AppEngCellInventory inv = new AppEngCellInventory(this, getCellCount());
     private final DriveWatcher[] invBySlot = new DriveWatcher[getCellCount()];
+    private final MEStorage[] directBySlot = new MEStorage[getCellCount()];
     private boolean isCached = false;
+    private boolean networkChangeInProgress;
     private int priority = 0;
     private boolean wasOnline = false;
     // This is only used on the client
@@ -231,7 +237,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
 
     @Override
     public @Nullable MEStorage getCellInventory(int slot) {
-        return this.invBySlot[slot];
+        return this.directBySlot[slot];
     }
 
     @Nullable
@@ -354,6 +360,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
     // Returns idle power draw of slot
     private double updateStateForSlot(int slot) {
         this.invBySlot[slot] = null;
+        this.directBySlot[slot] = null;
         this.inv.setHandler(slot, null);
 
         var is = this.inv.getStackInSlot(slot);
@@ -363,8 +370,9 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
             if (cell != null) {
                 this.inv.setHandler(slot, cell);
 
-                var driveWatcher = new DriveWatcher(cell, () -> blinkCell(slot));
+                var driveWatcher = new MountedCell(cell, slot);
                 this.invBySlot[slot] = driveWatcher;
+                this.directBySlot[slot] = new DirectCellAccess(driveWatcher);
 
                 return cell.getIdleDrain();
             }
@@ -418,6 +426,16 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
      */
     private void onCellContentChanged() {
         this.level.blockEntityChanged(this.worldPosition);
+        if (!networkChangeInProgress) {
+            markNetworkChanged();
+        }
+    }
+
+    private void markNetworkChanged() {
+        var grid = getMainNode().getGrid();
+        if (grid != null) {
+            grid.getStorageService().markContentsChanged();
+        }
     }
 
     private static class CellValidInventoryFilter implements IAEItemFilter {
@@ -455,5 +473,57 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
     @Override
     public ItemStack getMainMenuIcon() {
         return AEBlocks.DRIVE.stack();
+    }
+
+    private class DirectCellAccess extends DelegatingMEInventory {
+        DirectCellAccess(MEStorage watcher) {
+            super(watcher);
+        }
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            var inserted = super.insert(what, amount, mode, source);
+            if (inserted > 0 && mode == Actionable.MODULATE) {
+                markNetworkChanged();
+            }
+            return inserted;
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            var extracted = super.extract(what, amount, mode, source);
+            if (extracted > 0 && mode == Actionable.MODULATE) {
+                markNetworkChanged();
+            }
+            return extracted;
+        }
+    }
+
+    private class MountedCell extends DriveWatcher {
+        MountedCell(StorageCell cell, int slot) {
+            super(cell, () -> blinkCell(slot));
+        }
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            var previous = networkChangeInProgress;
+            networkChangeInProgress = true;
+            try {
+                return super.insert(what, amount, mode, source);
+            } finally {
+                networkChangeInProgress = previous;
+            }
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            var previous = networkChangeInProgress;
+            networkChangeInProgress = true;
+            try {
+                return super.extract(what, amount, mode, source);
+            } finally {
+                networkChangeInProgress = previous;
+            }
+        }
     }
 }
