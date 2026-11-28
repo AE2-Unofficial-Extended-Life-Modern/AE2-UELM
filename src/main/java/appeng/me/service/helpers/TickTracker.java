@@ -27,7 +27,7 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickingRequest;
 
-public class TickTracker implements Comparable<TickTracker> {
+public class TickTracker {
 
     private final TickingRequest request;
     private final IGridTickable gt;
@@ -80,24 +80,6 @@ public class TickTracker implements Comparable<TickTracker> {
         this.setCurrentRate(req.initialTickRate());
         this.setLastTick(currentTick);
         this.statistics = new LongSummaryStatistics();
-    }
-
-    @Override
-    public int compareTo(TickTracker t) {
-        int next = Long.compare(this.getNextTick(), t.getNextTick());
-
-        if (next != 0) {
-            return next;
-        }
-
-        int last = Long.compare(this.getLastTick(), t.getLastTick());
-
-        if (last != 0) {
-            return last;
-        }
-
-        return Integer.compare(this.getCurrentRate(), t.getCurrentRate());
-
     }
 
     public void addEntityCrashInfo(CrashReportCategory category) {

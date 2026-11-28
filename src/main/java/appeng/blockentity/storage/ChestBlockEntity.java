@@ -115,6 +115,7 @@ public class ChestBlockEntity extends AENetworkPowerBlockEntity
     private boolean wasOnline = false;
     private AEColor paintedColor = AEColor.TRANSPARENT;
     private boolean isCached = false;
+    private boolean networkChangeInProgress;
     private ChestMonitorHandler cellHandler;
     private IFluidHandler fluidHandler;
     private SupplierStorage supplierStorage;
@@ -568,6 +569,9 @@ public class ChestBlockEntity extends AENetworkPowerBlockEntity
             cellHandler.cellInventory.persist();
         }
         this.level.blockEntityChanged(this.worldPosition);
+        if (!networkChangeInProgress) {
+            markNetworkChanged();
+        }
     }
 
     public void openCellInventoryMenu(Player player) {
@@ -617,12 +621,19 @@ public class ChestBlockEntity extends AENetworkPowerBlockEntity
 
         @Override
         public boolean reportsAllChanges() {
-            return true;
+            return getDelegate().reportsAllChanges();
         }
 
         @Override
         public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
-            var inserted = super.insert(what, amount, mode, source);
+            long inserted;
+            var previous = networkChangeInProgress;
+            networkChangeInProgress = true;
+            try {
+                inserted = super.insert(what, amount, mode, source);
+            } finally {
+                networkChangeInProgress = previous;
+            }
             if (inserted > 0 && mode == Actionable.MODULATE) {
                 blinkCell(0);
             }
@@ -631,7 +642,14 @@ public class ChestBlockEntity extends AENetworkPowerBlockEntity
 
         @Override
         public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
-            var extracted = super.extract(what, amount, mode, source);
+            long extracted;
+            var previous = networkChangeInProgress;
+            networkChangeInProgress = true;
+            try {
+                extracted = super.extract(what, amount, mode, source);
+            } finally {
+                networkChangeInProgress = previous;
+            }
             if (extracted > 0 && mode == Actionable.MODULATE) {
                 blinkCell(0);
             }

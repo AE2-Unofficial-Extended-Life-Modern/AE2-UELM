@@ -85,11 +85,6 @@ public class DriveWatcher extends MEInventoryHandler {
     }
 
     @Override
-    public boolean reportsAllChanges() {
-        return true;
-    }
-
-    @Override
     public boolean acceptsSticky(AEKey what) {
         return super.acceptsSticky(what) && getDelegate().acceptsSticky(what);
     }

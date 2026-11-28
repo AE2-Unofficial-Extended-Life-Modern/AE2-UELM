@@ -77,6 +77,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
     private final DriveWatcher[] invBySlot = new DriveWatcher[getCellCount()];
     private final MEStorage[] directBySlot = new MEStorage[getCellCount()];
     private boolean isCached = false;
+    private boolean networkChangeInProgress;
     private int priority = 0;
     private boolean wasOnline = false;
     // This is only used on the client
@@ -369,7 +370,7 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
             if (cell != null) {
                 this.inv.setHandler(slot, cell);
 
-                var driveWatcher = new DriveWatcher(cell, () -> blinkCell(slot));
+                var driveWatcher = new MountedCell(cell, slot);
                 this.invBySlot[slot] = driveWatcher;
                 this.directBySlot[slot] = new DirectCellAccess(driveWatcher);
 
@@ -425,6 +426,16 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
      */
     private void onCellContentChanged() {
         this.level.blockEntityChanged(this.worldPosition);
+        if (!networkChangeInProgress) {
+            markNetworkChanged();
+        }
+    }
+
+    private void markNetworkChanged() {
+        var grid = getMainNode().getGrid();
+        if (grid != null) {
+            grid.getStorageService().markContentsChanged();
+        }
     }
 
     private static class CellValidInventoryFilter implements IAEItemFilter {
@@ -486,11 +497,32 @@ public class DriveBlockEntity extends AENetworkInvBlockEntity
             }
             return extracted;
         }
+    }
 
-        private void markNetworkChanged() {
-            var grid = getMainNode().getGrid();
-            if (grid != null) {
-                grid.getStorageService().markContentsChanged();
+    private class MountedCell extends DriveWatcher {
+        MountedCell(StorageCell cell, int slot) {
+            super(cell, () -> blinkCell(slot));
+        }
+
+        @Override
+        public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+            var previous = networkChangeInProgress;
+            networkChangeInProgress = true;
+            try {
+                return super.insert(what, amount, mode, source);
+            } finally {
+                networkChangeInProgress = previous;
+            }
+        }
+
+        @Override
+        public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+            var previous = networkChangeInProgress;
+            networkChangeInProgress = true;
+            try {
+                return super.extract(what, amount, mode, source);
+            } finally {
+                networkChangeInProgress = previous;
             }
         }
     }

@@ -86,12 +86,7 @@ public abstract class ExternalStorageFacade implements MEStorage {
     protected abstract int extractExternal(AEKey what, int amount, Actionable mode);
 
     public boolean containsAnyFuzzy(Set<AEKey> keys) {
-        for (var entry : getAvailableStacks()) {
-            if (keys.contains(entry.getKey().dropSecondary())) {
-                return true;
-            }
-        }
-        return false;
+        return anyAvailable(key -> keys.contains(key.dropSecondary()));
     }
 
     public static ExternalStorageFacade of(IFluidHandler handler) {

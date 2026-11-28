@@ -47,12 +47,8 @@ public class CompositeStorage implements MEStorage, ITickingMonitor {
                 if (facade.containsAnyFuzzy(keys)) {
                     return true;
                 }
-            } else {
-                for (var entry : storage.getAvailableStacks()) {
-                    if (keys.contains(entry.getKey().dropSecondary())) {
-                        return true;
-                    }
-                }
+            } else if (storage.anyAvailable(key -> keys.contains(key.dropSecondary()))) {
+                return true;
             }
         }
         return false;
